@@ -18,6 +18,8 @@ export default defineConfig({
           environment: "node",
           include: ["tests/**/*.test.ts"],
           exclude: ["tests/ui/**"],
+          // Argon2 и параллельные воркеры иногда «крадут» CPU: 5s не хватает.
+          testTimeout: 15_000,
         },
       },
       {
