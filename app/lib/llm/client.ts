@@ -25,13 +25,20 @@ export type ProviderConfig = {
   contextWindow: number;
 };
 
-export function getAvailableProviders(): ProviderConfig[] {
-  const lmStudioUrl = process.env.LMSTUDIO_BASE_URL ?? "http://localhost:1234";
+const DEFAULT_LMSTUDIO_BASE_URL = "http://localhost:1234";
 
+export function normalizeLmStudioBaseUrl(
+  rawBaseUrl: string | undefined = process.env.LMSTUDIO_BASE_URL,
+): string {
+  const baseUrl = (rawBaseUrl?.trim() || DEFAULT_LMSTUDIO_BASE_URL).replace(/\/+$/, "");
+  return baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
+}
+
+export function getAvailableProviders(): ProviderConfig[] {
   return [
     {
       id: "lmstudio",
-      baseUrl: `${lmStudioUrl.replace(/\/$/, "")}/v1`,
+      baseUrl: normalizeLmStudioBaseUrl(),
       apiKey: "lm-studio",
       defaultModel: process.env.LMSTUDIO_MODEL ?? "qwen2.5-coder-7b-instruct",
       contextWindow: 32_000,

@@ -27,9 +27,9 @@
  */
 
 import { logger } from "~/lib/utils/logger";
+import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 
 const SCOPE = "ragEmbeddings";
-const LMSTUDIO_BASE = process.env.LMSTUDIO_BASE_URL ?? "http://localhost:1234/v1";
 const EMBED_MODEL =
   process.env.LMSTUDIO_EMBEDDING_MODEL ?? "text-embedding-nomic-embed-text-v1.5";
 const MAX_TEXT_LEN = 4000;
@@ -115,7 +115,7 @@ export async function embedText(
   if (cached) return cached;
 
   try {
-    const res = await fetch(`${LMSTUDIO_BASE}/embeddings`, {
+    const res = await fetch(`${normalizeLmStudioBaseUrl()}/embeddings`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

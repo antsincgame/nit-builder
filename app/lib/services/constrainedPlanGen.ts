@@ -27,11 +27,11 @@
  */
 
 import { logger } from "~/lib/utils/logger";
+import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 import { PlanSchema, type Plan } from "~/lib/utils/planSchema";
 import { planJsonSchema } from "~/lib/utils/planJsonSchema";
 
 const SCOPE = "constrainedPlanGen";
-const LMSTUDIO_BASE = process.env.LMSTUDIO_BASE_URL ?? "http://localhost:1234/v1";
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 let runtimeDisabled = false;
@@ -85,7 +85,7 @@ export async function generatePlanConstrained(
 
   try {
     const requestSignal = timeoutSignal(DEFAULT_TIMEOUT_MS, params.signal);
-    const res = await fetch(`${LMSTUDIO_BASE}/chat/completions`, {
+    const res = await fetch(`${normalizeLmStudioBaseUrl()}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

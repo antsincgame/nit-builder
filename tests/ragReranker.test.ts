@@ -6,10 +6,12 @@ const originalFetch = global.fetch;
 beforeEach(() => {
   resetRerankerState();
   delete process.env.NIT_RERANKER_ENABLED;
+  delete process.env.LMSTUDIO_BASE_URL;
 });
 
 afterEach(() => {
   global.fetch = originalFetch;
+  delete process.env.LMSTUDIO_BASE_URL;
 });
 
 function mockRerankResponse(scores: number[]) {
@@ -117,5 +119,21 @@ describe("rerank", () => {
       { id: "a", score: 0.9 },
       { id: "b", score: 0.4 },
     ]);
+  });
+
+  it("нормализует LMSTUDIO_BASE_URL без /v1 перед rerank fetch", async () => {
+    process.env.LMSTUDIO_BASE_URL = "http://localhost:1234";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [{ index: 0, relevance_score: 0.9 }] }),
+    } as Response);
+    global.fetch = fetchMock;
+
+    await rerank("кофейня", [{ id: "a", text: "бариста" }]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:1234/v1/rerank",
+      expect.any(Object),
+    );
   });
 });

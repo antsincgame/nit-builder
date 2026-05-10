@@ -1,9 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  embedText,
   truncateAndRenormalize,
   getTargetEmbeddingDims,
   resetEmbeddingState,
 } from "~/lib/services/ragEmbeddings";
+
+const originalFetch = global.fetch;
 
 describe("truncateAndRenormalize", () => {
   it("возвращает вход без изменений если вектор короче целевой размерности", () => {
@@ -46,10 +49,13 @@ describe("truncateAndRenormalize", () => {
 describe("getTargetEmbeddingDims", () => {
   beforeEach(() => {
     delete process.env.NIT_EMBEDDING_DIMS;
+    delete process.env.LMSTUDIO_BASE_URL;
     resetEmbeddingState();
   });
   afterEach(() => {
     delete process.env.NIT_EMBEDDING_DIMS;
+    delete process.env.LMSTUDIO_BASE_URL;
+    global.fetch = originalFetch;
   });
 
   it("возвращает null по умолчанию (full dim)", () => {
@@ -70,5 +76,33 @@ describe("getTargetEmbeddingDims", () => {
     expect(getTargetEmbeddingDims()).toBeNull();
     process.env.NIT_EMBEDDING_DIMS = "-128";
     expect(getTargetEmbeddingDims()).toBeNull();
+  });
+});
+
+describe("embedText LM Studio URL", () => {
+  beforeEach(() => {
+    delete process.env.LMSTUDIO_BASE_URL;
+    resetEmbeddingState();
+  });
+
+  afterEach(() => {
+    delete process.env.LMSTUDIO_BASE_URL;
+    global.fetch = originalFetch;
+  });
+
+  it("нормализует LMSTUDIO_BASE_URL без /v1 перед embeddings fetch", async () => {
+    process.env.LMSTUDIO_BASE_URL = "http://localhost:1234";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ embedding: [0.1, 0.2, 0.3] }] }),
+    } as Response);
+    global.fetch = fetchMock;
+
+    await embedText("кофейня");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:1234/v1/embeddings",
+      expect.any(Object),
+    );
   });
 });

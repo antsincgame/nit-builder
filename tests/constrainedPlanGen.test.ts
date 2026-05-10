@@ -44,10 +44,12 @@ function mockChatResponse(content: string, status = 200) {
 beforeEach(() => {
   resetConstrainedDecodingState();
   delete process.env.NIT_CONSTRAINED_DECODING_ENABLED;
+  delete process.env.LMSTUDIO_BASE_URL;
 });
 
 afterEach(() => {
   global.fetch = originalFetch;
+  delete process.env.LMSTUDIO_BASE_URL;
 });
 
 describe("isConstrainedDecodingEnabled", () => {
@@ -178,5 +180,22 @@ describe("generatePlanConstrained", () => {
     expect(body.response_format.json_schema.name).toBe("plan");
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(body.response_format.json_schema.schema).toBeDefined();
+  });
+
+  it("нормализует LMSTUDIO_BASE_URL без /v1 перед прямым fetch", async () => {
+    process.env.LMSTUDIO_BASE_URL = "http://localhost:1234";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ choices: [{ message: { content: JSON.stringify(VALID_PLAN) } }] }),
+    } as Response);
+    global.fetch = fetchMock;
+
+    await generatePlanConstrained(baseParams);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://localhost:1234/v1/chat/completions",
+      expect.any(Object),
+    );
   });
 });

@@ -4,6 +4,7 @@ import {
   getPreferredProvider,
   calcMaxOutput,
   checkContextBudget,
+  normalizeLmStudioBaseUrl,
 } from "~/lib/llm/client";
 
 // Snapshot env to restore between tests
@@ -46,6 +47,21 @@ describe("llm/client", () => {
       process.env.LMSTUDIO_BASE_URL = "http://localhost:1234/";
       const providers = getAvailableProviders();
       expect(providers[0]?.baseUrl).toBe("http://localhost:1234/v1");
+    });
+
+    it("does not duplicate /v1 when env already points at OpenAI base", () => {
+      process.env.LMSTUDIO_BASE_URL = "http://localhost:1234/v1";
+      const providers = getAvailableProviders();
+      expect(providers[0]?.baseUrl).toBe("http://localhost:1234/v1");
+    });
+
+    it("normalizes LM Studio base URL consistently", () => {
+      expect(normalizeLmStudioBaseUrl("http://localhost:1234")).toBe(
+        "http://localhost:1234/v1",
+      );
+      expect(normalizeLmStudioBaseUrl("http://localhost:1234/v1/")).toBe(
+        "http://localhost:1234/v1",
+      );
     });
 
     it("respects custom LMSTUDIO_MODEL", () => {

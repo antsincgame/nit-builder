@@ -16,6 +16,7 @@
 import { embed, embedMany } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { TEMPLATE_CATALOG } from "~/lib/config/htmlTemplatesCatalog";
+import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 import { logger } from "~/lib/utils/logger";
 import { applyEmbeddingPrefix } from "~/lib/services/ragEmbeddings";
 
@@ -33,12 +34,8 @@ function isDisabled(): boolean {
 }
 
 function getEmbeddingClient() {
-  const baseURL = (process.env.LMSTUDIO_BASE_URL ?? "http://localhost:1234").replace(
-    /\/$/,
-    "",
-  );
   return createOpenAI({
-    baseURL: `${baseURL}/v1`,
+    baseURL: normalizeLmStudioBaseUrl(),
     apiKey: "lm-studio",
   });
 }

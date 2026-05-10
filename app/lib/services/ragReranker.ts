@@ -30,9 +30,9 @@
  */
 
 import { logger } from "~/lib/utils/logger";
+import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 
 const SCOPE = "ragReranker";
-const LMSTUDIO_BASE = process.env.LMSTUDIO_BASE_URL ?? "http://localhost:1234/v1";
 const RERANK_MODEL = process.env.LMSTUDIO_RERANK_MODEL ?? "bge-reranker-v2-m3";
 const MAX_DOC_LEN = 2000;
 const MAX_CACHE = 1000;
@@ -117,7 +117,7 @@ export async function rerank(
     const documents = missing.map((c) => c.text.slice(0, MAX_DOC_LEN));
     const requestSignal = timeoutSignal(DEFAULT_TIMEOUT_MS, signal);
 
-    const res = await fetch(`${LMSTUDIO_BASE}/rerank`, {
+    const res = await fetch(`${normalizeLmStudioBaseUrl()}/rerank`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
