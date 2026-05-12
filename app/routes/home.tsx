@@ -88,17 +88,41 @@ export default function Home() {
     reset,
   } = flow;
 
-  const downloadHtml = useCallback(() => {
+  const downloadHtml = useCallback(async () => {
     const content = streamingHtml || html;
     if (!content) return;
-    const blob = new Blob([content], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `nit-${lastTemplateId || "site"}-${Date.now()}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("HTML скачан");
+    const filename = `nit-${lastTemplateId || "site"}-${Date.now()}.html`;
+
+    // Скачиваем через /api/bundle — серверный compile-step Tailwind:
+    // ~300 KB CDN-скрипт превращается в ~8-15 KB inline CSS. Lighthouse
+    // mobile LCP +30-40 баллов. При ошибке (endpoint недоступен, compile
+    // упал, нет постcss/tailwind в проде) — graceful fallback на raw blob.
+    try {
+      const resp = await fetch("/api/bundle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: content, filename }),
+      });
+      if (!resp.ok) throw new Error(`bundle ${resp.status}`);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("HTML скачан");
+    } catch (err) {
+      console.error("[downloadHtml] bundle failed, fallback to raw:", err);
+      const blob = new Blob([content], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.error("Compile упал, скачан raw HTML");
+    }
   }, [html, streamingHtml, lastTemplateId]);
 
   // Keyboard shortcuts
