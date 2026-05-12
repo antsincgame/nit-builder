@@ -26,9 +26,9 @@ NIT Builder is an open-source AI website generator designed to run on your own c
 
 ### What you can create
 
-16 built-in templates covering the most common use cases:
+22 built-in templates covering the most common use cases:
 
-☕ Coffee shops · 💈 Barbershops · 📸 Photographers · 💻 Developer portfolios · 💒 Wedding invitations · 💪 Fitness trainers · 🍽️ Restaurants · 📚 Tutors · 💅 Beauty services · 🔧 Auto shops · 🎨 Handmade businesses · 🎧 DJs/Musicians · 🚀 SaaS landings · 🦷 Medical clinics · 🧘 Yoga studios · 📄 Universal fallback
+☕ Coffee shops · 💈 Barbershops · 📸 Photographers · 💻 Developer portfolios · 💒 Wedding invitations · 💪 Fitness trainers · 🍽️ Restaurants · 📚 Tutors · 💅 Beauty services · 🔧 Auto shops · 🎨 Handmade businesses · 🎧 DJs/Musicians · 🚀 SaaS landings · 🦷 Medical clinics · 🧘 Yoga studios · 🖤 Tattoo studios · 💐 Flower shops · 🗣️ Language schools · ⚖️ Law firms · 🎮 Indie game studios · 🏠 Real estate · 📄 Universal fallback
 
 ---
 
@@ -155,7 +155,7 @@ Open an issue — use the templates in `.github/ISSUE_TEMPLATE/`.
 
 ## Roadmap
 
-- [x] v1.0 — HTML-first pipeline, 16 templates, LM Studio + Groq support
+- [x] v1.0 — HTML-first pipeline, 22 templates, LM Studio + Groq + OpenRouter support
 - [ ] v1.1 — Multi-user auth, "My Sites" page with Appwrite
 - [ ] v1.2 — Save your own templates, community template gallery
 - [ ] v1.3 — Image generation via Stable Diffusion (local)
