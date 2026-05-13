@@ -22,20 +22,21 @@ describe("extractZonesFromHtml", () => {
 
   it("различает text/richtext/image", () => {
     const html = `
-      <h1 data-edit="t1" data-edit-type="text" data-edit-label="T">x</h1>
-      <div data-edit="r1" data-edit-type="richtext" data-edit-label="R"><p>y</p></div>
-      <img data-edit="i1" data-edit-type="image" data-edit-label="I" src="a.jpg">
+      <h1 data-edit="t1" data-edit-type="text" data-edit-label="T1">x</h1>
+      <div data-edit="r1" data-edit-type="richtext" data-edit-label="R1"><p>y</p></div>
+      <img data-edit="i1" data-edit-type="image" data-edit-label="I1" src="a.jpg">
     `;
     const zones = extractZonesFromHtml(html);
     expect(zones.map((z) => z.type)).toEqual(["text", "richtext", "image"]);
   });
 
-  it("отбрасывает невалидные id (UPPERCASE, начинается с цифры, спецсимволы)", () => {
+  it("отбрасывает невалидные id (UPPERCASE, начинается с цифры, спецсимволы, < 2 символов)", () => {
     const html = `
-      <h1 data-edit="HERO_TITLE" data-edit-type="text" data-edit-label="a">x</h1>
-      <h1 data-edit="1bad" data-edit-type="text" data-edit-label="b">x</h1>
-      <h1 data-edit="with-dash" data-edit-type="text" data-edit-label="c">x</h1>
-      <h1 data-edit="good_one" data-edit-type="text" data-edit-label="d">x</h1>
+      <h1 data-edit="HERO_TITLE" data-edit-type="text" data-edit-label="aa">x</h1>
+      <h1 data-edit="1bad" data-edit-type="text" data-edit-label="bb">x</h1>
+      <h1 data-edit="with-dash" data-edit-type="text" data-edit-label="cc">x</h1>
+      <h1 data-edit="z" data-edit-type="text" data-edit-label="single char">x</h1>
+      <h1 data-edit="good_one" data-edit-type="text" data-edit-label="dd">x</h1>
     `;
     const zones = extractZonesFromHtml(html);
     expect(zones.map((z) => z.id)).toEqual(["good_one"]);
@@ -53,7 +54,7 @@ describe("extractZonesFromHtml", () => {
   it("отбрасывает зоны с пустым/коротким label", () => {
     const html = `
       <h1 data-edit="no_label" data-edit-type="text">x</h1>
-      <h1 data-edit="short" data-edit-type="text" data-edit-label="a">x</h1>
+      <h1 data-edit="short_label" data-edit-type="text" data-edit-label="a">x</h1>
       <h1 data-edit="ok" data-edit-type="text" data-edit-label="OK">x</h1>
     `;
     const zones = extractZonesFromHtml(html);
@@ -85,20 +86,22 @@ describe("extractZonesFromHtml", () => {
   });
 
   it("section = 'general' если нет родителя с id", () => {
-    const html = '<div><h1 data-edit="x" data-edit-type="text" data-edit-label="X">y</h1></div>';
+    const html =
+      '<div><h1 data-edit="xx" data-edit-type="text" data-edit-label="XX">y</h1></div>';
     const zones = extractZonesFromHtml(html);
     expect(zones[0]?.section).toBe("general");
   });
 
   it("обрезает label до 80 символов", () => {
     const longLabel = "A".repeat(200);
-    const html = `<h1 data-edit="x" data-edit-type="text" data-edit-label="${longLabel}">y</h1>`;
+    const html = `<h1 data-edit="xx" data-edit-type="text" data-edit-label="${longLabel}">y</h1>`;
     const zones = extractZonesFromHtml(html);
     expect(zones[0]?.label.length).toBe(80);
   });
 
   it("терпит невалидный HTML и просто возвращает что нашёл", () => {
-    const html = '<h1 data-edit="ok" data-edit-type="text" data-edit-label="OK">unclosed';
+    const html =
+      '<h1 data-edit="ok" data-edit-type="text" data-edit-label="OK">unclosed';
     expect(() => extractZonesFromHtml(html)).not.toThrow();
   });
 });
