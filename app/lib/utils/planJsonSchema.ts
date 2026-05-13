@@ -11,10 +11,11 @@
  * обновить этот файл. Есть рунтайм-проверка в constrainedPlanGen: вывод проходит
  * через PlanSchema.safeParse, и расхождение логгируется как zod_mismatch.
  *
- * Optional vs required (Tier 4):
+ * Optional vs required (Tier 4 / Tier 5):
  *   - Поля в properties но НЕ в required — constrained decoding позволяет модели
  *     выбрать включать ли их. Это критично для полей которые неуместны для всех
  *     ниш (pricing_tiers для юриста, faq для персонального блога).
+ *   - editable_zones / needs_admin / admin_intent_confidence — Tier 5, тоже optional.
  */
 
 export const planJsonSchema = {
@@ -111,6 +112,28 @@ export const planJsonSchema = {
           answer: { type: "string", minLength: 5, maxLength: 500 },
         },
         required: ["question", "answer"],
+      },
+    },
+
+    // Tier 5: PHP admin + editable zones (NOT in required — only when admin intent)
+    needs_admin: { type: "boolean" },
+    admin_intent_confidence: {
+      type: "string",
+      enum: ["explicit", "inferred", "none"],
+    },
+    editable_zones: {
+      type: "array",
+      maxItems: 20,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          id: { type: "string", minLength: 2, maxLength: 40, pattern: "^[a-z][a-z0-9_]*$" },
+          type: { type: "string", enum: ["text", "richtext", "image"] },
+          label: { type: "string", minLength: 2, maxLength: 80 },
+          section: { type: "string", minLength: 1, maxLength: 50 },
+        },
+        required: ["id", "type", "label", "section"],
       },
     },
   },

@@ -15,7 +15,7 @@ const BenefitSchema = z.object({
 /** Тариф для pricing-секции. */
 const PricingTierSchema = z.object({
   name: z.string().min(1).max(40),
-  /** Цена с валютой как строка ("₽1 500", "$29", "€49/мес"). Гибкость > типов. */
+  /** Цена с валютой как строка ("₽1 500", "$29", "€49/мес"). Гибкость > типов. */
   price: z.string().min(1).max(40),
   /** "в месяц", "за сеанс", "разово". */
   period: z.string().max(40).optional(),
@@ -28,6 +28,28 @@ const PricingTierSchema = z.object({
 const FaqItemSchema = z.object({
   question: z.string().min(3).max(200),
   answer: z.string().min(5).max(500),
+});
+
+/**
+ * Редактируемая зона в сгенерированном сайте — будет помечена в HTML
+ * атрибутом data-edit="<id>" и выведена в PHP-админке.
+ *
+ * MVP: только три типа. list/link/phone/email — в v2, когда будет ясно что
+ * Coder стабильно ставит простые зоны. Не раздувать заранее.
+ */
+const EditableZoneSchema = z.object({
+  /** snake_case, уникальный в рамках сайта. Примеры: hero_title, about_text, contact_phone. */
+  id: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z][a-z0-9_]*$/, "id — snake_case, только a-z, 0-9, _, начинается с буквы"),
+  /** Тип контента (MVP: три типа). */
+  type: z.enum(["text", "richtext", "image"]),
+  /** Подпись для админ-UI, человеческая, на языке сайта. "Заголовок hero". */
+  label: z.string().min(2).max(80),
+  /** ID секции из plan.sections, в которой живёт зона. Группировка в админке. */
+  section: z.string().min(1).max(50),
 });
 
 export const PlanSchema = z.object({
@@ -78,12 +100,42 @@ export const PlanSchema = z.object({
 
   /** 3-6 типовых вопросов-ответов для #faq секции. */
   faq: z.array(FaqItemSchema).min(3).max(6).optional(),
+
+  // ─── Tier 5: PHP-админка и редактируемые зоны (опц.) ───
+  //
+  // Когда юзер просит возможность редактировать контент после генерации
+  // (админка, CMS, «чтобы клиент сам менял цены») — Planner выставляет
+  // needs_admin=true и размечает зоны. Пост-процессор (следующий этап
+  // roadmap) превращает их в PHP при бандлинге.
+  //
+  // Инварианты (проверяем в normalizePlanForRequest, в этой зоне мягко):
+  //   - needs_admin=true => editable_zones.length >= 3
+  //   - needs_admin=false => editable_zones пустой или отсутствует
+  //   - admin_intent_confidence="none" => needs_admin=false
+
+  /** Требуется ли генерировать PHP-админку для этого сайта. */
+  needs_admin: z.boolean().optional(),
+
+  /**
+   * Уверенность в админ-намерении:
+   *   - explicit: юзер явно написал «админка» / «CMS» / «редактор контента»
+   *   - inferred: выведено из контекста («чтобы клиент сам обновлял прайс»)
+   *   - none: никаких признаков — статика достаточна
+   */
+  admin_intent_confidence: z.enum(["explicit", "inferred", "none"]).optional(),
+
+  /**
+   * Список редактируемых зон. При needs_admin=true обычно 5-12 зон
+   * (hero title/subtitle, about text, контакты, картинки главных блоков).
+   */
+  editable_zones: z.array(EditableZoneSchema).max(20).optional(),
 });
 
 export type Plan = z.infer<typeof PlanSchema>;
 export type PlanBenefit = z.infer<typeof BenefitSchema>;
 export type PlanPricingTier = z.infer<typeof PricingTierSchema>;
 export type PlanFaqItem = z.infer<typeof FaqItemSchema>;
+export type PlanEditableZone = z.infer<typeof EditableZoneSchema>;
 
 export function extractPlanJson(raw: string): unknown {
   const cleaned = raw
@@ -150,4 +202,24 @@ export function buildCopyHint(plan: Plan): string | null {
 
   if (parts.length === 0) return null;
   return `ГОТОВЫЙ КОПИРАЙТ ОТ ПЛАНИРОВЩИКА (вставь дословно в соответствующие места шаблона, не переписывай своими словами):\n${parts.join("\n")}`;
+}
+
+/**
+ * Собрать инструкции по разметке data-edit атрибутов для Coder-а.
+ * Возвращает null если админка не нужна или зоны не размечены.
+ *
+ * Coder-promptpath этот блок пока не потребляет — включим в следующем
+ * коммите (инструкции Coder + few-shots по разметке).
+ */
+export function buildEditableZonesHint(plan: Plan): string | null {
+  if (!plan.needs_admin || !plan.editable_zones || plan.editable_zones.length === 0) {
+    return null;
+  }
+  const list = plan.editable_zones
+    .map((z, i) => `  ${i + 1}. id="${z.id}" type=${z.type} section=${z.section} — ${z.label}`)
+    .join("\n");
+  return `РАЗМЕТКА РЕДАКТИРУЕМЫХ ЗОН (для PHP-админки):
+Добавь атрибут data-edit="<id>" на узлы, соответствующие зонам ниже:
+${list}
+Правила: type=text — одна строка (h1/h2/span/p короткий); type=richtext — блоковый элемент с несколькими абзацами (div/article/section); type=image — элемент <img>. Ровно один узел на id.`;
 }
