@@ -32,7 +32,8 @@ const FaqItemSchema = z.object({
 
 /**
  * Редактируемая зона в сгенерированном сайте — будет помечена в HTML
- * атрибутом data-edit="<id>" и выведена в PHP-админке.
+ * атрибутами data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>"
+ * и выведена в PHP-админке.
  *
  * MVP: только три типа. list/link/phone/email — в v2, когда будет ясно что
  * Coder стабильно ставит простые зоны. Не раздувать заранее.
@@ -105,8 +106,8 @@ export const PlanSchema = z.object({
   //
   // Когда юзер просит возможность редактировать контент после генерации
   // (админка, CMS, «чтобы клиент сам менял цены») — Planner выставляет
-  // needs_admin=true и размечает зоны. Пост-процессор (следующий этап
-  // roadmap) превращает их в PHP при бандлинге.
+  // needs_admin=true и размечает зоны. Пост-процессор (htmlToPhp baker)
+  // превращает их в PHP при бандлинге.
   //
   // Инварианты (проверяем в normalizePlanForRequest, в этой зоне мягко):
   //   - needs_admin=true => editable_zones.length >= 3
@@ -208,18 +209,32 @@ export function buildCopyHint(plan: Plan): string | null {
  * Собрать инструкции по разметке data-edit атрибутов для Coder-а.
  * Возвращает null если админка не нужна или зоны не размечены.
  *
- * Coder-promptpath этот блок пока не потребляет — включим в следующем
- * коммите (инструкции Coder + few-shots по разметке).
+ * Три атрибута делают HTML самодостаточным: htmlToPhp baker и PHP-админка
+ * не нуждаются в plan.editable_zones — всё читается из самого HTML.
  */
 export function buildEditableZonesHint(plan: Plan): string | null {
   if (!plan.needs_admin || !plan.editable_zones || plan.editable_zones.length === 0) {
     return null;
   }
   const list = plan.editable_zones
-    .map((z, i) => `  ${i + 1}. id="${z.id}" type=${z.type} section=${z.section} — ${z.label}`)
+    .map(
+      (z, i) =>
+        `  ${i + 1}. id="${z.id}" type="${z.type}" label="${z.label}" section="${z.section}"`,
+    )
     .join("\n");
   return `РАЗМЕТКА РЕДАКТИРУЕМЫХ ЗОН (для PHP-админки):
-Добавь атрибут data-edit="<id>" на узлы, соответствующие зонам ниже:
+Для каждой зоны ниже добавь ТРИ атрибута на один и тот же узел:
+  data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>"
+Примеры:
+  <h1 data-edit="hero_title" data-edit-type="text" data-edit-label="Заголовок hero">Лучший кофе в Гродно</h1>
+  <div data-edit="about_text" data-edit-type="richtext" data-edit-label="О нас"><p>Мы открылись в 2019...</p></div>
+  <img data-edit="hero_image" data-edit-type="image" data-edit-label="Главное фото" src="https://images.unsplash.com/..." alt="">
+Зоны:
 ${list}
-Правила: type=text — одна строка (h1/h2/span/p короткий); type=richtext — блоковый элемент с несколькими абзацами (div/article/section); type=image — элемент <img>. Ровно один узел на id.`;
+Правила:
+  - type=text — узел с одной строкой: h1/h2/h3/span/a/p короткий.
+  - type=richtext — блочный узел: div/article/section с несколькими абзацами.
+  - type=image — элемент <img>. Атрибуты идут на сам <img>, src сохраняется.
+  - Ровно один узел на id. id и type дословно из списка, label тоже дословно.
+  - Если секция зоны удаляется по плану — пропусти эту зону полностью.`;
 }
