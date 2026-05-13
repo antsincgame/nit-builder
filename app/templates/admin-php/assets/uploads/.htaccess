@@ -1,0 +1,8 @@
+# Запрет исполнения скриптов в папке загрузок — критическая защита от malicious uploads.
+<FilesMatch "\.(php|phtml|phps|php5|phar|pl|py|jsp|asp|sh|cgi)$">
+  Require all denied
+</FilesMatch>
+
+Options -ExecCGI
+RemoveHandler .php .phtml .phps .php5 .phar .pl .py .jsp .asp .sh .cgi
+AddType text/plain .php .phtml .phps .php5 .phar

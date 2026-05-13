@@ -1,0 +1,8 @@
+# Запрет листинга директорий
+Options -Indexes
+
+# Apache подаёт index.php первым
+DirectoryIndex index.php index.html
+
+# UTF-8 по умолчанию для текстовых файлов без BOM
+AddDefaultCharset UTF-8

@@ -8,6 +8,7 @@ export default [
   route("download", "routes/download.tsx"),
   route("api/pipeline/simple", "routes/api.pipeline.simple.ts"),
   route("api/bundle", "routes/api.bundle.ts"),
+  route("api/bundle/php", "routes/api.bundle.php.ts"),
   route("api/health", "routes/api.health.ts"),
   route("api/metrics", "routes/api.metrics.ts"),
   // Auth endpoints (Phase B)
