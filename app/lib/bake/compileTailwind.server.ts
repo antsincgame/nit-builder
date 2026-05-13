@@ -28,6 +28,18 @@ const TAILWIND_CDN_RE =
   /<script[^>]*src=["']https?:\/\/cdn\.tailwindcss\.com[^"']*["'][^>]*><\/script>\s*/gi;
 
 /**
+ * Нормализовать путь для подстановки в CSS-директиву @source.
+ *
+ * На Windows path.join возвращает `C:\Users\...\Temp\nit-tw-XXX\input.html`.
+ * CSS-парсер Tailwind интерпретирует `\U`, `\T` и т.п. как escape-sequences,
+ * получается битый путь. Конвертируем в прямые слэши — Tailwind v4 на Windows
+ * принимает forward slashes и сам нормализует под FS.
+ */
+function toSourcePath(p: string): string {
+  return p.replaceAll("\\", "/");
+}
+
+/**
  * Скомпилировать минимальный CSS под классы, реально встречающиеся в HTML.
  *
  * @param html — готовый HTML целиком (от <!DOCTYPE html> до </html>)
@@ -40,7 +52,8 @@ export async function compileTailwindForHtml(html: string): Promise<string> {
     await writeFile(htmlPath, html, "utf8");
     // source(none) — отключаем дефолтное автосканирование (мы не в проекте
     // с глобами), затем явно указываем единственный source-файл.
-    const src = `@import "tailwindcss" source(none);\n@source "${htmlPath}";\n`;
+    // Путь обязательно с forward slashes (см. toSourcePath выше).
+    const src = `@import "tailwindcss" source(none);\n@source "${toSourcePath(htmlPath)}";\n`;
     const result = await postcss([tailwindcssPostcss()]).process(src, {
       from: undefined,
     });
