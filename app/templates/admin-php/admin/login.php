@@ -13,18 +13,25 @@ if (nit_is_authenticated()) {
 $err = null;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    if (!nit_rate_limit_check('login:' . $ip)) {
-        $err = 'Слишком много попыток входа. Попробуй через 15 минут.';
-    } elseif (!nit_csrf_check($_POST['_csrf'] ?? null)) {
+    $key = 'login:' . $ip;
+
+    // Сначала CSRF — битый CSRF не должен расходовать попытки rate-limit'а
+    // (иначе атакующий за 5 пустых POST залочит реальному юзеру с того же IP).
+    if (!nit_csrf_check($_POST['_csrf'] ?? null)) {
         $err = 'CSRF-токен не совпал. Обнови страницу и попробуй ещё раз.';
+    } elseif (!nit_rate_limit_peek($key)) {
+        $err = 'Слишком много попыток входа. Попробуй через 15 минут.';
     } else {
         $u = trim((string)($_POST['username'] ?? ''));
         $p = (string)($_POST['password'] ?? '');
         if (nit_check_password($u, $p)) {
+            nit_rate_limit_reset($key);
             nit_login($u);
             header('Location: index.php');
             exit;
         }
+        // Считаем только неудачные попытки с валидным CSRF.
+        nit_rate_limit_hit($key);
         $err = 'Неверный логин или пароль.';
     }
 }

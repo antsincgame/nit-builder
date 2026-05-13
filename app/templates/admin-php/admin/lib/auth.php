@@ -69,12 +69,30 @@ function nit_require_auth(): void {
 /**
  * Простой rate-limit на основе data/rate_limit.json.
  * Окно 15 минут, лимит 5 попыток на ключ (обычно key = 'login:' . IP).
- * Возвращает true если попытка разрешена, false если превышен лимит.
+ *
+ * Разделён на две функции: peek (read-only, проверяет есть ли ещё попытки)
+ * и hit (записывает неудачную попытку). Это нужно чтобы успешный логин и
+ * битый CSRF не расходовали попытки — иначе атакующий может за 5 пустых
+ * POST-ов залочить логин жертве с того же IP (NAT, корпоративная сеть).
  */
-function nit_rate_limit_check(string $key): bool {
+function nit_rate_limit_peek(string $key): bool {
     $path = nit_root() . '/data/rate_limit.json';
+    if (!is_file($path)) return true;
+    $raw = @file_get_contents($path);
+    if ($raw === false) return true;
+    $data = json_decode($raw, true);
+    if (!is_array($data)) return true;
+    $entry = $data[$key] ?? null;
+    if (!is_array($entry)) return true;
     $window = 15 * 60;
     $limit = 5;
+    if (($entry['start'] ?? 0) + $window < time()) return true; // окно истекло
+    return (int)($entry['count'] ?? 0) < $limit;
+}
+
+function nit_rate_limit_hit(string $key): void {
+    $path = nit_root() . '/data/rate_limit.json';
+    $window = 15 * 60;
     $now = time();
     $data = [];
     if (is_file($path)) {
@@ -85,14 +103,22 @@ function nit_rate_limit_check(string $key): bool {
         }
     }
     $entry = $data[$key] ?? null;
-    if (!is_array($entry)) $entry = ['start' => $now, 'count' => 0];
-    if (($entry['start'] ?? 0) + $window < $now) {
-        // окно истекло — сбрасываем
+    if (!is_array($entry) || ($entry['start'] ?? 0) + $window < $now) {
         $entry = ['start' => $now, 'count' => 1];
     } else {
         $entry['count'] = (int)($entry['count'] ?? 0) + 1;
     }
     $data[$key] = $entry;
     @file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE));
-    return $entry['count'] <= $limit;
+}
+
+function nit_rate_limit_reset(string $key): void {
+    $path = nit_root() . '/data/rate_limit.json';
+    if (!is_file($path)) return;
+    $raw = @file_get_contents($path);
+    if ($raw === false) return;
+    $data = json_decode($raw, true);
+    if (!is_array($data)) return;
+    unset($data[$key]);
+    @file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE));
 }
