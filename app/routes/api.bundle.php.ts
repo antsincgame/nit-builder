@@ -1,15 +1,21 @@
 import type { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 import { bundlePhp } from "~/lib/bake/bundle.server";
+import { extractZonesFromHtml } from "~/lib/bake/extractZones.server";
 import { logger } from "~/lib/utils/logger";
 
 // ─── POST /api/bundle/php — ZIP с PHP-админкой ───────────────────
 //
-// Принимает {html, zones, filename?}, возвращает application/zip с готовым
+// Принимает {html, zones?, filename?}, возвращает application/zip с готовым
 // бандлом: index.php (HTML + PHP-вставки), admin/, data/, setup.php, README.md.
 //
-// Auth не требуется (как /api/bundle) — download должен быть доступен анонимам.
-// Compile + bake + zip: CPU-bound, ~150-500ms для типичного лендинга.
+// zones[] опционально: если передан — используется как есть; если не передан
+// или пустой — извлекается из data-edit-* атрибутов самого HTML. Это позволяет
+// клиенту скачать бандл без знания plan'а — Coder уже разметил всё необходимое
+// прямо в HTML (data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>").
+//
+// Auth не требуется (как /api/bundle). Compile + bake + zip: CPU-bound,
+// ~150-500ms для типичного лендинга.
 
 const EditableZoneRequestSchema = z.object({
   id: z
@@ -24,7 +30,7 @@ const EditableZoneRequestSchema = z.object({
 
 const BundlePhpSchema = z.object({
   html: z.string().min(1).max(2_000_000),
-  zones: z.array(EditableZoneRequestSchema).min(1).max(20),
+  zones: z.array(EditableZoneRequestSchema).max(20).optional(),
   filename: z.string().min(1).max(120).optional(),
 });
 
@@ -51,15 +57,34 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
+  // zones из клиента приоритетнее, иначе извлекаем из HTML.
+  let zones = parsed.data.zones ?? [];
+  let zonesSource: "client" | "extracted" = "client";
+  if (zones.length === 0) {
+    zones = extractZonesFromHtml(parsed.data.html);
+    zonesSource = "extracted";
+  }
+
+  if (zones.length === 0) {
+    return Response.json(
+      {
+        error: "No editable zones",
+        message:
+          "В HTML нет ни одной зоны с атрибутом data-edit. Опиши в запросе что нужна возможность редактирования (admin, CMS, «чтобы клиент сам менял контент») — Planner разметит зоны.",
+      },
+      { status: 400 },
+    );
+  }
+
   const t0 = Date.now();
   try {
     const result = await bundlePhp({
       html: parsed.data.html,
-      zones: parsed.data.zones,
+      zones,
     });
     const tookMs = Date.now() - t0;
     logger.info(
-      `[api.bundle.php] ok matched=${result.matchedZones.length} missing=${result.missingZones.length} size=${result.sizeBytes}b took=${tookMs}ms`,
+      `[api.bundle.php] ok source=${zonesSource} matched=${result.matchedZones.length} missing=${result.missingZones.length} size=${result.sizeBytes}b took=${tookMs}ms`,
     );
 
     const safeName =
@@ -74,6 +99,7 @@ export async function action({ request }: ActionFunctionArgs) {
         "X-Bundle-Matched": String(result.matchedZones.length),
         "X-Bundle-Missing": String(result.missingZones.length),
         "X-Bundle-Size": String(result.sizeBytes),
+        "X-Bundle-Zones-Source": zonesSource,
       },
     });
   } catch (err) {

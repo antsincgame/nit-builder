@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
 import { TemplateGrid } from "~/components/simple/TemplateGrid";
 import { PolishChat } from "~/components/simple/PolishChat";
@@ -88,6 +88,15 @@ export default function Home() {
     reset,
   } = flow;
 
+  // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
+  // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
+  // useMemo: regex дешёвый, но html меняется на каждый стрим-чанк во время
+  // генерации — пусть будет мемо чтобы не пересчитывать на каждый render.
+  const hasEditableZones = useMemo(() => {
+    const content = html || streamingHtml;
+    return !!content && /\sdata-edit="/.test(content);
+  }, [html, streamingHtml]);
+
   const downloadHtml = useCallback(async () => {
     const content = streamingHtml || html;
     if (!content) return;
@@ -122,6 +131,49 @@ export default function Home() {
       a.click();
       URL.revokeObjectURL(url);
       toast.error("Compile упал, скачан raw HTML");
+    }
+  }, [html, streamingHtml, lastTemplateId]);
+
+  const downloadPhp = useCallback(async () => {
+    const content = html || streamingHtml;
+    if (!content) return;
+    const filename = `nit-${lastTemplateId || "site"}-php-${Date.now()}.zip`;
+
+    // POST на /api/bundle/php — сервер сам извлечёт zones из data-edit-*
+    // атрибутов, скомпилит Tailwind, выпечет PHP, упакует в ZIP с админкой.
+    // Никакого клиентского fallback здесь нет: PHP-бандл нельзя собрать без
+    // сервера, при ошибке просто показываем toast.
+    try {
+      const resp = await fetch("/api/bundle/php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html: content, filename }),
+      });
+      if (!resp.ok) {
+        let detail = `${resp.status}`;
+        try {
+          const j = (await resp.json()) as { message?: string; error?: string };
+          detail = j.message ?? j.error ?? detail;
+        } catch {
+          // body не JSON — оставляем status code
+        }
+        throw new Error(detail);
+      }
+      const blob = await resp.blob();
+      const matched = resp.headers.get("X-Bundle-Matched");
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(
+        `PHP-бандл скачан${matched ? ` · ${matched} зон в админке` : ""}. Распакуй в public_html и открой /setup.php`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "unknown";
+      console.error("[downloadPhp] failed:", err);
+      toast.error(`PHP-бандл: ${msg}`);
     }
   }, [html, streamingHtml, lastTemplateId]);
 
@@ -506,7 +558,22 @@ export default function Home() {
                     title="Скачать HTML (⌘D)"
                   >
                     <span>↓</span>
-                    <span className="hidden sm:inline">Download</span>
+                    <span className="hidden sm:inline">HTML</span>
+                  </button>
+                )}
+                {html && hasEditableZones && (
+                  <button
+                    type="button"
+                    onClick={downloadPhp}
+                    className="px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase transition flex items-center gap-2"
+                    style={{
+                      border: "1px solid var(--acid)",
+                      color: "var(--acid)",
+                    }}
+                    title="Скачать ZIP с PHP-админкой"
+                  >
+                    <span>↓</span>
+                    <span className="hidden sm:inline">PHP</span>
                   </button>
                 )}
                 {auth.status === "authenticated" && (
