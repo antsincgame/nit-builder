@@ -1,7 +1,7 @@
 /**
  * htmlToPhp baker — детерминированный пост-процессор HTML → PHP.
  *
- * НА ВХОДЕ: HTML от Coder-а с data-edit="<id>" атрибутами и PlanEditableZone[].
+ * НА ВХОДЕ: HTML от Coder-а с data-edit=\"<id>\" атрибутами и PlanEditableZone[].
  * НА ВЫХОДЕ:
  *   - phpIndex — исходный HTML с вставленными PHP-подстановками вместо размеченных узлов
  *   - defaults — Record<id, string> с исходным содержимым каждой зоны (для data/defaults.json)
@@ -12,16 +12,29 @@
  * Чистая функция от (html, zones) → результат. Легко тестируется юнитами.
  *
  * ПОЧЕМУ Coder НЕ ГЕНЕРИРУЕТ PHP НАПРЯМУЮ:
- * 7B-модели путаются в PHP-экранировании («<\?php» против «<\?= ?>», живые вставки
+ * 7B-модели путаются в PHP-экранировании («<?php» против «<?= ?>», живые вставки
  * в атрибуты, эскейп кавычек). Детерминированный парсер сделает это стабильно и
  * покрывается тестами.
  *
  * СТРАТЕГИЯ ПО ТИПАМ ЗОН:
- *   - text → innerText узла заменяется на <\?= e($c['id'] ?? 'дефолт') ?>
- *   - richtext → innerHTML узла заменяется на <\?= $c['id'] ?? '...' ?> (без e(), разрешён HTML)
- *   - image → src атрибут <img> заменяется на <\?= e($c['id'] ?? 'дефолт_url') ?>
+ *   - text → innerText узла заменяется на <?= e($c['id'] ?? 'дефолт') ?>
+ *   - richtext → innerHTML узла заменяется на <?= $c['id'] ?? '...' ?> (без e(), разрешён HTML)
+ *   - image → src атрибут <img> заменяется на <?= e($c['id'] ?? 'дефолт_url') ?>
  *
- * Атрибут data-edit снимается с узла после трансформации — он был служебным маркером.
+ * Атрибуты data-edit, data-edit-type, data-edit-label снимаются с узла после
+ * трансформации — они были служебными маркерами для Coder/baker.
+ *
+ * МАРКЕРНЫЙ ПОДХОД ВМЕСТО ПРЯМОЙ ВСТАВКИ PHP:
+ * node-html-parser метод set_content() парсит входную строку как HTML, что
+ * непредсказуемо обработает PHP-вставку `<?= ?>` (интерпретируется как XML
+ * processing instruction). Вместо прямой вставки PHP — записываем уникальный
+ * текстовый маркер `__NIT_PHP_<bake-id>_<zone-id>_<kind>__`, который парсер
+ * сохраняет как plain text. После root.toString() заменяем маркеры на реальные
+ * PHP-выражения через string-replace. Это гарантированно работает независимо
+ * от поведения парсера на нестандартных конструкциях.
+ *
+ * bake-id — случайный 8-символьный nonce на каждый вызов, исключает теоретическую
+ * коллизию маркера с содержимым (вероятность ~10^-14).
  *
  * ПРЕФИКС PHP вставляется в самое начало файла (перед <!DOCTYPE html>):
  *   <?php require __DIR__ . '/admin/lib/store.php'; $c = nit_load_content(); ?>
@@ -56,20 +69,22 @@ export function phpSingleQuote(s: string): string {
 }
 
 /**
- * Снять data-edit атрибут и любые вспомогательные data-edit-* с узла.
- * На MVP вспомогательных нет (хватил одного data-edit), но вынесено в функцию
- * чтобы позже легко расширить (data-edit-type для list-ов и т.п.).
+ * Снять служебные data-edit-* атрибуты с узла после трансформации.
+ * Все три атрибута (data-edit, data-edit-type, data-edit-label) ставит Coder
+ * как маркеры для нас — в финальном HTML они не нужны и являются мусором.
  */
 function stripEditAttrs(node: HTMLElement): void {
   node.removeAttribute("data-edit");
+  node.removeAttribute("data-edit-type");
+  node.removeAttribute("data-edit-label");
 }
 
 /**
- * Обновить src у <img>, сохранив все остальные атрибуты.
- * Новое значение вставляется как-есть (PHP-вставка), атрибут не экранируется парсером.
+ * Сгенерировать уникальный bake-id для маркеров. 8 символов из base36 ≈ 10^14
+ * комбинаций — коллизия с содержимым практически невозможна.
  */
-function setImgSrc(img: HTMLElement, phpValue: string): void {
-  img.setAttribute("src", phpValue);
+function generateBakeId(): string {
+  return Math.random().toString(36).slice(2, 10).padEnd(8, "0");
 }
 
 /**
@@ -77,7 +92,7 @@ function setImgSrc(img: HTMLElement, phpValue: string): void {
  *
  * Для каждой zone из plan находим узел с [data-edit="<id>"] и применяем
  * трансформацию по типу. Если узла нет — zone пропускается (в missingZones).
- * Если узлов несколько — берём первый (служебное правило Coder: "ровно одиный на id").
+ * Если узлов несколько — берём первый (служебное правило Coder: "ровно один на id").
  */
 export function bakeHtmlToPhp(
   html: string,
@@ -101,6 +116,14 @@ export function bakeHtmlToPhp(
   const missingZones: PlanEditableZone[] = [];
   const defaults: Record<string, string> = {};
 
+  // Карта маркер → реальное PHP-выражение. После root.toString() пройдёмся
+  // string-replace и подставим выражения. Подход гарантированно безопасен
+  // относительно поведения HTML-парсера на нестандартных вставках.
+  const phpExpressions: Record<string, string> = {};
+  const bakeId = generateBakeId();
+  const makeMarker = (zoneId: string, kind: "T" | "R" | "I"): string =>
+    `__NIT_PHP_${bakeId}_${zoneId}_${kind}__`;
+
   for (const zone of zones) {
     // node-html-parser поддерживает CSS-селекторы через querySelector.
     // Эскейп кавычек в id не нужен — zone.id валидирован регэкспом [a-z0-9_].
@@ -116,9 +139,10 @@ export function bakeHtmlToPhp(
       // Это ОК, type=text по определению — плоская строка.
       const defaultText = node.text.trim();
       defaults[zone.id] = defaultText;
-      node.set_content(
-        `<?= e($c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultText)}) ?>`,
-      );
+      const marker = makeMarker(zone.id, "T");
+      phpExpressions[marker] =
+        `<?= e($c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultText)}) ?>`;
+      node.set_content(marker);
       stripEditAttrs(node);
       matchedZones.push(zone);
       continue;
@@ -130,9 +154,10 @@ export function bakeHtmlToPhp(
       // Sanitize от пользователя делается на этапе сохранения в admin/edit.php.
       const defaultHtml = node.innerHTML.trim();
       defaults[zone.id] = defaultHtml;
-      node.set_content(
-        `<?= $c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultHtml)} ?>`,
-      );
+      const marker = makeMarker(zone.id, "R");
+      phpExpressions[marker] =
+        `<?= $c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultHtml)} ?>`;
+      node.set_content(marker);
       stripEditAttrs(node);
       matchedZones.push(zone);
       continue;
@@ -148,19 +173,28 @@ export function bakeHtmlToPhp(
       }
       const defaultSrc = node.getAttribute("src") ?? "";
       defaults[zone.id] = defaultSrc;
-      setImgSrc(
-        node,
-        `<?= e($c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultSrc)}) ?>`,
-      );
+      const marker = makeMarker(zone.id, "I");
+      phpExpressions[marker] =
+        `<?= e($c[${phpSingleQuote(zone.id)}] ?? ${phpSingleQuote(defaultSrc)}) ?>`;
+      // Маркер не содержит символов которые парсер захотел бы экранировать
+      // (& < > "). После toString() значение src останется как plain string.
+      node.setAttribute("src", marker);
       stripEditAttrs(node);
       matchedZones.push(zone);
       continue;
     }
   }
 
-  // node-html-parser выводит весь исходный стреим (включая doctype и пробелы)
+  // node-html-parser выводит весь исходный стрим (включая doctype и пробелы)
   // по дефолту. root.toString() = исходный HTML с нашими правками.
-  const transformedHtml = root.toString();
+  let transformedHtml = root.toString();
+
+  // Финальная подстановка маркеров на реальные PHP-выражения.
+  // replaceAll потому что маркер для image-зоны может встретиться один раз
+  // (в атрибуте src), для text/richtext тоже один раз (в textNode).
+  for (const [marker, expr] of Object.entries(phpExpressions)) {
+    transformedHtml = transformedHtml.split(marker).join(expr);
+  }
 
   return {
     phpIndex: PHP_PREFIX + transformedHtml,
