@@ -179,6 +179,11 @@ export default function Home() {
       }
       const blob = await resp.blob();
       const matched = resp.headers.get("X-Bundle-Matched");
+      // setup-файл переименован сервером в setup-<8hex>.php (см. bundle.server.ts —
+      // защита от first-come-first-served race на свежем деплое). Fallback на
+      // "setup.php" — на случай если фронт получит ответ от старого сервера
+      // во время раскатки.
+      const setupFile = resp.headers.get("X-Bundle-Setup-File") || "setup.php";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -186,7 +191,7 @@ export default function Home() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success(
-        `PHP-бандл скачан${matched ? ` · ${matched} зон в админке` : ""}. Распакуй в public_html и открой /setup.php`,
+        `PHP-бандл скачан${matched ? ` · ${matched} зон в админке` : ""}. Распакуй в public_html и открой /${setupFile} (одноразовый, удали после первого входа).`,
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "unknown";
