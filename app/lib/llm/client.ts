@@ -27,6 +27,38 @@ export type ProviderConfig = {
 
 const DEFAULT_LMSTUDIO_BASE_URL = "http://localhost:1234";
 
+// ─── Legacy env detection ──────────────────────────────────
+//
+// Если юзер мигрирует с v1 и оставил GROQ_API_KEY / OPENROUTER_API_KEY в .env,
+// в v2 эти переменные не делают НИЧЕГО — провайдеры удалены. Без явного
+// warning юзер думает что cloud-fallback работает, а на самом деле каждый
+// запрос ловит ECONNREFUSED от LM Studio (если тот не запущен) или просто
+// тихо игнорирует ключ. Один раз на процесс пишем чёткое сообщение в stderr.
+//
+// stderr, а не logger.warn — logger ещё не инициализирован на этом этапе
+// загрузки модулей; console.warn гарантированно работает на cold start.
+
+let legacyWarningEmitted = false;
+function warnAboutLegacyProvidersOnce(): void {
+  if (legacyWarningEmitted) return;
+  legacyWarningEmitted = true;
+
+  const legacy: string[] = [];
+  if (process.env.GROQ_API_KEY?.trim()) legacy.push("GROQ_API_KEY");
+  if (process.env.GROQ_MODEL?.trim()) legacy.push("GROQ_MODEL");
+  if (process.env.OPENROUTER_API_KEY?.trim()) legacy.push("OPENROUTER_API_KEY");
+  if (process.env.OPENROUTER_MODEL?.trim()) legacy.push("OPENROUTER_MODEL");
+
+  if (legacy.length === 0) return;
+
+  console.warn(
+    `[nit-llm] legacy v1 env detected and IGNORED: ${legacy.join(", ")}.\n` +
+    `[nit-llm] v2 supports only LM Studio (peer-to-peer). Cloud providers were removed.\n` +
+    `[nit-llm] See README.md → "Architecture (v2)" for the rationale. Remove these vars from .env to silence this warning.`,
+  );
+}
+warnAboutLegacyProvidersOnce();
+
 export function normalizeLmStudioBaseUrl(
   rawBaseUrl: string | undefined = process.env.LMSTUDIO_BASE_URL,
 ): string {

@@ -1,7 +1,7 @@
 # NIT Builder
 
-> **Create websites on your own computer. With AI. For free.**
-> AI HTML site builder that runs locally through LM Studio. No cloud, no subscription, no internet required.
+> **Create websites on your own GPU. With AI. For free.**
+> Peer-to-peer AI HTML site builder. Your browser → our server → your desktop LM Studio. No cloud inference, no subscription, your prompts never leave your machine.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-green)
@@ -13,53 +13,81 @@
 
 ## What is this?
 
-NIT Builder is an open-source AI website generator designed to run on your own computer using **local LLMs** via LM Studio. You describe a website in plain language — it generates a complete, production-ready HTML file in 30-60 seconds.
+NIT Builder is an open-source AI website generator built around a **peer-to-peer tunnel architecture**: the web app runs on our VPS, but every LLM call is proxied through a WebSocket tunnel into **your own LM Studio** on **your own machine**. No cloud inference provider sees your prompts. You bring the GPU, we bring the pipeline.
 
-**Key difference from Tilda/Wix/v0/Bolt:** everything runs locally. No cloud. No subscriptions. No data sent to third parties. Works offline after setup.
+You describe a site in plain language → a Planner LLM emits a JSON plan → the system picks one of 22 HTML templates → a Coder LLM adapts the template → optionally bakes a flat-file PHP admin panel into the bundle. Total time: 30–60 seconds.
+
+**Key difference from Tilda/Wix/v0/Bolt:** inference runs locally on your hardware. The VPS only orchestrates. Generated sites are pure HTML + Tailwind (compiled inline, not via CDN) + optional PHP admin — they run anywhere.
 
 ### Who it's for
 
-- Small business owners who need a landing page without paying 1500₽/month forever
-- Freelancers creating quick sites for clients
+- Small business owners who don't want a 1500₽/month Tilda subscription forever
+- Freelancers shipping quick client sites
 - Students with an RTX 3060 and no budget
-- Anyone who wants a website and owns the data
-
-### What you can create
-
-22 built-in templates covering the most common use cases:
-
-☕ Coffee shops · 💈 Barbershops · 📸 Photographers · 💻 Developer portfolios · 💒 Wedding invitations · 💪 Fitness trainers · 🍽️ Restaurants · 📚 Tutors · 💅 Beauty services · 🔧 Auto shops · 🎨 Handmade businesses · 🎧 DJs/Musicians · 🚀 SaaS landings · 🦷 Medical clinics · 🧘 Yoga studios · 🖤 Tattoo studios · 💐 Flower shops · 🗣️ Language schools · ⚖️ Law firms · 🎮 Indie game studios · 🏠 Real estate · 📄 Universal fallback
+- Anyone who wants a website **and** wants to own the data
 
 ---
 
-## How it works
+## Architecture (v2)
 
 ```
-Your prompt ("site for a coffee shop in Minsk")
-        ↓
-[Planner LLM] → JSON plan: {business_type, tone, sections, colors, template_id}
-        ↓
-[Template selected from catalog]
-        ↓
-[Coder LLM] → adapts template to your plan → streams HTML
-        ↓
-Live preview in iframe · Download as single HTML file
+Browser ─── HTTPS ───▶ NIT VPS (this repo, app/)
+                       │
+                       │  WSS /api/control  (browser session)
+                       │  WSS /api/tunnel   (desktop client)
+                       ▼
+                  Tunnel router  ◀── routes per user via tunnel-token
+                       ▲
+                       │ WSS
+                       │
+            Desktop client (Tauri + Rust, tunnel/desktop/)
+                       │
+                       ▼
+              Your local LM Studio (OpenAI-compatible)
 ```
 
-**Why template-adaptation instead of from-scratch generation:**
-Small local models (7B parameters) struggle to write a complete React project with imports, components, and config files. They do great at *adapting existing HTML*. This is the key insight that makes NIT Builder work on an RTX 3060.
+This repo is a workspace monorepo:
+
+- `app/` — React Router v7 SSR + WS handlers (the VPS)
+- `shared/` — shared protocol types (`@nit/shared`)
+- `tunnel/` — Node CLI client (`nit-tunnel`)
+- `tunnel/desktop/` — Tauri 2.0 + Rust desktop client with tray icon, autostart, auto-update
+
+Deeper write-up: [docs/architecture/v2-tunnel.md](./docs/architecture/v2-tunnel.md)
 
 ---
 
-## Quick Start
+## Pipeline
+
+```
+User prompt ("a coffee shop in Minsk")
+        ↓
+  Planner LLM ──▶ JSON plan (business_type, tone, sections, colors, needs_admin, …)
+        ↓
+  Template retriever (BM25 + dense embeddings + RRF fusion + reranker)
+        ↓
+  Coder LLM ──▶ adapts the chosen HTML template, streams the result
+        ↓
+  Polisher cascade (css_patch → section-only → full_rewrite)
+        ↓
+  Tailwind v4 compile (inline <style>, CDN script removed) → Lighthouse-friendly
+        ↓
+  [optional] PHP baker: data-edit zones → <?= e($c['id']) ?>, flat-file admin
+        ↓
+  Live preview + Download HTML / Download PHP (ZIP)
+```
+
+Why template-adaptation instead of from-scratch generation: 7B local models choke on writing a full React project with imports, components and configs. They do great at *adapting existing HTML*. That's the insight that makes this work on an RTX 3060.
+
+---
+
+## Quick start
 
 ### Prerequisites
 
 - **Node.js 20+**
-- **One LLM provider** (choose one):
-  - **LM Studio** (recommended, free, local) — [lmstudio.ai](https://lmstudio.ai)
-  - **Groq** (free tier, cloud) — [console.groq.com](https://console.groq.com/keys)
-  - **OpenRouter** (paid, cloud) — [openrouter.ai](https://openrouter.ai/keys)
+- **LM Studio** running locally — [lmstudio.ai](https://lmstudio.ai)
+- Recommended model: **Qwen2.5-Coder-7B-Instruct** (Q4_K_M, ~4.5 GB)
 
 ### Install
 
@@ -68,99 +96,106 @@ git clone https://github.com/igor1000rr/nit-builder.git
 cd nit-builder
 npm install
 cp .env.example .env
-# Edit .env — set LMSTUDIO_BASE_URL or GROQ_API_KEY
+# edit .env — set LMSTUDIO_BASE_URL if not on the default port
 npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
 
-### For local mode (LM Studio)
+### Set up LM Studio
 
 1. Download [LM Studio](https://lmstudio.ai)
-2. Download model: **Qwen2.5-Coder-7B-Instruct** (Q4_K_M, ~4.5 GB)
-3. Start the local server in LM Studio (Developer → Start Server)
-4. Ensure `LMSTUDIO_BASE_URL=http://localhost:1234` in `.env`
-5. `npm run dev` → describe your site → done in ~60 seconds
+2. Pull `Qwen2.5-Coder-7B-Instruct` (Q4_K_M)
+3. Developer → Start Server (default `http://localhost:1234`)
+4. Verify `LMSTUDIO_BASE_URL=http://localhost:1234` in `.env`
+5. `npm run dev` → describe a site → done in ~60s
 
-👉 **For 8 GB GPUs: see [LM Studio Optimization Guide](./docs/lm-studio-guide.md)** with Flash Attention, KV cache quantization, memory math, and troubleshooting.
+👉 **For 8 GB GPUs:** see [LM Studio Optimization Guide](./docs/lm-studio-guide.md) — Flash Attention, KV cache quantization, VRAM math, when to enable YaRN.
 
-### For cloud mode (no GPU)
+### Hardware
 
-1. Get a free Groq API key
-2. Set `GROQ_API_KEY=gsk_...` in `.env`
-3. `npm run dev`
-
----
-
-## Hardware requirements
-
-| Your GPU | Recommended model | Speed | Quality |
+| GPU | Recommended model | Speed | Quality |
 |---|---|---|---|
 | 4 GB VRAM | Qwen2.5-Coder-3B-Q4 | Slow | OK |
 | **8 GB VRAM (RTX 3060/4060)** | **Qwen2.5-Coder-7B-Q4** | **Good** | **Great** ⭐ |
 | 12+ GB VRAM | Qwen2.5-Coder-14B-Q4 | Fast | Excellent |
-| No GPU | Groq (cloud) | Very fast | Great |
+
+> **Heads-up:** v2 removed the Groq and OpenRouter cloud fallbacks that existed in v1. The product is now positioned as P2P — your prompts never leave your machine. If you absolutely need cloud inference, stay on v1 or contribute a provider plugin.
+
+---
+
+## 22 built-in templates
+
+☕ Coffee shops · 💈 Barbershops · 📸 Photographers · 💻 Developer portfolios · 💒 Wedding invitations · 💪 Fitness trainers · 🍽️ Restaurants · 📚 Tutors · 💅 Beauty services · 🔧 Auto shops · 🎨 Handmade businesses · 🎧 DJs/Musicians · 🚀 SaaS landings · 🦷 Medical clinics · 🧘 Yoga studios · 🖤 Tattoo studios · 💐 Flower shops · 🗣️ Language schools · ⚖️ Law firms · 🎮 Indie game studios · 🏠 Real estate · 📄 Universal fallback
+
+Catalog: [`app/lib/config/htmlTemplatesCatalog.ts`](./app/lib/config/htmlTemplatesCatalog.ts) · HTML files: [`app/templates/html/`](./app/templates/html/)
+
+---
+
+## Optional: PHP admin bundle
+
+When the Planner decides a site needs editable content (`needs_admin=true`), the Coder marks editable nodes with `data-edit`/`data-edit-type`/`data-edit-label` attributes. A deterministic post-processor (`app/lib/bake/`) then bakes the HTML into PHP:
+
+```html
+<!-- before -->
+<h1 data-edit="hero_title" data-edit-type="text">Best coffee in Minsk</h1>
+
+<!-- after -->
+<h1><?= e($c['hero_title'] ?? 'Best coffee in Minsk') ?></h1>
+```
+
+The ZIP bundle contains:
+
+```
+index.php             ← your site with PHP slots
+admin/                ← login, dashboard, edit (text / richtext / image)
+admin/lib/            ← auth, csrf, atomic JSON store
+data/                 ← content.json + defaults.json + zones.json
+setup.php             ← one-time admin creation, delete after first login
+assets/uploads/       ← MIME-validated, .htaccess blocks .php execution
+```
+
+Pure PHP 8.1+, zero dependencies, no database. Argon2id passwords, CSRF tokens, rate-limit (5 attempts / 15 min), atomic writes via tempnam+rename. Deploys to any shared hosting.
 
 ---
 
 ## Tech stack
 
-- **React Router v7** (SSR) + **React 19** + **TypeScript**
-- **Tailwind CSS v4** via Vite plugin
-- **Vercel AI SDK** (`ai` + `@ai-sdk/openai`) for LLM streaming
-- **Zod** for plan schema validation
-- Generated sites use **Tailwind CDN** + **Alpine.js CDN** — no build step required
-
-Total codebase: ~5000 LOC. Small, readable, hackable.
+- **React Router v7** (SSR) + **React 19** + **TypeScript 5.7**
+- **Tailwind CSS v4** via Vite plugin (compiled inline for generated sites)
+- **Vercel AI SDK** (`ai@5` + `@ai-sdk/openai`) for streaming
+- **Zod** for plan-schema validation
+- **node-html-parser** for the HTML→PHP baker
+- **ws** + **Tauri 2.0** for the tunnel
+- **Argon2id** + HMAC-SHA256 for tunnel tokens, **session-version revocation** for cookies
+- **Appwrite** for user storage, sites, and persistent guest-IP quotas
+- **Vitest 3** — 69 test files, ~11k LOC of tests, CI green on every push
 
 ---
 
 ## Contributing
 
-### Add a new template
+### Add a template
 
-Templates are plain HTML files in `app/templates/html/`. To add yours:
+1. Create `app/templates/html/your-id.html` — single file, `<!DOCTYPE html>` to `</html>`, Tailwind via CDN inside the source, all images from Unsplash or inline SVG, responsive (`sm:`/`md:`/`lg:`)
+2. Add metadata in `app/lib/config/htmlTemplatesCatalog.ts`
+3. Open a PR with a screenshot
 
-1. Create `app/templates/html/your-template-id.html`
-2. Rules:
-   - Single file, `<!DOCTYPE html>` to `</html>`
-   - Tailwind via CDN (`<script src="https://cdn.tailwindcss.com"></script>`)
-   - Alpine via CDN for interactivity (optional)
-   - All images from Unsplash (`https://images.unsplash.com/photo-ID?w=800`) or inline SVG
-   - No local assets, no npm packages
-   - Responsive (use `sm:`, `md:`, `lg:` classes)
-3. Add metadata entry in `app/lib/config/htmlTemplatesCatalog.ts`:
-   ```ts
-   {
-     id: "your-template-id",
-     name: "Display Name",
-     category: "business",
-     description: "Brief description for the Planner to match",
-     bestFor: ["keyword1", "keyword2", "keyword3"],
-     sections: ["hero", "features", "contact"],
-     style: "modern-minimal",
-     colorMood: "light-minimal",
-     emoji: "✨",
-   }
-   ```
-4. Open a PR with a screenshot
+### Bugs & features
 
-See existing templates (`coffee-shop.html`, `portfolio-dev.html`) as examples.
-
-### Bug reports & features
-
-Open an issue — use the templates in `.github/ISSUE_TEMPLATE/`.
+Open an issue using the templates in `.github/ISSUE_TEMPLATE/`. CI must stay green (`npm run lint && npm run typecheck && npm test && npm run build`).
 
 ---
 
 ## Roadmap
 
-- [x] v1.0 — HTML-first pipeline, 22 templates, LM Studio + Groq + OpenRouter support
-- [ ] v1.1 — Multi-user auth, "My Sites" page with Appwrite
-- [ ] v1.2 — Save your own templates, community template gallery
-- [ ] v1.3 — Image generation via Stable Diffusion (local)
-- [ ] v1.4 — Export to React/Vue/Astro (for advanced users)
-- [ ] v2.0 — Desktop app (Tauri) with bundled LLM runtime
+- [x] v1.0 — HTML-first pipeline, 22 templates, LM Studio + Groq + OpenRouter
+- [x] v2.0-beta — peer-to-peer tunnel, Tauri desktop client, multi-user auth via Appwrite, persistent guest quotas, PHP admin baker, Tailwind inline compile
+- [ ] v2.1 — "My Sites" page (CRUD UI), shareable preview links
+- [ ] v2.2 — community template gallery, user-uploaded templates
+- [ ] v2.3 — local image generation (Stable Diffusion via the tunnel)
+- [ ] v2.4 — export to React / Vue / Astro
+- [ ] v3.0 — bundled LLM runtime inside the Tauri client (no LM Studio dependency)
 
 ---
 
