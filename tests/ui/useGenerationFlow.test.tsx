@@ -701,3 +701,183 @@ describe("useGenerationFlow > handleWsEvent stability", () => {
     });
   });
 });
+
+// ─── Polish undo/redo ────────────────────────────────────────────────
+
+describe("useGenerationFlow > versions / undo / redo", () => {
+  /**
+   * Универсальный helper: HTTP create + N HTTP polishes, чтобы накопить
+   * версии. Использует mockedRunHttp в "очередь" и реальный result.current
+   * для прогона actions.
+   */
+  async function buildVersions(
+    createHtml: string,
+    polishHtmls: string[],
+  ): Promise<ReturnType<typeof renderHook<ReturnType<typeof useGenerationFlow>, unknown>>> {
+    mockedRunHttp.mockImplementationOnce(async (params: {
+      onEvent: (e: { type: string; templateId?: string; templateName?: string }) => void;
+    }) => {
+      params.onEvent({ type: "template_selected", templateId: "coffee", templateName: "Coffee" });
+      return {
+        finalHtml: createHtml,
+        templateId: "coffee",
+        templateName: "Coffee",
+        newSessionId: "s-1",
+      };
+    });
+    for (const html of polishHtmls) {
+      mockedRunHttp.mockImplementationOnce(async () => ({
+        finalHtml: html,
+        templateId: "coffee",
+        templateName: "Coffee",
+        newSessionId: "s-1",
+      }));
+    }
+
+    const socket = makeFakeSocket();
+    const hook = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await hook.result.current.createSite("coffee shop");
+    });
+    for (const _ of polishHtmls) {
+      await act(async () => {
+        await hook.result.current.polishSite("more accents");
+      });
+    }
+    return hook;
+  }
+
+  it("initial state: versions пустой, currentVersionIndex=-1, canUndo/canRedo=false", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    expect(result.current.versions).toEqual([]);
+    expect(result.current.currentVersionIndex).toBe(-1);
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it("успешный createSite → одна версия (kind='create'), canUndo=false (только одна)", async () => {
+    const hook = await buildVersions("<html>v1</html>", []);
+    expect(hook.result.current.versions).toHaveLength(1);
+    expect(hook.result.current.versions[0]?.html).toBe("<html>v1</html>");
+    expect(hook.result.current.versions[0]?.kind).toBe("create");
+    expect(hook.result.current.currentVersionIndex).toBe(0);
+    expect(hook.result.current.canUndo).toBe(false);
+    expect(hook.result.current.canRedo).toBe(false);
+  });
+
+  it("create + 2 polish → 3 версии, индекс=2, canUndo=true, canRedo=false", async () => {
+    const hook = await buildVersions("<html>v1</html>", [
+      "<html>v2</html>",
+      "<html>v3</html>",
+    ]);
+    expect(hook.result.current.versions).toHaveLength(3);
+    expect(hook.result.current.versions[1]?.kind).toBe("polish");
+    expect(hook.result.current.versions[2]?.kind).toBe("polish");
+    expect(hook.result.current.currentVersionIndex).toBe(2);
+    expect(hook.result.current.canUndo).toBe(true);
+    expect(hook.result.current.canRedo).toBe(false);
+  });
+
+  it("undo на 1 шаг → html прошлой версии, canRedo=true", async () => {
+    const hook = await buildVersions("<html>v1</html>", [
+      "<html>v2</html>",
+      "<html>v3</html>",
+    ]);
+    act(() => hook.result.current.undoVersion());
+    expect(hook.result.current.html).toBe("<html>v2</html>");
+    expect(hook.result.current.currentVersionIndex).toBe(1);
+    expect(hook.result.current.canUndo).toBe(true);
+    expect(hook.result.current.canRedo).toBe(true);
+  });
+
+  it("undo до начала → canUndo=false, дальше undo не двигает", async () => {
+    const hook = await buildVersions("<html>v1</html>", ["<html>v2</html>"]);
+    act(() => hook.result.current.undoVersion()); // v2 → v1
+    expect(hook.result.current.currentVersionIndex).toBe(0);
+    expect(hook.result.current.canUndo).toBe(false);
+    act(() => hook.result.current.undoVersion()); // не должен сдвинуть
+    expect(hook.result.current.currentVersionIndex).toBe(0);
+    expect(hook.result.current.html).toBe("<html>v1</html>");
+  });
+
+  it("undo + redo → возврат к актуальной", async () => {
+    const hook = await buildVersions("<html>v1</html>", ["<html>v2</html>"]);
+    act(() => hook.result.current.undoVersion());
+    expect(hook.result.current.html).toBe("<html>v1</html>");
+    act(() => hook.result.current.redoVersion());
+    expect(hook.result.current.html).toBe("<html>v2</html>");
+    expect(hook.result.current.currentVersionIndex).toBe(1);
+  });
+
+  it("после undo новый polish отрезает redo-хвост", async () => {
+    // v1, v2, v3 — стоим на v3, undo → v2, новый polish (v4) — версии
+    // должны стать [v1, v2, v4], индекс=2, canRedo=false.
+    const hook = await buildVersions("<html>v1</html>", [
+      "<html>v2</html>",
+      "<html>v3</html>",
+    ]);
+    act(() => hook.result.current.undoVersion()); // index=1 (v2)
+    expect(hook.result.current.currentVersionIndex).toBe(1);
+
+    mockedRunHttp.mockImplementationOnce(async () => ({
+      finalHtml: "<html>v4</html>",
+      templateId: "coffee",
+      templateName: "Coffee",
+      newSessionId: "s-1",
+    }));
+    await act(async () => {
+      await hook.result.current.polishSite("alternate path");
+    });
+
+    expect(hook.result.current.versions).toHaveLength(3);
+    expect(hook.result.current.versions[2]?.html).toBe("<html>v4</html>");
+    expect(hook.result.current.html).toBe("<html>v4</html>");
+    expect(hook.result.current.currentVersionIndex).toBe(2);
+    expect(hook.result.current.canRedo).toBe(false);
+  });
+
+  it("loadFromHistory сбрасывает стек версий до одной начальной", async () => {
+    const hook = await buildVersions("<html>v1</html>", ["<html>v2</html>"]);
+    expect(hook.result.current.versions).toHaveLength(2);
+
+    act(() => {
+      hook.result.current.loadFromHistory({
+        id: "h-1",
+        createdAt: Date.now(),
+        prompt: "из истории",
+        templateId: "barber",
+        templateName: "Barber",
+        html: "<html>history-site</html>",
+      });
+    });
+
+    expect(hook.result.current.versions).toHaveLength(1);
+    expect(hook.result.current.versions[0]?.html).toBe("<html>history-site</html>");
+    expect(hook.result.current.versions[0]?.kind).toBe("create");
+    expect(hook.result.current.currentVersionIndex).toBe(0);
+    expect(hook.result.current.canUndo).toBe(false);
+  });
+
+  it("reset очищает стек версий", async () => {
+    const hook = await buildVersions("<html>v1</html>", ["<html>v2</html>"]);
+    act(() => hook.result.current.reset());
+    expect(hook.result.current.versions).toEqual([]);
+    expect(hook.result.current.currentVersionIndex).toBe(-1);
+    expect(hook.result.current.canUndo).toBe(false);
+  });
+});
