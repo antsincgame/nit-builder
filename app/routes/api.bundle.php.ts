@@ -4,19 +4,15 @@ import { bundlePhp } from "~/lib/bake/bundle.server";
 import { extractZonesFromHtml } from "~/lib/bake/extractZones.server";
 import { logger } from "~/lib/utils/logger";
 
-// ─── POST /api/bundle/php — ZIP с PHP-админкой ───────────────────
+// ─── POST /api/bundle/php — ZIP с PHP-админкой ──────────────────
 //
 // Принимает {html, zones?, filename?}, возвращает application/zip с готовым
-// бандлом: index.php (HTML + PHP-вставки), admin/, data/, setup-<8hex>.php, README.md.
+// бандлом: index.php (HTML + PHP-вставки), admin/, data/, setup-<hex>.php, README.md.
 //
 // zones[] опционально: если передан — используется как есть; если не передан
 // или пустой — извлекается из data-edit-* атрибутов самого HTML. Это позволяет
 // клиенту скачать бандл без знания plan'а — Coder уже разметил всё необходимое
 // прямо в HTML (data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>").
-//
-// Имя setup-файла рандомизируется на каждый бандл (см. bundle.server.ts) и
-// возвращается клиенту через заголовок X-Bundle-Setup-File — UI показывает
-// юзеру в toast какой URL открывать после деплоя ZIP.
 //
 // Auth не требуется (как /api/bundle). Compile + bake + zip: CPU-bound,
 // ~150-500ms для типичного лендинга.
@@ -109,8 +105,10 @@ export async function action({ request }: ActionFunctionArgs) {
         "X-Bundle-Missing": String(result.missingZones.length),
         "X-Bundle-Size": String(result.sizeBytes),
         "X-Bundle-Zones-Source": zonesSource,
-        // Имя setup-файла внутри ZIP — клиент уже читает этот заголовок
-        // в home.tsx → downloadPhp и показывает в toast'е.
+        // setup-файл переименован в setup-<8hex>.php (см. bundle.server.ts).
+        // Клиент использует этот header чтобы показать юзеру правильную ссылку
+        // в toast после download — иначе юзер пойдёт на /setup.php и получит 404.
+        // Same-origin: Access-Control-Expose-Headers не нужен.
         "X-Bundle-Setup-File": result.setupFilename,
       },
     });

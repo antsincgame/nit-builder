@@ -8,32 +8,23 @@
  *   3. bakeHtmlToPhp — заменяем размеченные зоны (data-edit) на PHP-подстановки,
  *      возвращает дефолты для data/defaults.json.
  *   4. readDirRecursive(app/templates/admin-php/) — читаем статичный PHP-template.
- *   5. JSZip — собираем итоговый архив; setup.php кладём под СЛУЧАЙНЫМ именем.
+ *   5. JSZip — собираем итоговый архив, переименовывая setup.php в setup-<nonce>.php.
+ *
+ * РАНДОМИЗАЦИЯ setup-ФАЙЛА (защита от first-come-first-served race на свежем деплое):
+ * setup.php имеет окно «файла data/users.json ещё нет → любой POST создаст админа».
+ * При фиксированном имени файла атакующий с быстрым ботом, обнаружив свежий
+ * домен с /setup.php, мог зарегистрироваться раньше владельца. Теперь имя
+ * генерируется как `setup-<8hex>.php` через CSPRNG (4.3 млрд комбинаций),
+ * атакующий не угадает за реалистичное время. Юзер получает имя в
+ * response header X-Bundle-Setup-File и видит его в toast после download.
+ * В архиве README.md и сам setup-файл переписываются с новым именем.
  *
  * Модуль .server.ts — только для server-side контекста (route loaders/actions).
- *
- * ─── Про рандомизацию имени setup.php ──────────────────────────────────────
- *
- * setup.php создаёт первый аккаунт администратора при условии что data/users.json
- * пустой или не существует. После деплоя ZIP'а на хостинг между моментом
- * «файлы залиты» и «юзер открыл setup.php у себя в браузере» есть окно, в которое
- * любой случайный посетитель (или таргетированный бот) может перехватить POST
- * и стать админом — это первый-пришёл-первый-получил race.
- *
- * Раньше имя файла было фиксированным `setup.php` — атакующему достаточно знать
- * домен жертвы и проверять `/setup.php` периодически. Теперь имя содержит
- * 8 hex-символов энтропии (`setup-<8hex>.php`, 2^32 вариантов) и известно только
- * тому, кто реально открывал ZIP. При rate-limit shared hosting'а (десятки
- * запросов/сек) brute-force нереалистичен.
- *
- * 8 hex выбраны как баланс: достаточно для защиты от не-таргетированного скана,
- * не настолько длинно чтобы пугать в имени файла. Если когда-то понадобится
- * больше — поднять SETUP_TOKEN_BYTES.
  */
-import { randomBytes } from "node:crypto";
 import JSZip from "jszip";
 import fs from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
+import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeHtmlToPhp } from "./htmlToPhp.server";
@@ -59,21 +50,12 @@ function resolveAdminTemplateDir(): string {
   );
 }
 
-const SETUP_TOKEN_BYTES = 4; // 8 hex chars = 32 bits of entropy
-
-/** Базовое имя setup-файла в шаблоне — переименовывается на лету в ZIP. */
-const SETUP_TEMPLATE_NAME = "setup.php";
-
 /**
- * Сгенерировать имя setup-файла с криптографически случайным токеном.
- *
- * Формат: `setup-<8hex>.php`. Только [a-f0-9] — безопасно во всех файловых
- * системах, URL-encoding не требуется, и regex sanitize в Content-Disposition
- * не тронет.
+ * Сгенерировать рандомное имя setup-файла. 8 hex-символов из CSPRNG.
+ * Формат: setup-a3f8b9c2.php
  */
 export function generateSetupFilename(): string {
-  const token = randomBytes(SETUP_TOKEN_BYTES).toString("hex");
-  return `setup-${token}.php`;
+  return `setup-${randomBytes(4).toString("hex")}.php`;
 }
 
 export type BundlePhpInput = {
@@ -86,11 +68,7 @@ export type BundlePhpResult = {
   matchedZones: PlanEditableZone[];
   missingZones: PlanEditableZone[];
   sizeBytes: number;
-  /**
-   * Имя файла setup'а внутри ZIP. Юзер должен открыть `https://сайт/<setupFilename>`
-   * один раз для создания админа, потом удалить файл с сервера.
-   * Возвращается клиенту через заголовок `X-Bundle-Setup-File` чтобы UI показал в toast.
-   */
+  /** Имя setup-файла в архиве (рандомизировано, см. doc сверху модуля). */
   setupFilename: string;
 };
 
@@ -137,18 +115,28 @@ export async function bundlePhp(
   const templateDir = resolveAdminTemplateDir();
   const adminFiles = await readDirRecursive(templateDir);
 
-  // 5. Уникальное имя setup-файла на каждый бандл.
+  // Рандомизация имени setup-файла — защита от race-окна на свежем деплое.
+  // Файлы где надо подменить упоминание "setup.php":
+  //   - setup.php (его самого) — текстовые подсказки юзеру внутри HTML/PHP
+  //   - README.md — инструкции по установке и описание структуры архива
+  // Подмена через .replaceAll — литеральная, в коде admin-php "setup.php"
+  // встречается только в user-facing строках, не в server-side путях.
   const setupFilename = generateSetupFilename();
+  const rewriteSetupRefs = (content: Buffer): Buffer =>
+    Buffer.from(content.toString("utf8").replaceAll("setup.php", setupFilename), "utf8");
 
-  // 6. Собираем ZIP.
+  // 5. Собираем ZIP.
   const zip = new JSZip();
   zip.file("index.php", baked.phpIndex);
   for (const f of adminFiles) {
-    // setup.php в шаблоне переименовываем на лету. Содержимое не трогаем —
-    // setup.php сам определяет своё имя через basename(__FILE__) при выводе
-    // сообщений «удали этот файл».
-    const targetPath = f.relPath === SETUP_TEMPLATE_NAME ? setupFilename : f.relPath;
-    zip.file(targetPath, f.content);
+    if (f.relPath === "setup.php") {
+      // Кладём под рандомным именем, content переписываем тоже.
+      zip.file(setupFilename, rewriteSetupRefs(f.content));
+    } else if (f.relPath === "README.md") {
+      zip.file(f.relPath, rewriteSetupRefs(f.content));
+    } else {
+      zip.file(f.relPath, f.content);
+    }
   }
   // Дефолтный контент идёт в оба файла:
   //   - defaults.json (read-only reference, не трогать)
