@@ -2,13 +2,20 @@
 declare(strict_types=1);
 require_once __DIR__ . '/admin/lib/store.php';
 
+// basename(__FILE__) — реальное имя этого файла на диске. При генерации бандла
+// NIT Builder переименовывает setup.php в setup-<8hex>.php (защита от race на
+// первом деплое), и сообщения «удали этот файл» должны показывать актуальное
+// имя, а не хардкод. Если кто-то вручную переименует — тоже сработает.
+$selfName = basename(__FILE__);
+$selfNameHtml = htmlspecialchars($selfName, ENT_QUOTES, 'UTF-8');
+
 $usersPath = nit_root() . '/data/users.json';
 if (is_file($usersPath) && filesize($usersPath) > 0) {
     http_response_code(403);
     echo '<!DOCTYPE html><meta charset="utf-8"><title>Setup completed</title>'
        . '<style>body{font:14px system-ui;background:#0a0d18;color:#e6e9f0;padding:48px}h1{color:#ff2e93}a{color:#00d4ff}</style>'
        . '<h1>Setup уже выполнен.</h1>'
-       . '<p>Удали файл <code>setup.php</code> с сервера или открой <a href="admin/">админку</a>.</p>';
+       . '<p>Удали файл <code>' . $selfNameHtml . '</code> с сервера или открой <a href="admin/">админку</a>.</p>';
     exit;
 }
 
@@ -62,16 +69,16 @@ code{font:12px/1 ui-monospace,monospace;background:rgba(0,0,0,.3);padding:2px 6p
 <div class="done">
   <h1>✓ Готово</h1>
   <h2>// admin created</h2>
-  <p style="font-size:13px;line-height:1.6;margin-top:0">Аккаунт администратора создан. <strong>Удали файл <code>setup.php</code></strong> с сервера и переходи в админку.</p>
+  <p style="font-size:13px;line-height:1.6;margin-top:0">Аккаунт администратора создан. <strong>Удали файл <code><?= $selfNameHtml ?></code></strong> с сервера и переходи в админку.</p>
   <a class="btn" href="admin/">Открыть админку →</a>
-  <div class="warn">⚠ <code>setup.php</code> позволяет кому угодно пересоздать админа. Удали его сразу после первого входа.</div>
+  <div class="warn">⚠ <code><?= $selfNameHtml ?></code> позволяет кому угодно пересоздать админа. Удали его сразу после первого входа.</div>
 </div>
 <?php else: ?>
 <form method="post">
   <h1>Setup</h1>
   <h2>// первый запуск</h2>
   <?php if ($err): ?><div class="err">✗ <?= htmlspecialchars($err, ENT_QUOTES, 'UTF-8') ?></div><?php endif; ?>
-  <p class="hint">Создай аккаунт администратора. <strong>Этот файл (<code>setup.php</code>) надо удалить после первого входа.</strong></p>
+  <p class="hint">Создай аккаунт администратора. <strong>Этот файл (<code><?= $selfNameHtml ?></code>) надо удалить после первого входа.</strong></p>
   <label>Логин (a-z, 0-9, _)</label>
   <input name="username" required minlength="3" pattern="[a-zA-Z0-9_]+" autofocus>
   <label>Пароль (минимум 10 символов)</label>
