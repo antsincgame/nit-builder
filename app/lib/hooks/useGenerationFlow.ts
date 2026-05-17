@@ -90,6 +90,11 @@ export type UseGenerationFlow = {
   currentVersionIndex: number;
   canUndo: boolean;
   canRedo: boolean;
+  /**
+   * ID последнего сохранённого сайта в Appwrite. Null если юзер guest
+   * или save ещё в полёте. Используется для шеринга (ShareDialog).
+   */
+  currentSiteId: string | null;
 
   // ─── Actions ────────────────────────────────────────
   createSite: (prompt: string) => Promise<void>;
@@ -147,6 +152,10 @@ export function useGenerationFlow(
   const [lastPrompt, setLastPrompt] = useState("");
   const [lastTemplateId, setLastTemplateId] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // ID последнего сохранённого в Appwrite сайта — нужен для шеринга
+  // (ShareDialog требует siteId). Null если юзер guest или save ещё в полёте.
+  const [currentSiteId, setCurrentSiteId] = useState<string | null>(null);
 
   // ─── Polish undo/redo ────────────────────────────────────────────
   // Версии копятся при каждом успешном create / polish. currentVersionIndex
@@ -305,6 +314,8 @@ export function useGenerationFlow(
               html: event.html,
               templateId: event.templateId,
               templateName: event.templateName,
+            }).then((id) => {
+              if (id) setCurrentSiteId(id);
             });
           } catch {
             // ignore storage failures
@@ -447,6 +458,8 @@ export function useGenerationFlow(
               html: result.finalHtml,
               templateId: result.templateId,
               templateName: result.templateName,
+            }).then((id) => {
+              if (id) setCurrentSiteId(id);
             });
           }
           toast.success("Сайт создан и сохранён в истории");
@@ -566,6 +579,11 @@ export function useGenerationFlow(
     setTemplateName(entry.templateName);
     setChatMessages([]);
     setMode("editing");
+    // entry.id — id из Appwrite (для remote-источника) или uuid (для local).
+    // ShareDialog проверяет на этот id; если это local-id (uuid),
+    // server вернёт 404 на /api/share, что корректно (нельзя расшарить
+    // сайт которого нет в облаке).
+    setCurrentSiteId(entry.id);
     // Стек версий сбрасываем — открытие сайта из истории это новая
     // «сессия» с точки зрения undo/redo. Полировки старой сессии не
     // переносятся (их можно было бы сохранять с самим сайтом, но это
@@ -586,6 +604,7 @@ export function useGenerationFlow(
     setCurrentStep("plan");
     setVersions([]);
     setCurrentVersionIndex(-1);
+    setCurrentSiteId(null);
     sessionIdRef.current = undefined;
   }, []);
 
@@ -632,6 +651,7 @@ export function useGenerationFlow(
     currentVersionIndex,
     canUndo: currentVersionIndex > 0,
     canRedo: currentVersionIndex < versions.length - 1,
+    currentSiteId,
     createSite,
     polishSite,
     cancelGeneration,
