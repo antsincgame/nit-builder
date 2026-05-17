@@ -20,6 +20,7 @@
  */
 
 import { parseSseStream } from "~/lib/utils/sseParser";
+import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
 
 /** Событие пайплайна, унифицированное для create/polish HTTP-fallback. */
 export type HttpPipelineEvent =
@@ -38,6 +39,7 @@ export type HttpFallbackParams = {
   /** sessionId возвращается сервером в первом событии и должен быть переиспользован для polish. */
   sessionId?: string;
   providerId?: string;
+  artifactMode?: ArtifactMode;
   signal: AbortSignal;
   /** Вызывается на каждое событие. Возврат false — прервать обработку (не используется сейчас, на будущее). */
   onEvent: (event: HttpPipelineEvent) => void;
@@ -70,6 +72,7 @@ export async function runHttpPipeline(
       sessionId: params.sessionId,
       message: params.prompt,
       providerId: params.providerId,
+      artifactMode: params.artifactMode ?? inferArtifactModeFromPrompt(params.prompt),
     }),
     signal: params.signal,
   });

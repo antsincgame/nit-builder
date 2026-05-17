@@ -198,6 +198,101 @@ describe("executeHtmlSimple", () => {
     expect(textEvents.length).toBeGreaterThanOrEqual(1);
   });
 
+  it("uses custom artifact coder path for masterpiece prompts", async () => {
+    process.env.NIT_SKELETON_INJECT_ENABLED = "1";
+    mockPlannerResponse = JSON.stringify({
+      ...JSON.parse(VALID_PLAN_JSON),
+      business_type: "премиальная студия интерьера",
+      target_audience: "владельцы квартир и домов, которым нужен вау-эффект",
+      keywords: ["интерьер", "премиум", "портфолио", "заявка"],
+      hero_headline: "Интерьеры уровня арт-галереи",
+      hero_subheadline: "Создаём выразительные пространства с авторской сценографией и точным бюджетом.",
+      suggested_template_id: "blank-landing",
+      cta_primary: "Оставить заявку",
+    });
+    mockCoderChunks = [
+      "<!DOCTYPE html><html><head><style>",
+      "body{background:#05060a;color:#e8ecff}.hud{position:fixed}",
+      "</style></head><body><section id='hero'><h1>Интерьеры</h1>",
+      "<a>Оставить заявку</a></section></body></html>",
+    ];
+
+    const memory = makeMemory();
+    const events = await collectEvents(
+      executeHtmlSimple(
+        memory,
+        uniqueQuery("сделай шедевр не шаблонный дорогой сайт для студии интерьера"),
+        new AbortController().signal,
+      ),
+    );
+
+    expect(events.some((e) => e.type === "skeleton_inject_used")).toBe(false);
+    expect(events.some((e) => e.type === "text")).toBe(true);
+    expect(memory.currentHtml).toContain("Интерьеры");
+    expect(memory.currentHtml).toContain("hud");
+  });
+
+  it("can return a PHP + SQLite backend artifact preview", async () => {
+    mockPlannerResponse = JSON.stringify({
+      ...JSON.parse(VALID_PLAN_JSON),
+      business_type: "магазин аксессуаров",
+      target_audience: "покупатели",
+      keywords: ["товары", "корзина", "заказы", "админка"],
+      hero_headline: "Аксессуары с быстрой доставкой",
+      hero_subheadline: "Каталог, корзина и админка в одном PHP-проекте.",
+      suggested_template_id: "blank-landing",
+      cta_primary: "Добавить в корзину",
+      pricing_tiers: [
+        { name: "Сумка", price: "4900 ₽", features: ["Кожа", "Гарантия"] },
+        { name: "Рюкзак", price: "8900 ₽", features: ["Ноутбук", "Доставка"], highlighted: true },
+      ],
+    });
+
+    const memory = makeMemory();
+    const events = await collectEvents(
+      executeHtmlSimple(
+        memory,
+        uniqueQuery("магазин на php sqlite с товарами и платежками"),
+        new AbortController().signal,
+        { artifactMode: "php-sqlite" },
+      ),
+    );
+
+    const done = events.find((e) => e.type === "step_complete");
+    const templateEvents = events.filter((e) => e.type === "template_selected");
+    expect(templateEvents).toHaveLength(1);
+    expect(templateEvents[0]?.type === "template_selected" && templateEvents[0].templateId).toBe("php-sqlite-app");
+    expect(done?.type === "step_complete" && done.html).toContain("php-sqlite-app");
+    expect(memory.templateId).toBe("php-sqlite-app");
+    expect(memory.currentHtml).toContain('id="nit-artifact-manifest"');
+    expect(memory.currentHtml).toContain("public/index.php");
+  });
+
+  it("normalizes backend artifact plan domain from the original prompt", async () => {
+    mockPlannerResponse = JSON.stringify({
+      ...JSON.parse(VALID_PLAN_JSON),
+      business_type: "тату-студия",
+      target_audience: "водители",
+      keywords: ["тату", "мастера"],
+      hero_headline: "Тату рядом",
+      suggested_template_id: "tattoo-studio",
+    });
+
+    const memory = makeMemory();
+    await collectEvents(
+      executeHtmlSimple(
+        memory,
+        uniqueQuery("backend для аренды авто на PHP SQLite: машины заявки оплата админка"),
+        new AbortController().signal,
+        { artifactMode: "php-sqlite" },
+      ),
+    );
+
+    expect((memory.planJson as { business_type: string }).business_type).toBe("сервис аренды авто");
+    expect((memory.planJson as { suggested_template_id: string }).suggested_template_id).toBe("blank-landing");
+    expect(memory.currentHtml).toContain("сервис аренды авто: PHP + SQLite backend");
+  });
+
   it("falls back to blank-landing when plan JSON is invalid", async () => {
     mockPlannerResponse = "not json at all, just garbage";
     const memory = makeMemory();

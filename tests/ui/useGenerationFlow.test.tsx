@@ -165,6 +165,67 @@ describe("useGenerationFlow > createSite (HTTP fallback)", () => {
     expect(toast.success).toHaveBeenCalled();
   });
 
+  it("guest backend prompt → HTTP fallback получает artifactMode=php-sqlite", async () => {
+    mockedRunHttp.mockResolvedValueOnce({
+      finalHtml: "<html>backend artifact</html>",
+      templateId: "php-sqlite-app",
+      templateName: "PHP + SQLite backend",
+      newSessionId: "s-backend",
+    });
+
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("магазин на PHP SQLite с товарами, корзиной и оплатой");
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "create",
+        projectId: "p-1",
+        prompt: "магазин на PHP SQLite с товарами, корзиной и оплатой",
+        artifactMode: "php-sqlite",
+      }),
+    );
+    expect(result.current.lastTemplateId).toBe("php-sqlite-app");
+  });
+
+  it("guest обычный HTML prompt → HTTP fallback не форсит backend artifactMode", async () => {
+    mockedRunHttp.mockResolvedValueOnce({
+      finalHtml: "<html>landing</html>",
+      templateId: "coffee-shop",
+      templateName: "Coffee shop",
+      newSessionId: "s-html",
+    });
+
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("сделай красивый лендинг для кофейни");
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "сделай красивый лендинг для кофейни",
+        artifactMode: undefined,
+      }),
+    );
+  });
+
   it("authed → HTTP fallback (если socket не authed) → также saveRemoteSite", async () => {
     mockedRunHttp.mockResolvedValueOnce({
       finalHtml: "<html>x</html>",
@@ -311,12 +372,42 @@ describe("useGenerationFlow > createSite (WebSocket)", () => {
       requestId: expect.stringMatching(/^req-/),
       mode: "create",
       prompt: "ws test",
+      artifactMode: undefined,
     });
     // HTTP fallback НЕ должен использоваться
     expect(mockedRunHttp).not.toHaveBeenCalled();
     // Stay in generating mode — finished only when WS event "generate_done"
     expect(result.current.mode).toBe("generating");
     expect(result.current.loading).toBe(true);
+  });
+
+  it("authed + tunnel online backend prompt → sendGenerate получает artifactMode=php-sqlite", async () => {
+    const sendGenerate = vi.fn(() => true);
+    const socket = makeFakeSocket({
+      status: "authed",
+      tunnelStatus: "online",
+      sendGenerate,
+    });
+
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("backend на PHP MySQL: товары заказы админка оплаты");
+    });
+
+    expect(sendGenerate).toHaveBeenCalledWith({
+      requestId: expect.stringMatching(/^req-/),
+      mode: "create",
+      prompt: "backend на PHP MySQL: товары заказы админка оплаты",
+      artifactMode: "php-sqlite",
+    });
+    expect(mockedRunHttp).not.toHaveBeenCalled();
   });
 
   it("если sendGenerate возвращает false → fail-fast в welcome", async () => {

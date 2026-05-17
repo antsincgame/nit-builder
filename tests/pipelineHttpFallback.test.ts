@@ -68,6 +68,27 @@ describe("runHttpPipeline", () => {
     });
   });
 
+  it("автоматически включает php-sqlite artifact mode для backend PHP запроса", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      makeSseResponse([
+        JSON.stringify({ type: "session_init", sessionId: "s1" }),
+        JSON.stringify({ type: "step_complete", html: "<html></html>" }),
+      ]),
+    );
+    globalThis.fetch = fetchMock;
+
+    await runHttpPipeline({
+      mode: "create",
+      projectId: "p-php",
+      prompt: "нужен магазин на PHP SQLite с товарами, корзиной и платежками",
+      signal: new AbortController().signal,
+      onEvent: () => {},
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    expect(body.artifactMode).toBe("php-sqlite");
+  });
+
   it("вызывает onEvent с правильной последовательностью событий", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       makeSseResponse([

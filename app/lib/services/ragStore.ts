@@ -199,7 +199,22 @@ export async function addDocument(input: {
     input.id ??
     `${input.category}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
 
-  if (documents.has(id)) return documents.get(id)!;
+  if (documents.has(id)) {
+    const existing = documents.get(id)!;
+    if (!input.skipEmbed && (!existing.embedding || existing.embedding.length === 0)) {
+      const vec = await ensureEmbedding(existing);
+      if (vec && !input.skipPersist) {
+        // Repair previously persisted seed rows that were written while embeddings
+        // were unavailable. On load, the later JSONL row wins for the same id.
+        try {
+          await appendToFile(existing);
+        } catch (err) {
+          logger.warn(SCOPE, `Persist failed: ${(err as Error).message}`);
+        }
+      }
+    }
+    return existing;
+  }
 
   const doc: RagDocument = {
     id,
@@ -306,6 +321,26 @@ export function getStats(): { total: number; byCategory: Record<string, number> 
     byCategory[doc.category] = (byCategory[doc.category] ?? 0) + 1;
   }
   return { total: Object.values(byCategory).reduce((s, n) => s + n, 0), byCategory };
+}
+
+export async function getSeedCoverage(seedVersion: string): Promise<{
+  totalPlanSeeds: number;
+  embeddedPlanSeeds: number;
+}> {
+  await ensureLoaded();
+  let totalPlanSeeds = 0;
+  let embeddedPlanSeeds = 0;
+  const suffix = `:${seedVersion}`;
+
+  for (const doc of documents.values()) {
+    if (doc.metadata.isSentinel) continue;
+    if (doc.category !== "plan_example") continue;
+    if (!doc.id.startsWith("seed:plan:") || !doc.id.endsWith(suffix)) continue;
+    totalPlanSeeds++;
+    if (doc.embedding && doc.embedding.length > 0) embeddedPlanSeeds++;
+  }
+
+  return { totalPlanSeeds, embeddedPlanSeeds };
 }
 
 export async function _resetForTests(): Promise<void> {

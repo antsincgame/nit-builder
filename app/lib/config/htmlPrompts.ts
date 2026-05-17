@@ -31,6 +31,8 @@ ${buildCatalogForPrompt(candidateIds)}
    - "тариф/цены/стоимость/аренда" → pricing
    - "запись/бронь/приём/консультация" → booking
 8. suggested_template_id выбирай по смыслу бизнеса, а не только по первому кандидату. Для стоматологии и клиник используй medical-clinic, для фитнеса fitness-trainer, для йоги yoga-studio, для SaaS saas-landing, для кофейни coffee-shop, для барбершопа barbershop.
+9. Для ремесленных мастер-классов, гончарного дела, керамики, свечей, украшений и других craft/workshop ниш используй handmade-shop. НЕ используй portfolio-dev (это только личное портфолио специалиста) и НЕ используй fitness-trainer.
+10. Язык всех текстовых полей должен совпадать с plan.language. Если language="ru" — cta_primary, hero_headline, benefits, faq и microcopy только на русском, без English CTA вроде "Book now".
 
 КОПИРАЙТ (обязательно заполни все поля ниже):
 - hero_headline — цепляющая фраза 2-8 слов на plan.language. Не "Добро пожаловать". Не "Наша миссия". Конкретный результат или выгода: "Свежий кофе, привезённый утром".
@@ -179,6 +181,63 @@ export function buildCoderPrompt(params: {
   return `${CODER_SYSTEM_PROMPT}
 
 ${buildCoderUserMessage(params)}`;
+}
+
+export const CUSTOM_ARTIFACT_SYSTEM_PROMPT = `Ты — арт-директор и senior frontend engineer. Создаёшь premium one-file HTML landing page уровня award-worthy demo.
+
+ЦЕЛЬ:
+- Сделать НЕ шаблонный сайт, а самостоятельный визуальный артефакт: уникальная композиция, типографика, интерактивные детали, кастомная графика на CSS/SVG.
+- Результат должен быть ближе к curated product microsite, чем к обычному Tailwind landing.
+
+ЖЁСТКИЕ ПРАВИЛА:
+- Верни один полный HTML-файл от <!DOCTYPE html> до </html>.
+- Внутри: <style> с большим bespoke CSS. Не используй Tailwind CDN.
+- Никаких markdown, комментариев вне HTML, import, npm, локальных файлов.
+- Можно использовать Google Fonts, inline SVG, CSS gradients, masks, noise via data URI, CSS animations, glass/HUD/cards/marquee/terminal panels.
+- Нельзя оставлять generic Brand / Добро пожаловать / Кто мы и что делаем / Почему выбирают нас / lorem / example.com.
+- Нельзя оставлять placeholder-комментарии: <!-- add ... here -->, TODO, "здесь будет", "Add details here".
+- Все тексты должны соответствовать plan.language и запросу пользователя.
+- CTA должен дословно совпадать с plan.cta_primary и быть виден в hero.
+- Сделай адаптивность для mobile/desktop.
+
+SIGNATURE MOVES (выбери 5-8, не все подряд):
+- fixed atmospheric background: grid/noise/scanlines/orbs/gradient mesh;
+- hero с крупной editorial/tech типографикой и асимметричной сеткой;
+- кастомная центральная визуализация через inline SVG/CSS, а не случайная фотография;
+- карточки услуг/фич с micro-labels, counters, badges, status chips;
+- sticky/frosted nav или HUD bar;
+- moving marquee или ticker;
+- section dividers, диаграммы, faux terminal, product card, schematic panel;
+- hover states, subtle animations, glow/shadow/paper texture;
+- strong footer/CTA block, не просто текст.
+
+КАЧЕСТВО:
+- HTML должен быть 25-60KB, насыщенный, но не раздутый мусором. Меньше 20KB считается провалом.
+- Минимум 900 строк HTML/CSS суммарно или эквивалентная плотность: большой <style>, много секций, SVG/CSS-графика.
+- Используй семантические sections с id: hero, problem, solution/features, marketplace/proof, pricing/roadmap, contact/cta по плану.
+- Минимум 6 полноценных секций после hero.
+- Минимум 12 карточек/панелей/виджетов суммарно.
+- Минимум 1 крупная custom visual scene через inline SVG/CSS, не изображение с Unsplash.
+- Минимум 2 анимации @keyframes и 1 marquee/ticker/HUD/status row.
+- Если ниша tech/game/crypto/SaaS — можно cyber/HUD/glitch/neon.
+- Если ниша premium/interior/beauty — editorial/paper/luxury spacing, крупные фото-плейсхолдеры через gradients/SVG panels.
+- Если service/local — clean trust layout, но всё равно bespoke, без шаблонной синей SaaS-эстетики.`;
+
+export function shouldUseCustomArtifactMode(userMessage: string): boolean {
+  return /шедевр|вау|wow|дорог|premium|премиум|арт|art[-\s]?direct|уникальн|не шаблон|как\s+в\s+архив|tonforge|glitch|cyber|кибер|neon|лендинг\s+для\s+(crypto|web3|saas|game|игров|продукт)|экспериментальн/i.test(userMessage);
+}
+
+export function buildCustomArtifactUserMessage(params: {
+  userMessage: string;
+  plan: PlanLike;
+}): string {
+  return `ЗАПРОС ПОЛЬЗОВАТЕЛЯ:
+${params.userMessage}
+
+ПЛАН:
+${JSON.stringify(params.plan, null, 2)}
+
+Сделай custom single-file HTML landing page с нуля. Не адаптируй шаблон. Визуальный уровень: bespoke microsite, как дизайнерский HTML artifact.`;
 }
 
 export const POLISHER_SYSTEM_PROMPT = `Ты — HTML-Полировщик. Вносишь изменения в существующий HTML-сайт по запросу пользователя.

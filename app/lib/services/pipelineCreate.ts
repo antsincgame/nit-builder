@@ -13,7 +13,10 @@ import { streamText } from "ai";
 import type { Plan } from "~/lib/utils/planSchema";
 import {
   CODER_SYSTEM_PROMPT,
+  CUSTOM_ARTIFACT_SYSTEM_PROMPT,
   buildCoderUserMessage,
+  buildCustomArtifactUserMessage,
+  shouldUseCustomArtifactMode,
 } from "~/lib/config/htmlPrompts";
 import {
   getTemplateById,
@@ -42,6 +45,11 @@ import { recordGeneration } from "~/lib/services/feedbackStore";
 import { pruneTemplateForPlan } from "~/lib/utils/templatePrune";
 import { MAX_CONTINUATION_ATTEMPTS, cleanRawForTail } from "~/lib/services/continuation";
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
+import { buildCustomArtifactHtml } from "~/lib/services/customArtifactBuilder";
+import {
+  buildPhpSqliteArtifact,
+  renderPhpSqliteArtifactPreview,
+} from "~/lib/services/phpSqliteArtifactBuilder";
 import { injectStylePreset, type StylePresetId } from "~/lib/llm/style-presets";
 import { obtainPlan } from "~/lib/services/pipelinePlanner";
 import {
@@ -59,6 +67,60 @@ import type {
 function htmlContainsPrimaryCta(html: string, plan: Plan): boolean {
   if (!plan.cta_primary?.trim()) return true;
   return html.toLowerCase().includes(plan.cta_primary.toLowerCase());
+}
+
+function resolveArtifactMode(
+  sanitizedUserMessage: string,
+  options: OrchestratorOptions,
+): "template" | "custom" | "php-sqlite" {
+  if (options.artifactMode === "php-sqlite") return "php-sqlite";
+  if (options.artifactMode === "custom") return "custom";
+  if (options.artifactMode === "template") return "template";
+  return shouldUseCustomArtifactMode(sanitizedUserMessage) ? "custom" : "template";
+}
+
+function customArtifactLooksTooThin(html: string): boolean {
+  if (html.length < 20_000) return true;
+  if (/<!--\s*(add|todo|здесь|placeholder)/i.test(html)) return true;
+  const sectionCount = (html.match(/<section\b/gi) ?? []).length;
+  const keyframesCount = (html.match(/@keyframes\b/gi) ?? []).length;
+  const cardishCount = (html.match(/class=["'][^"']*(card|panel|tile|widget|stat|feature)/gi) ?? []).length;
+  return sectionCount < 6 || keyframesCount < 2 || cardishCount < 8;
+}
+
+function normalizeBackendPlanForPrompt(plan: Plan, prompt: string): Plan {
+  const text = prompt.toLowerCase();
+  const match = [
+    { re: /косметик|beauty|cosmetic/, type: "интернет-магазин косметики", keywords: ["косметика", "каталог", "корзина", "заказы"] },
+    { re: /доставк.*ед|еда|restaurant|food/, type: "сервис доставки еды", keywords: ["меню", "доставка", "корзина", "заказы"] },
+    { re: /аренд.*авто|машин|car rental|автопрокат/, type: "сервис аренды авто", keywords: ["авто", "аренда", "заявки", "оплата"] },
+    { re: /клиник|медиц|clinic|doctor/, type: "клиника", keywords: ["услуги", "запись", "заявки", "статусы"] },
+    { re: /недвиж|real estate|объект/, type: "агентство недвижимости", keywords: ["объекты", "заявки", "статусы", "админка"] },
+    { re: /курс|школ|school|course/, type: "школа онлайн-курсов", keywords: ["курсы", "тарифы", "заявки", "админка"] },
+    { re: /crm|клиент/, type: "mini CRM", keywords: ["клиенты", "заказы", "статусы", "админка"] },
+    { re: /маркетплейс|marketplace/, type: "маркетплейс услуг", keywords: ["категории", "заказы", "исполнители", "оплаты"] },
+  ].find((item) => item.re.test(text));
+
+  if (!match) return plan;
+
+  const sections = Array.from(new Set([
+    "hero",
+    "catalog",
+    "cart",
+    "checkout",
+    "admin",
+    "orders",
+    "contact",
+  ]));
+  return {
+    ...plan,
+    business_type: match.type,
+    sections,
+    keywords: Array.from(new Set([...match.keywords, ...plan.keywords])).slice(0, 15),
+    hero_headline: `${match.type}: PHP + SQLite backend`,
+    hero_subheadline: "Каталог, корзина, checkout, заказы и админка в одном готовом PHP-проекте.",
+    suggested_template_id: "blank-landing",
+  };
 }
 
 export async function* executeHtmlSimple(
@@ -139,8 +201,163 @@ export async function* executeHtmlSimple(
   // template остаётся в том же скоупе и не пере-присваивается, дублёр
   // удалён. Везде ниже используется напрямую template.id.
 
+  const artifactMode = resolveArtifactMode(sanitized, options);
+  if (artifactMode === "php-sqlite") {
+    currentPlan = normalizeBackendPlanForPrompt(currentPlan, sanitized);
+    memory.planJson = currentPlan;
+    metrics.skeletonInjectSkipped("php_sqlite_artifact_mode");
+    logger.info(SCOPE, "Backend artifact mode: generating deterministic PHP + SQLite project manifest");
+    memory.templateId = "php-sqlite-app";
+
+    yield {
+      type: "step_start",
+      roleName: "Backend builder",
+      model: provider.defaultModel,
+      provider: provider.id,
+    };
+    yield {
+      type: "template_selected",
+      templateId: "php-sqlite-app",
+      templateName: "PHP + SQLite backend",
+    };
+
+    const artifact = buildPhpSqliteArtifact({
+      plan: currentPlan,
+      userMessage: sanitized,
+    });
+    const fullHtml = renderPhpSqliteArtifactPreview({
+      artifact,
+      plan: currentPlan,
+      userMessage: sanitized,
+    });
+    memory.currentHtml = fullHtml;
+    memory.updatedAt = Date.now();
+    updateSessionHtml(memory.sessionId, fullHtml);
+    const totalMs = Date.now() - startMs;
+    metrics.generationCompleted("create", provider.id, totalMs);
+    recordGeneration({
+      sessionId: memory.sessionId,
+      mode: "create",
+      outcome: "success",
+      provider: provider.id,
+      model: provider.defaultModel,
+      durationMs: totalMs,
+      userMessage: sanitized,
+      plan: currentPlan,
+      templateId: "php-sqlite-app",
+      planCached: planCachedFlag,
+      injectMethod: "skeleton",
+      errorReason: "php-sqlite-artifact",
+    });
+
+    yield { type: "text", text: fullHtml };
+    yield { type: "step_complete", html: fullHtml };
+    return;
+  }
+
   yield { type: "template_selected", templateId: template.id, templateName: template.name };
   metrics.templateSelected(template.id);
+
+  if (artifactMode === "custom") {
+    metrics.skeletonInjectSkipped("custom_artifact_mode");
+    logger.info(SCOPE, "Skeleton-injection пропущена (custom_artifact_mode), вызываем Coder с нуля");
+
+    yield {
+      type: "step_start",
+      roleName: "Кодер",
+      model: provider.defaultModel,
+      provider: provider.id,
+    };
+
+    try {
+      const planJsonStr = JSON.stringify(currentPlan);
+      const estimatedInputChars =
+        CUSTOM_ARTIFACT_SYSTEM_PROMPT.length + planJsonStr.length + sanitized.length + 500;
+      const budget = checkContextBudget(provider, estimatedInputChars, 12_000);
+      if (budget.warning) logger.warn(SCOPE, budget.warning);
+      if (!budget.ok) {
+        metrics.generationFailed("create", "context_overflow");
+        yield { type: "error", message: budget.warning ?? "Context overflow" };
+        return;
+      }
+
+      let result: Awaited<ReturnType<typeof streamText>> | null = null;
+      let rawHtml = "";
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const attemptPrompt = attempt === 0
+          ? buildCustomArtifactUserMessage({ userMessage: sanitized, plan: currentPlan })
+          : `${buildCustomArtifactUserMessage({ userMessage: sanitized, plan: currentPlan })}
+
+ПРЕДЫДУЩАЯ ПОПЫТКА БЫЛА СЛИШКОМ КОРОТКОЙ/ШАБЛОННОЙ.
+Сейчас обязательно сделай полноценный 25-60KB artifact: большой CSS, 6+ sections, 12+ panels/cards, inline SVG scene, no placeholders.`;
+
+        result = await streamText({
+          model,
+          system: CUSTOM_ARTIFACT_SYSTEM_PROMPT,
+          prompt: attemptPrompt,
+          maxOutputTokens: 16_000,
+          temperature: 0.55,
+          abortSignal: signal,
+        });
+
+        rawHtml = "";
+        for await (const delta of result.textStream) {
+          rawHtml += delta;
+          yield { type: "text", text: delta };
+        }
+
+        const preview = stripCodeFences(rawHtml);
+        if (!customArtifactLooksTooThin(preview)) break;
+        logger.warn(SCOPE, `Custom artifact attempt ${attempt + 1} too thin (${preview.length} chars), retrying`);
+      }
+
+      const usage = result ? await readUsage(result) : { prompt: 0, completion: 0 };
+      if (usage.prompt > 0 || usage.completion > 0) {
+        metrics.tokensUsed("create", "prompt", usage.prompt);
+        metrics.tokensUsed("create", "completion", usage.completion);
+        yield {
+          type: "tokens",
+          mode: "create",
+          prompt: usage.prompt,
+          completion: usage.completion,
+        };
+      }
+
+      const totalMs = Date.now() - startMs;
+      const generatedHtml = stripCodeFences(rawHtml);
+      const fullHtml = customArtifactLooksTooThin(generatedHtml)
+        ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized })
+        : generatedHtml;
+      if (fullHtml !== generatedHtml) {
+        logger.warn(SCOPE, `Custom artifact fallback builder used (${generatedHtml.length} generated chars)`);
+      }
+      memory.currentHtml = fullHtml;
+      memory.updatedAt = Date.now();
+      updateSessionHtml(memory.sessionId, fullHtml);
+      metrics.generationCompleted("create", provider.id, totalMs);
+      recordGeneration({
+        sessionId: memory.sessionId,
+        mode: "create",
+        outcome: "success",
+        provider: provider.id,
+        model: provider.defaultModel,
+        durationMs: totalMs,
+        userMessage: sanitized,
+        plan: currentPlan,
+        templateId: template.id,
+        planCached: planCachedFlag,
+        injectMethod: "coder",
+      });
+
+      yield { type: "step_complete", html: fullHtml };
+      return;
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      metrics.generationFailed("create", "coder_error");
+      yield { type: "error", message: `Ошибка кодера: ${(err as Error).message}` };
+      return;
+    }
+  }
 
   metrics.skeletonInjectAttempted();
   const cleanTemplateHtml = loadTemplateHtml(template.id);

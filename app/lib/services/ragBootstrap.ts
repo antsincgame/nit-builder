@@ -20,12 +20,16 @@
  * faq/hours_text/contact_*. Позволяет Planner через few-shot увидеть как выдавать
  * расширенные поля — 7B модель без живых примеров в корпусе редко берёт optional поля.
  *
+ * v5: repair partial bootstrap (sentinel без embedded seeds) + craft workshop seed.
+ * v6: premium beauty seed + stricter weak-model template/language guidance.
+ * v7: medical translation seed + deterministic weak-model RU copy repair.
+ *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
  */
 
 import { logger } from "~/lib/utils/logger";
-import { addDocument, hasDocument } from "~/lib/services/ragStore";
+import { addDocument, getSeedCoverage, hasDocument } from "~/lib/services/ragStore";
 import { isRagDisabled } from "~/lib/services/ragEmbeddings";
 import { PLAN_EXAMPLE_SEEDS } from "~/lib/rag/seeds/planExamples";
 import { PLAN_EXAMPLE_SEEDS_EXTENDED } from "~/lib/rag/seeds/planExamplesExtended";
@@ -38,8 +42,9 @@ import {
 import { buildContextualText } from "~/lib/services/contextualEmbed";
 
 const SCOPE = "ragBootstrap";
-const SEED_VERSION = "v4";
+const SEED_VERSION = "v7";
 const SENTINEL_ID = `__seed_sentinel:${SEED_VERSION}`;
+const EXPECTED_PLAN_SEEDS = PLAN_EXAMPLE_SEEDS.length + PLAN_EXAMPLE_SEEDS_EXTENDED.length;
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -56,12 +61,24 @@ export async function ensureSeeded(): Promise<void> {
 
 async function doBootstrap(): Promise<void> {
   if (await hasDocument(SENTINEL_ID)) {
-    logger.info(SCOPE, `Seeds ${SEED_VERSION} already present, skipping`);
-    return;
+    const coverage = await getSeedCoverage(SEED_VERSION);
+    if (
+      coverage.totalPlanSeeds >= EXPECTED_PLAN_SEEDS &&
+      coverage.embeddedPlanSeeds >= EXPECTED_PLAN_SEEDS
+    ) {
+      logger.info(SCOPE, `Seeds ${SEED_VERSION} already present, skipping`);
+      return;
+    }
+    logger.warn(
+      SCOPE,
+      `Seeds ${SEED_VERSION} incomplete (${coverage.embeddedPlanSeeds}/${EXPECTED_PLAN_SEEDS} embedded), repairing`,
+    );
   }
 
   let added = 0;
-  let failed = 0;
+  let embeddedPlanSeeds = 0;
+  let missingPlanEmbeddings = 0;
+  let optionalFailed = 0;
 
   // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact)
   const allPlanSeeds = [...PLAN_EXAMPLE_SEEDS, ...PLAN_EXAMPLE_SEEDS_EXTENDED];
@@ -85,8 +102,12 @@ async function doBootstrap(): Promise<void> {
         source: `seed_${SEED_VERSION}`,
       },
     });
-    if (result) added++;
-    else failed++;
+    if (result?.embedding && result.embedding.length > 0) {
+      added++;
+      embeddedPlanSeeds++;
+    } else {
+      missingPlanEmbeddings++;
+    }
   }
 
   for (const hero of HERO_HEADLINE_SEEDS) {
@@ -101,7 +122,7 @@ async function doBootstrap(): Promise<void> {
       },
     });
     if (result) added++;
-    else failed++;
+    else optionalFailed++;
   }
 
   for (const benefits of BENEFITS_SEEDS) {
@@ -116,7 +137,7 @@ async function doBootstrap(): Promise<void> {
       },
     });
     if (result) added++;
-    else failed++;
+    else optionalFailed++;
   }
 
   for (const proof of SOCIAL_PROOF_SEEDS) {
@@ -130,7 +151,7 @@ async function doBootstrap(): Promise<void> {
       },
     });
     if (result) added++;
-    else failed++;
+    else optionalFailed++;
   }
 
   for (const mc of MICROCOPY_SEEDS) {
@@ -140,11 +161,12 @@ async function doBootstrap(): Promise<void> {
       metadata: { niche: mc.niche, purpose: mc.purpose, source: `seed_${SEED_VERSION}` },
     });
     if (result) added++;
-    else failed++;
+    else optionalFailed++;
   }
 
-  // Sentinel — пишем только если что-то реально добавилось
-  if (added > 0) {
+  // Sentinel пишем только если ключевой plan_example корпус реально searchable.
+  // Иначе один сбой embedding API создаст вечный "успешный" bootstrap с пустым RAG.
+  if (embeddedPlanSeeds >= EXPECTED_PLAN_SEEDS) {
     await addDocument({
       id: SENTINEL_ID,
       text: `seed sentinel ${SEED_VERSION}`,
@@ -154,12 +176,12 @@ async function doBootstrap(): Promise<void> {
     });
     logger.info(
       SCOPE,
-      `Bootstrap ${SEED_VERSION}: +${added} docs (${failed} failed — embedding unavailable?)`,
+      `Bootstrap ${SEED_VERSION}: plan seeds embedded=${embeddedPlanSeeds}/${EXPECTED_PLAN_SEEDS}, optional docs added=${added - embeddedPlanSeeds}, optional failed=${optionalFailed}`,
     );
   } else {
     logger.warn(
       SCOPE,
-      `Bootstrap ${SEED_VERSION} added 0 docs — embedding unavailable. Retry later.`,
+      `Bootstrap ${SEED_VERSION} incomplete: plan seeds embedded=${embeddedPlanSeeds}/${EXPECTED_PLAN_SEEDS}, missing=${missingPlanEmbeddings}. Retry later.`,
     );
   }
 }

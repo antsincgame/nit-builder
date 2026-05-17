@@ -86,6 +86,7 @@ export const DEFAULT_HTML_SMOKE_CASES: HtmlSmokeCase[] = [
       "мастер-класс по гончарному делу на двоих романтический вечер за 2 часа цена и запись",
     relevantAny: ["гончар", "керамик", "мастер-класс", "двоих"],
     ctaAny: ["запис", "мастер-класс", "заброни"],
+    expectedTemplateAny: ["handmade-shop", "blank-landing"],
   },
   {
     id: "translation",

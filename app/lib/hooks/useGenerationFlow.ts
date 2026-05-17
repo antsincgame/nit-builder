@@ -25,6 +25,7 @@ import { runHttpPipeline } from "~/lib/services/pipelineHttpFallback";
 import { saveToHistory, type HistoryEntry } from "~/lib/stores/historyStore";
 import { saveRemoteSite } from "~/lib/stores/remoteHistoryStore";
 import { toast } from "~/lib/stores/toastStore";
+import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
 import { uuid } from "~/lib/utils/uuid";
 
 // ─── Public types ──────────────────────────────────────────────────
@@ -41,6 +42,7 @@ export type ControlSocketLike = {
     requestId: string;
     mode: "create" | "polish";
     prompt: string;
+    artifactMode?: ArtifactMode;
     previousHtml?: string;
   }) => boolean;
   sendAbort: (requestId: string) => void;
@@ -279,6 +281,7 @@ export function useGenerationFlow(
       setCurrentStep("plan");
       setLastPrompt(prompt);
       pendingHtmlRef.current = "";
+      const artifactMode = inferArtifactModeFromPrompt(prompt);
 
       // Seed chat с первым сообщением юзера для split-view.
       setChatMessages([{ role: "user", text: prompt }]);
@@ -297,6 +300,7 @@ export function useGenerationFlow(
           requestId,
           mode: "create",
           prompt,
+          artifactMode,
         });
         if (!sent) {
           toast.error("Туннель не готов. Попробуй ещё раз.");
@@ -317,6 +321,7 @@ export function useGenerationFlow(
           projectId,
           prompt,
           sessionId: sessionIdRef.current,
+          artifactMode,
           signal: ctrl.signal,
           onEvent: (event) => {
             switch (event.type) {
@@ -331,7 +336,7 @@ export function useGenerationFlow(
                 setCurrentStep("template");
                 break;
               case "step_start":
-                if (event.roleName === "Кодер") setCurrentStep("code");
+                if (event.roleName === "Кодер" || event.roleName === "Backend builder") setCurrentStep("code");
                 break;
               case "text_delta":
                 scheduleIframeUpdate(event.accumulated, event.accumulated.length);

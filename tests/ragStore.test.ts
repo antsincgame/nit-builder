@@ -25,6 +25,7 @@ import {
   addDocument,
   search,
   getStats,
+  getSeedCoverage,
   hasDocument,
   _resetForTests,
 } from "~/lib/services/ragStore";
@@ -152,6 +153,61 @@ describe("ragStore", () => {
     });
     const results = await search("matches");
     expect(results.find((r) => r.doc.id === "__seed_sentinel:v1")).toBeUndefined();
+  });
+
+  it("getSeedCoverage считает только embedded plan seeds нужной версии", async () => {
+    await addDocument({
+      id: "seed:plan:ok:v4",
+      text: "embedded seed",
+      category: "plan_example",
+    });
+    await addDocument({
+      id: "seed:plan:no-embed:v4",
+      text: "plain seed",
+      category: "plan_example",
+      skipEmbed: true,
+    });
+    await addDocument({
+      id: "seed:plan:old:v3",
+      text: "old seed",
+      category: "plan_example",
+    });
+    await addDocument({
+      id: "__seed_sentinel:v4",
+      text: "sentinel",
+      category: "plan_example",
+      metadata: { isSentinel: true },
+      skipEmbed: true,
+    });
+
+    expect(await getSeedCoverage("v4")).toEqual({
+      totalPlanSeeds: 2,
+      embeddedPlanSeeds: 1,
+    });
+  });
+
+  it("повторный addDocument repair-ит существующий seed без embedding", async () => {
+    await addDocument({
+      id: "seed:plan:repair:v4",
+      text: "кофейня",
+      category: "plan_example",
+      skipEmbed: true,
+    });
+    expect(await getSeedCoverage("v4")).toEqual({
+      totalPlanSeeds: 1,
+      embeddedPlanSeeds: 0,
+    });
+
+    await addDocument({
+      id: "seed:plan:repair:v4",
+      text: "кофейня",
+      category: "plan_example",
+    });
+
+    expect(await getSeedCoverage("v4")).toEqual({
+      totalPlanSeeds: 1,
+      embeddedPlanSeeds: 1,
+    });
   });
 
   it("limit k ограничивает результаты", async () => {

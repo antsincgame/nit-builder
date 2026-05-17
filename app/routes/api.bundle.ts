@@ -47,7 +47,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const sizeIn = parsed.data.html.length;
     const sizeOut = baked.length;
     logger.info(
-      `[api.bundle] ok in=${sizeIn}b out=${sizeOut}b took=${tookMs}ms`,
+      "api.bundle",
+      `ok in=${sizeIn}b out=${sizeOut}b took=${tookMs}ms`,
     );
 
     // safe filename — только ascii-альфанумерика, дефисы, подчёркивания.
@@ -65,7 +66,7 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
   } catch (err) {
-    logger.error("[api.bundle] bake failed", err);
+    logger.error("api.bundle", "bake failed", err);
     return Response.json(
       {
         error: "Bake failed",

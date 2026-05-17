@@ -202,6 +202,7 @@ export function useControlSocket(options: Options) {
       requestId: string;
       mode: "create" | "polish";
       prompt: string;
+      artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
       previousHtml?: string;
     }): boolean => {
       const ws = wsRef.current;
@@ -214,6 +215,7 @@ export function useControlSocket(options: Options) {
           requestId: params.requestId,
           mode: params.mode,
           prompt: params.prompt,
+          artifactMode: params.artifactMode,
           previousHtml: params.previousHtml,
         } satisfies BrowserToServer),
       );

@@ -69,4 +69,14 @@ export type OrchestratorOptions = {
    * Skeleton-injection path (без Coder) preset игнорирует — там нет LLM-шага.
    */
   stylePresetId?: StylePresetId;
+  /**
+   * Custom artifact mode: Coder builds a bespoke one-file page from scratch
+   * instead of adapting an existing template/skeleton. "auto" enables it for
+   * prompts that explicitly ask for a wow/premium/experimental product page.
+   *
+   * "php-sqlite" returns an HTML preview that embeds a generated PHP + SQLite
+   * project manifest. This keeps the current HTML editor contract intact while
+   * allowing a backend artifact to travel through the same SSE/storage path.
+   */
+  artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
 };

@@ -84,13 +84,18 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     const tookMs = Date.now() - t0;
     logger.info(
-      `[api.bundle.php] ok source=${zonesSource} matched=${result.matchedZones.length} missing=${result.missingZones.length} size=${result.sizeBytes}b took=${tookMs}ms`,
+      "api.bundle.php",
+      `ok source=${zonesSource} matched=${result.matchedZones.length} missing=${result.missingZones.length} size=${result.sizeBytes}b took=${tookMs}ms`,
     );
 
     const safeName =
       parsed.data.filename?.replace(/[^a-zA-Z0-9._-]/g, "_") ?? "site-php.zip";
 
-    return new Response(result.zip, {
+    const zipBody = result.zip.buffer.slice(
+      result.zip.byteOffset,
+      result.zip.byteOffset + result.zip.byteLength,
+    ) as ArrayBuffer;
+    return new Response(zipBody, {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="${safeName}"`,
@@ -103,7 +108,7 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
   } catch (err) {
-    logger.error("[api.bundle.php] bundle failed", err);
+    logger.error("api.bundle.php", "bundle failed", err);
     return Response.json(
       {
         error: "Bundle failed",

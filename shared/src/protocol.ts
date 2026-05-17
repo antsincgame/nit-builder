@@ -92,6 +92,7 @@ export type BrowserToServer =
       requestId: string;
       mode: GenerationMode;
       prompt: string;
+      artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
       /** Previous site HTML if mode === "polish" */
       previousHtml?: string;
     }

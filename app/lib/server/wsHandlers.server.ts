@@ -39,8 +39,60 @@ import {
 import { parseSessionCookie, verifySessionToken } from "./sessionCookie.server";
 import { analyzePrompt, buildEnrichedSystemPrompt } from "~/lib/services/promptAnalyzer";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
+import {
+  buildPhpSqliteArtifact,
+  renderPhpSqliteArtifactPreview,
+} from "~/lib/services/phpSqliteArtifactBuilder";
+import { PlanSchema, type Plan } from "~/lib/utils/planSchema";
+import { inferArtifactModeFromPrompt } from "~/lib/utils/artifactMode";
 
 const SERVER_VERSION = NIT_SERVER_VERSION;
+
+function planFromPromptAnalysis(prompt: string, analysis: ReturnType<typeof analyzePrompt>): Plan {
+  const text = prompt.toLowerCase();
+  const wantsCommerce = /(товар|товары|магазин|каталог|корзин|checkout|ecommerce|shop|store|payment|плат[её]ж|оплат)/i.test(text);
+  const colorMood =
+    analysis.colorHints.includes("тёмный") || analysis.colorHints.includes("чёрный")
+      ? "dark-premium"
+      : "light-minimal";
+  return PlanSchema.parse({
+    business_type: analysis.businessName || (wantsCommerce ? "магазин товаров" : "backend приложение"),
+    target_audience: wantsCommerce
+      ? "покупатели, которым нужен каталог, корзина и быстрый заказ"
+      : "администраторы и клиенты сайта",
+    tone: analysis.tone || "практичный и понятный",
+    style_hints: "чистая админка, карточки товаров, понятный checkout",
+    color_mood: colorMood,
+    sections: ["hero", "products", "cart", "checkout", "admin"],
+    keywords: wantsCommerce
+      ? ["товары", "корзина", "заказы", "админка", "оплата", "SQLite"]
+      : ["backend", "админка", "CRUD", "SQLite", "PHP"],
+    cta_primary: wantsCommerce ? "Добавить в корзину" : "Открыть админку",
+    language: analysis.language || "ru",
+    suggested_template_id: analysis.template.id || "blank-landing",
+    hero_headline: wantsCommerce ? "Магазин с админкой на PHP" : "Backend на PHP и SQLite",
+    hero_subheadline: "Готовый PHP-проект с SQLite, товарами, корзиной, заказами и защищённой админкой.",
+    key_benefits: [
+      { title: "SQLite из коробки", description: "База создаётся автоматически при первом запуске без отдельного сервера." },
+      { title: "CRUD товаров", description: "Админ может добавлять и редактировать товары прямо из панели." },
+      { title: "Заказы готовы", description: "Checkout сохраняет заявки и позиции заказа через PDO prepared statements." },
+    ],
+    social_proof_line: "MVP backend artifact: 9 файлов проекта, PDO, CSRF и session-auth.",
+    cta_microcopy: "Платёжки подключаются через hosted checkout без секретов в HTML.",
+    pricing_tiers: wantsCommerce
+      ? [
+          { name: "Базовый товар", price: "4900", period: "разово", features: ["Каталог", "Корзина", "Email-поддержка"] },
+          { name: "Премиум товар", price: "14900", period: "разово", features: ["Приоритет", "Расширенная комплектация", "Быстрая обработка"], highlighted: true },
+        ]
+      : undefined,
+    contact_email: "admin@example.com",
+    faq: [
+      { question: "Можно ли подключить MySQL?", answer: "Да, через DB_DRIVER=mysql и MYSQL_DSN в окружении." },
+      { question: "Где хранить секреты платежей?", answer: "Только на сервере, не в HTML и не в публичном JS." },
+      { question: "Что уже есть в MVP?", answer: "Каталог, корзина, заказ, вход в админку, CRUD товаров и список заказов." },
+    ],
+  });
+}
 
 // ─── WebSocket keepalive ──────────────────────────────────────────
 
@@ -427,6 +479,46 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
         // generic prompt — Coder выбирал тон/палитру наобум. Теперь всё явно,
         // результат воспроизводим и соответствует запросу.
         const analysis = analyzePrompt(msg.prompt);
+
+        if ((msg.artifactMode ?? inferArtifactModeFromPrompt(msg.prompt)) === "php-sqlite") {
+          const plan = planFromPromptAnalysis(msg.prompt, analysis);
+          const artifact = buildPhpSqliteArtifact({
+            plan,
+            userMessage: msg.prompt,
+          });
+          const html = renderPhpSqliteArtifactPreview({
+            artifact,
+            plan,
+            userMessage: msg.prompt,
+          });
+          send({
+            type: "generate_step",
+            requestId: msg.requestId,
+            step: "template",
+            templateId: "php-sqlite-app",
+            templateName: "PHP + SQLite backend",
+          });
+          send({
+            type: "generate_step",
+            requestId: msg.requestId,
+            step: "code",
+          });
+          send({
+            type: "generate_text",
+            requestId: msg.requestId,
+            text: html,
+          });
+          send({
+            type: "generate_done",
+            requestId: msg.requestId,
+            html,
+            templateId: "php-sqlite-app",
+            templateName: "PHP + SQLite backend",
+            durationMs: 0,
+          });
+          return;
+        }
+
         const system = buildEnrichedSystemPrompt(msg.prompt, analysis);
 
         const routed = routeRequest({

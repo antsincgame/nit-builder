@@ -1,0 +1,1273 @@
+import type { Plan, PlanPricingTier } from "~/lib/utils/planSchema";
+
+export type PhpSqliteProjectFile = {
+  path: string;
+  content: string;
+};
+
+export type PhpSqliteArtifact = {
+  kind: "php-sqlite-app";
+  version: 1;
+  files: PhpSqliteProjectFile[];
+  entrypoint: string;
+  database: "sqlite";
+  notes: string[];
+};
+
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function phpString(value: unknown): string {
+  return `'${String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9а-яё]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "nit-app";
+}
+
+function isRu(plan: Plan): boolean {
+  return plan.language === "ru";
+}
+
+type StorefrontTheme = "beauty" | "food" | "real-estate" | "clinic" | "courses" | "auto" | "generic";
+
+function storefrontTheme(plan: Plan): StorefrontTheme {
+  const text = `${plan.business_type} ${plan.keywords.join(" ")} ${plan.sections.join(" ")}`.toLowerCase();
+  if (/beauty|красот|салон|космет|маник|барбер|spa|wellness/.test(text)) return "beauty";
+  if (/food|еда|доставк|ресторан|меню|кафе|кофе/.test(text)) return "food";
+  if (/real estate|недвиж|объект|квартир|дом/.test(text)) return "real-estate";
+  if (/clinic|клиник|медиц|doctor|стомат/.test(text)) return "clinic";
+  if (/course|курс|школ|образован|lesson/.test(text)) return "courses";
+  if (/auto|авто|машин|аренд|car/.test(text)) return "auto";
+  return "generic";
+}
+
+function productSeeds(plan: Plan): PlanPricingTier[] {
+  if (plan.pricing_tiers?.length) return plan.pricing_tiers;
+  return isRu(plan)
+    ? [
+        {
+          name: "Старт",
+          price: "4900",
+          period: "разово",
+          features: ["Базовая комплектация", "Онлайн-оформление", "Поддержка по email"],
+          highlighted: false,
+        },
+        {
+          name: "Премиум",
+          price: "14900",
+          period: "разово",
+          features: ["Расширенная комплектация", "Приоритетная обработка", "Персональная настройка"],
+          highlighted: true,
+        },
+      ]
+    : [
+        {
+          name: "Starter",
+          price: "49",
+          period: "one-time",
+          features: ["Core package", "Online checkout", "Email support"],
+          highlighted: false,
+        },
+        {
+          name: "Premium",
+          price: "149",
+          period: "one-time",
+          features: ["Extended package", "Priority processing", "Personal setup"],
+          highlighted: true,
+        },
+      ];
+}
+
+function numericPrice(price: string): number {
+  const cleaned = price.replace(",", ".").replace(/[^\d.]/g, "");
+  const value = Number.parseFloat(cleaned);
+  return Number.isFinite(value) && value > 0 ? value : 100;
+}
+
+function publicText(value: string, fallback: string): string {
+  const cleaned = value
+    .replace(/\b(PHP|SQLite|MySQL|PDO|backend|back-end|checkout|webhook|CRUD)\b/gi, "")
+    .replace(/\b(php|sqlite|mysql|pdo|бекенд|бэкенд|вебхук|админка)\b/gi, "")
+    .replace(/\bhosted\b/gi, "")
+    .replace(/\bstores?\b/gi, "")
+    .replace(/\bсохраняет\b/gi, "")
+    .replace(/\bзагружаются\s+из\s+через\b/gi, "")
+    .replace(/\s*[:+·|/]\s*$/g, "")
+    .replace(/\s+-\s+/g, " ")
+    .replace(/\s+\./g, ".")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!cleaned || /из\s+через|через\s*[.]?$/.test(cleaned) || !/[\p{L}\p{N}]/u.test(cleaned)) {
+    return fallback;
+  }
+  return cleaned;
+}
+
+function buildConfigPhp(plan: Plan): string {
+  return `<?php
+declare(strict_types=1);
+
+return [
+    'app_name' => ${phpString(plan.business_type)},
+    'admin_email' => ${phpString(plan.contact_email || "admin@example.com")},
+    'db' => [
+        'driver' => getenv('DB_DRIVER') ?: 'sqlite',
+        'sqlite_path' => dirname(__DIR__) . '/storage/app.sqlite',
+        'mysql_dsn' => getenv('MYSQL_DSN') ?: 'mysql:host=127.0.0.1;dbname=nit_app;charset=utf8mb4',
+        'mysql_user' => getenv('MYSQL_USER') ?: 'root',
+        'mysql_password' => getenv('MYSQL_PASSWORD') ?: '',
+    ],
+    'payments' => [
+        // MVP: use hosted checkout providers only. Never put secret keys in HTML.
+        'provider' => getenv('PAYMENT_PROVIDER') ?: 'manual',
+        'checkout_base_url' => getenv('PAYMENT_CHECKOUT_BASE_URL') ?: '',
+        'webhook_secret' => getenv('PAYMENT_WEBHOOK_SECRET') ?: '',
+        'success_url' => getenv('PAYMENT_SUCCESS_URL') ?: '/checkout/success',
+        'cancel_url' => getenv('PAYMENT_CANCEL_URL') ?: '/cart',
+    ],
+];
+`;
+}
+
+function buildDbPhp(): string {
+  return `<?php
+declare(strict_types=1);
+
+function app_config(): array {
+    static $config = null;
+    if ($config === null) {
+        $config = require __DIR__ . '/config.php';
+    }
+    return $config;
+}
+
+function db(): PDO {
+    static $pdo = null;
+    if ($pdo instanceof PDO) {
+        return $pdo;
+    }
+
+    $config = app_config()['db'];
+    if (($config['driver'] ?? 'sqlite') === 'mysql') {
+        $pdo = new PDO($config['mysql_dsn'], $config['mysql_user'], $config['mysql_password'], [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+        return $pdo;
+    }
+
+    $path = $config['sqlite_path'];
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0775, true);
+    }
+    $pdo = new PDO('sqlite:' . $path, null, null, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+    $pdo->exec('PRAGMA foreign_keys = ON');
+    return $pdo;
+}
+
+function migrate(): void {
+    $driver = app_config()['db']['driver'] ?? 'sqlite';
+    $schemaFile = $driver === 'mysql'
+        ? dirname(__DIR__) . '/database/schema.mysql.sql'
+        : dirname(__DIR__) . '/database/schema.sqlite.sql';
+    $schema = file_get_contents($schemaFile);
+    if ($schema === false) {
+        throw new RuntimeException($schemaFile . ' not found');
+    }
+    db()->exec($schema);
+
+    $stmt = db()->prepare('INSERT INTO admins (email, password_hash) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM admins WHERE email = ?)');
+    $stmt->execute(['admin@example.com', password_hash('admin123', PASSWORD_DEFAULT), 'admin@example.com']);
+}
+`;
+}
+
+function buildPaymentsPhp(): string {
+  return `<?php
+declare(strict_types=1);
+
+function create_checkout_session(int $orderId, float $total): array {
+    $config = app_config()['payments'];
+    $provider = (string) ($config['provider'] ?? 'manual');
+    $successUrl = (string) ($config['success_url'] ?? '/checkout/success');
+
+    if ($provider === 'manual') {
+        return [
+            'provider' => 'manual',
+            'redirect_url' => $successUrl . '?order_id=' . $orderId,
+        ];
+    }
+
+    // Hosted checkout adapter point. Configure PAYMENT_CHECKOUT_BASE_URL to
+    // point at Stripe/YooKassa/CloudPayments/etc. middleware that creates a
+    // real provider session with server-side secret keys.
+    $checkoutBase = trim((string) ($config['checkout_base_url'] ?? ''));
+    if ($checkoutBase === '') {
+        return [
+            'provider' => $provider,
+            'redirect_url' => $successUrl . '?order_id=' . $orderId . '&payment=pending',
+        ];
+    }
+
+    $query = http_build_query([
+        'order_id' => $orderId,
+        'amount' => number_format($total, 2, '.', ''),
+        'success_url' => $successUrl . '?order_id=' . $orderId,
+        'cancel_url' => (string) ($config['cancel_url'] ?? '/cart'),
+    ]);
+
+    $separator = strpos($checkoutBase, '?') === false ? '?' : '&';
+    return [
+        'provider' => $provider,
+        'redirect_url' => rtrim($checkoutBase, '?&') . $separator . $query,
+    ];
+}
+
+function handle_payment_webhook(): void {
+    $config = app_config()['payments'];
+    $secret = (string) ($config['webhook_secret'] ?? '');
+    if ($secret !== '') {
+        $received = $_SERVER['HTTP_X_NIT_PAYMENT_SECRET'] ?? '';
+        if (!is_string($received) || !hash_equals($secret, $received)) {
+            http_response_code(401);
+            echo 'invalid signature';
+            return;
+        }
+    }
+
+    $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        echo 'bad payload';
+        return;
+    }
+
+    $orderId = isset($payload['order_id']) ? (int) $payload['order_id'] : 0;
+    $status = isset($payload['status']) ? (string) $payload['status'] : '';
+    if ($orderId > 0 && in_array($status, ['new', 'paid', 'processing', 'completed', 'cancelled', 'failed'], true)) {
+        db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $orderId]);
+    }
+
+    echo 'ok';
+}
+`;
+}
+
+function buildSecurityPhp(): string {
+  return `<?php
+declare(strict_types=1);
+
+function h(?string $value): string {
+    return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+function redirect(string $path): void {
+    header('Location: ' . $path);
+    exit;
+}
+
+function csrf_token(): string {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrf_field(): string {
+    return '<input type="hidden" name="csrf_token" value="' . h(csrf_token()) . '">';
+}
+
+function require_csrf(): void {
+    $token = $_POST['csrf_token'] ?? '';
+    if (!is_string($token) || !hash_equals(csrf_token(), $token)) {
+        http_response_code(419);
+        exit('Invalid CSRF token');
+    }
+}
+
+function require_admin(): void {
+    if (empty($_SESSION['admin_id'])) {
+        redirect('/admin/login');
+    }
+}
+`;
+}
+
+function buildAuthPhp(): string {
+  return `<?php
+declare(strict_types=1);
+
+function current_admin(): ?array {
+    if (empty($_SESSION['admin_id'])) {
+        return null;
+    }
+    $stmt = db()->prepare('SELECT id, email FROM admins WHERE id = ?');
+    $stmt->execute([(int) $_SESSION['admin_id']]);
+    $admin = $stmt->fetch();
+    return $admin ?: null;
+}
+
+function login_admin(string $email, string $password): bool {
+    $stmt = db()->prepare('SELECT id, password_hash FROM admins WHERE email = ?');
+    $stmt->execute([$email]);
+    $admin = $stmt->fetch();
+    if (!$admin || !password_verify($password, $admin['password_hash'])) {
+        return false;
+    }
+    session_regenerate_id(true);
+    $_SESSION['admin_id'] = (int) $admin['id'];
+    return true;
+}
+
+function logout_admin(): void {
+    unset($_SESSION['admin_id']);
+    session_regenerate_id(true);
+}
+`;
+}
+
+function buildRouterPhp(): string {
+  return `<?php
+declare(strict_types=1);
+
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$file = __DIR__ . '/public' . $path;
+
+if ($path !== '/' && is_file($file)) {
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    $types = [
+        'css' => 'text/css; charset=UTF-8',
+        'js' => 'application/javascript; charset=UTF-8',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'webp' => 'image/webp',
+        'ico' => 'image/x-icon',
+    ];
+    if (isset($types[$ext])) {
+        header('Content-Type: ' . $types[$ext]);
+    }
+    readfile($file);
+    return true;
+}
+
+require __DIR__ . '/public/index.php';
+`;
+}
+
+function buildHtaccess(): string {
+  return `RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+
+<FilesMatch "\\.(sqlite|sql|env)$">
+  Require all denied
+</FilesMatch>
+`;
+}
+
+function buildSeedSql(plan: Plan): string {
+  const seeds = productSeeds(plan);
+  return seeds
+    .map((tier, index) => {
+      const name = tier.name.replace(/'/g, "''");
+      const description = tier.features.join("; ");
+      return `INSERT INTO products (name, description, price, sort_order)
+SELECT '${name}', '${description.replace(/'/g, "''")}', ${numericPrice(tier.price).toFixed(2)}, ${index + 1}
+WHERE NOT EXISTS (SELECT 1 FROM products WHERE name = '${name}');`;
+    })
+    .join("\n");
+}
+
+function buildSqliteSchemaSql(plan: Plan): string {
+  const rows = buildSeedSql(plan);
+  return `CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    price REAL NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    customer_name TEXT NOT NULL,
+    customer_email TEXT NOT NULL,
+    customer_phone TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new',
+    total REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    qty INTEGER NOT NULL DEFAULT 1,
+    price REAL NOT NULL DEFAULT 0,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+${rows}
+`;
+}
+
+function buildMysqlSchemaSql(plan: Plan): string {
+  const rows = buildSeedSql(plan);
+  return `CREATE TABLE IF NOT EXISTS admins (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(190) NOT NULL,
+    description TEXT NOT NULL,
+    price DECIMAL(12,2) NOT NULL DEFAULT 0,
+    sort_order INT NOT NULL DEFAULT 0,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX products_active_sort_idx (is_active, sort_order, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    customer_name VARCHAR(190) NOT NULL,
+    customer_email VARCHAR(190) NOT NULL,
+    customer_phone VARCHAR(60) NOT NULL DEFAULT '',
+    status VARCHAR(40) NOT NULL DEFAULT 'new',
+    total DECIMAL(12,2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX orders_status_created_idx (status, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    order_id INT UNSIGNED NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    name VARCHAR(190) NOT NULL,
+    qty INT NOT NULL DEFAULT 1,
+    price DECIMAL(12,2) NOT NULL DEFAULT 0,
+    CONSTRAINT order_items_order_fk FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT order_items_product_fk FOREIGN KEY (product_id) REFERENCES products(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+${rows}
+`;
+}
+
+function buildIndexPhp(plan: Plan): string {
+  const theme = storefrontTheme(plan);
+  const appName = phpString(plan.business_type);
+  const headline = phpString(publicText(plan.hero_headline || plan.business_type, plan.business_type));
+  const subheadline = phpString(publicText(plan.hero_subheadline || plan.target_audience, isRu(plan) ? "Выберите предложение и оставьте заявку онлайн." : "Choose an offer and submit a request online."));
+  const cta = phpString(publicText(plan.cta_primary || (isRu(plan) ? "В корзину" : "Add to cart"), isRu(plan) ? "Оформить заявку" : "Submit request"));
+  const microcopy = phpString(publicText(plan.cta_microcopy || (isRu(plan) ? "Без предоплаты. Ответим после заявки." : "No prepayment. We reply after your request."), isRu(plan) ? "Без предоплаты. Ответим после заявки." : "No prepayment. We reply after your request."));
+  const htmlLang = phpString(plan.language || "ru");
+  const adminTitle = phpString(isRu(plan) ? "Управление проектом" : "Project control room");
+  const catalogLabel = phpString(isRu(plan) ? "Каталог" : "Catalog");
+  const itemsLabel = phpString(isRu(plan) ? "Позиции" : "Items");
+  const activeLabel = phpString(isRu(plan) ? "Активных" : "Active");
+  const ordersLabel = phpString(isRu(plan) ? "Заказы" : "Orders");
+  const revenueLabel = phpString(isRu(plan) ? "Оборот" : "Revenue");
+  const trustOne = phpString(publicText(plan.social_proof_line || (isRu(plan) ? "Более 500 заказов и заявок" : "500+ orders and leads"), isRu(plan) ? "Более 500 заявок" : "500+ requests"));
+  const trustTwo = phpString(publicText(plan.hours_text || (isRu(plan) ? "Онлайн-заявки 24/7" : "Online requests 24/7"), isRu(plan) ? "Онлайн-заявки 24/7" : "Online requests 24/7"));
+  const visualLabel = phpString(publicText(plan.keywords[0] || plan.business_type, plan.business_type).toUpperCase());
+  const brandTagline = phpString(isRu(plan) ? "онлайн-витрина" : "online storefront");
+  const contactLine = phpString(plan.contact_phone || plan.contact_email || (isRu(plan) ? "Ответим в течение дня" : "We reply within a day"));
+  const themeClass = phpString(`theme-${theme}`);
+  const heroEyebrow = phpString(theme === "beauty" ? "Запись без предоплаты" : publicText(plan.cta_microcopy || (isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."), isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."));
+  const heroVisualTitle = phpString(theme === "beauty" ? "персональный уход" : "подбор предложения");
+  const heroVisualMetric = phpString(theme === "beauty" ? "мастера и услуги" : "активные предложения");
+  const catalogHeading = phpString(theme === "beauty" ? "Выберите формат визита" : "Витрина предложений");
+  const benefitsHeading = phpString(theme === "beauty" ? "Сервис ощущается ещё до визита" : "Не просто витрина, а понятный путь к заявке");
+  const benefits = plan.key_benefits?.length
+    ? plan.key_benefits
+    : [
+        { title: isRu(plan) ? "Быстрый ответ" : "Fast reply", description: isRu(plan) ? "Заявка сразу уходит менеджеру." : "The request is sent immediately." },
+        { title: isRu(plan) ? "Понятные предложения" : "Clear offers", description: isRu(plan) ? "Вы видите состав, цену и можете выбрать подходящий вариант." : "Each offer has a clear scope and price." },
+        { title: isRu(plan) ? "Удобная запись" : "Easy booking", description: isRu(plan) ? "Оформление занимает меньше минуты." : "The request takes under a minute." },
+      ];
+  const faqs = plan.faq?.length
+    ? plan.faq
+    : [
+        { question: isRu(plan) ? "Как быстро вы отвечаете?" : "How fast do you reply?", answer: isRu(plan) ? "Обычно в течение 15 минут в рабочее время." : "Usually within 15 minutes during business hours." },
+        { question: isRu(plan) ? "Нужна ли предоплата?" : "Do I need to prepay?", answer: isRu(plan) ? "Можно оставить заявку без предоплаты, детали согласуем после." : "You can submit a request without prepayment." },
+        { question: isRu(plan) ? "Можно изменить заявку?" : "Can I change my request?", answer: isRu(plan) ? "Да, менеджер уточнит детали перед подтверждением." : "Yes, the manager confirms details before processing." },
+      ];
+  const reviews = [
+    {
+      name: isRu(plan) ? "Анна" : "Anna",
+      text: isRu(plan)
+        ? "Оставила заявку утром, быстро согласовали время и услугу. Всё понятно без лишних звонков."
+        : "I sent a request in the morning and quickly agreed on the time and service.",
+    },
+    {
+      name: isRu(plan) ? "Мария" : "Maria",
+      text: isRu(plan)
+        ? "Удобно выбирать пакет: сразу видно, что входит и сколько стоит."
+        : "The packages are easy to compare: scope and price are clear.",
+    },
+    {
+      name: isRu(plan) ? "Елена" : "Elena",
+      text: isRu(plan)
+        ? "После заявки менеджер написал почти сразу. Никакой путаницы с записью."
+        : "The manager replied almost immediately. No confusion around the booking.",
+    },
+  ];
+  const showcaseTitle = phpString(theme === "beauty" ? "Атмосфера, мастер и запись в одном сценарии" : "Как устроен путь клиента");
+  const showcaseLead = phpString(theme === "beauty" ? "Сайт должен передавать ощущение салона: спокойствие, аккуратность, понятный выбор и быстрый контакт." : "Показываем предложение, помогаем выбрать и сохраняем заявку без лишних шагов.");
+  const showcaseItems = theme === "beauty"
+    ? [
+        { title: "Атмосфера", text: "Мягкая визуальная подача помогает почувствовать уровень сервиса до визита." },
+        { title: "Мастера", text: "Пакеты и услуги оформлены так, чтобы клиент быстро понял разницу." },
+        { title: "Запись", text: "Заявка собирается без лишних полей и сразу попадает в работу." },
+      ]
+    : [
+        { title: "Выбор", text: "Клиент видит предложения и сравнивает их без лишнего шума." },
+        { title: "Заявка", text: "Форма собирает нужные контакты и фиксирует заказ." },
+        { title: "Статус", text: "Администратор видит заявку и ведёт её по статусам." },
+      ];
+  const benefitsPhp = `[${benefits.map((b) => `['title' => ${phpString(publicText(b.title, isRu(plan) ? "Преимущество" : "Benefit"))}, 'description' => ${phpString(publicText(b.description, isRu(plan) ? "Понятное преимущество для клиента." : "A clear customer benefit."))}]`).join(", ")}]`;
+  const faqPhp = `[${faqs.map((f) => `['question' => ${phpString(publicText(f.question, isRu(plan) ? "Частый вопрос" : "Common question"))}, 'answer' => ${phpString(publicText(f.answer, isRu(plan) ? "Ответим и уточним детали после заявки." : "We will reply and clarify details after your request."))}]`).join(", ")}]`;
+  const reviewsPhp = `[${reviews.map((r) => `['name' => ${phpString(r.name)}, 'text' => ${phpString(r.text)}]`).join(", ")}]`;
+  const showcasePhp = `[${showcaseItems.map((item) => `['title' => ${phpString(item.title)}, 'text' => ${phpString(item.text)}]`).join(", ")}]`;
+
+  return `<?php
+declare(strict_types=1);
+session_start();
+
+require_once dirname(__DIR__) . '/app/db.php';
+require_once dirname(__DIR__) . '/app/security.php';
+require_once dirname(__DIR__) . '/app/auth.php';
+require_once dirname(__DIR__) . '/app/payments.php';
+
+migrate();
+
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$appName = ${appName};
+$headline = ${headline};
+$subheadline = ${subheadline};
+$cta = ${cta};
+$microcopy = ${microcopy};
+$htmlLang = ${htmlLang};
+$adminTitle = ${adminTitle};
+$catalogLabel = ${catalogLabel};
+$itemsLabel = ${itemsLabel};
+$activeLabel = ${activeLabel};
+$ordersLabel = ${ordersLabel};
+$revenueLabel = ${revenueLabel};
+$trustOne = ${trustOne};
+$trustTwo = ${trustTwo};
+$visualLabel = ${visualLabel};
+$brandTagline = ${brandTagline};
+$contactLine = ${contactLine};
+$themeClass = ${themeClass};
+$heroEyebrow = ${heroEyebrow};
+$heroVisualTitle = ${heroVisualTitle};
+$heroVisualMetric = ${heroVisualMetric};
+$catalogHeading = ${catalogHeading};
+$benefitsHeading = ${benefitsHeading};
+$benefits = ${benefitsPhp};
+$faqItems = ${faqPhp};
+$reviews = ${reviewsPhp};
+$showcaseTitle = ${showcaseTitle};
+$showcaseLead = ${showcaseLead};
+$showcaseItems = ${showcasePhp};
+
+function products(): array {
+    return db()->query('SELECT * FROM products WHERE is_active = 1 ORDER BY sort_order, id')->fetchAll();
+}
+
+function cart_items(): array {
+    $cart = $_SESSION['cart'] ?? [];
+    return is_array($cart) ? $cart : [];
+}
+
+function cart_count(): int {
+    return array_sum(array_map('intval', cart_items()));
+}
+
+function cart_total(): float {
+    $ids = array_keys(cart_items());
+    if ($ids === []) return 0.0;
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $stmt = db()->prepare("SELECT id, price FROM products WHERE id IN ($placeholders)");
+    $stmt->execute(array_map('intval', $ids));
+    $total = 0.0;
+    foreach ($stmt->fetchAll() as $row) {
+        $total += (float) $row['price'] * (int) ($_SESSION['cart'][$row['id']] ?? 0);
+    }
+    return $total;
+}
+
+if ($path === '/cart/add' && $method === 'POST') {
+    require_csrf();
+    $id = max(1, (int) ($_POST['product_id'] ?? 0));
+    $stmt = db()->prepare('SELECT id FROM products WHERE id = ? AND is_active = 1');
+    $stmt->execute([$id]);
+    if (!$stmt->fetch()) {
+        redirect('/');
+    }
+    $_SESSION['cart'][$id] = (int) ($_SESSION['cart'][$id] ?? 0) + 1;
+    redirect('/cart');
+}
+
+if ($path === '/checkout' && $method === 'POST') {
+    require_csrf();
+    $cart = cart_items();
+    if ($cart === []) redirect('/cart');
+    $name = trim((string) ($_POST['name'] ?? ''));
+    $email = trim((string) ($_POST['email'] ?? ''));
+    $phone = trim((string) ($_POST['phone'] ?? ''));
+    if ($name === '' || $email === '') redirect('/cart');
+
+    $pdo = db();
+    $pdo->beginTransaction();
+    $stmt = $pdo->prepare('INSERT INTO orders (customer_name, customer_email, customer_phone, total) VALUES (?, ?, ?, ?)');
+    $total = cart_total();
+    $stmt->execute([$name, $email, $phone, $total]);
+    $orderId = (int) $pdo->lastInsertId();
+
+    $ids = array_keys($cart);
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $productsStmt = $pdo->prepare("SELECT id, name, price FROM products WHERE id IN ($placeholders)");
+    $productsStmt->execute(array_map('intval', $ids));
+    $itemStmt = $pdo->prepare('INSERT INTO order_items (order_id, product_id, name, qty, price) VALUES (?, ?, ?, ?, ?)');
+    foreach ($productsStmt->fetchAll() as $product) {
+        $qty = (int) ($cart[$product['id']] ?? 0);
+        if ($qty > 0) {
+            $itemStmt->execute([$orderId, $product['id'], $product['name'], $qty, $product['price']]);
+        }
+    }
+    $pdo->commit();
+    unset($_SESSION['cart']);
+    $checkout = create_checkout_session($orderId, $total);
+    redirect((string) $checkout['redirect_url']);
+}
+
+if ($path === '/payments/webhook' && $method === 'POST') {
+    handle_payment_webhook();
+    exit;
+}
+
+if ($path === '/admin/login' && $method === 'POST') {
+    require_csrf();
+    if (login_admin((string) ($_POST['email'] ?? ''), (string) ($_POST['password'] ?? ''))) {
+        redirect('/admin');
+    }
+    $loginError = true;
+}
+
+if ($path === '/admin/logout') {
+    logout_admin();
+    redirect('/admin/login');
+}
+
+if ($path === '/admin/product/save' && $method === 'POST') {
+    require_admin();
+    require_csrf();
+    $id = (int) ($_POST['id'] ?? 0);
+    $isActive = empty($_POST['is_active']) ? 0 : 1;
+    $data = [
+        trim((string) ($_POST['name'] ?? '')),
+        trim((string) ($_POST['description'] ?? '')),
+        max(0, (float) ($_POST['price'] ?? 0)),
+        (int) ($_POST['sort_order'] ?? 0),
+        $isActive,
+    ];
+    if ($id > 0) {
+        $data[] = $id;
+        db()->prepare('UPDATE products SET name = ?, description = ?, price = ?, sort_order = ?, is_active = ? WHERE id = ?')->execute($data);
+    } else {
+        db()->prepare('INSERT INTO products (name, description, price, sort_order, is_active) VALUES (?, ?, ?, ?, ?)')->execute($data);
+    }
+    redirect('/admin');
+}
+
+if ($path === '/admin/order/status' && $method === 'POST') {
+    require_admin();
+    require_csrf();
+    $id = (int) ($_POST['id'] ?? 0);
+    $status = (string) ($_POST['status'] ?? 'new');
+    if ($id > 0 && in_array($status, ['new', 'paid', 'processing', 'completed', 'cancelled', 'failed'], true)) {
+        db()->prepare('UPDATE orders SET status = ? WHERE id = ?')->execute([$status, $id]);
+    }
+    redirect('/admin');
+}
+
+function render_header(string $title): void { global $appName, $htmlLang, $path, $brandTagline, $contactLine; ?>
+<!doctype html>
+<html lang="<?= h($htmlLang) ?>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><?= h($title) ?> · <?= h($appName) ?></title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="<?= h($themeClass) ?>">
+<div class="page-shell">
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-mark"></span>
+      <span class="brand-copy"><strong><?= h($appName) ?></strong><small><?= h($brandTagline) ?></small></span>
+    </a>
+    <nav class="nav-pill">
+      <a class="<?= $path === '/' ? 'active' : '' ?>" href="/">Главная</a>
+      <a href="/#catalog">Предложения</a>
+      <a class="<?= $path === '/cart' ? 'active' : '' ?>" href="/cart">Корзина<?= cart_count() > 0 ? ' · ' . (int) cart_count() : '' ?></a>
+      <?php if (strpos($path, '/admin') === 0): ?>
+        <a class="<?= strpos($path, '/admin') === 0 ? 'active' : '' ?>" href="/admin">Админка</a>
+      <?php endif; ?>
+    </nav>
+    <div class="top-actions">
+      <span class="runtime-chip"><?= h($contactLine) ?></span>
+      <a class="top-cta" href="/cart">Оформить заявку</a>
+    </div>
+  </div>
+</header>
+<main>
+<?php }
+
+function render_footer(): void { global $appName; ?>
+</main>
+<footer><?= h($appName) ?> · онлайн-витрина и заявки</footer>
+</div>
+</body>
+</html>
+<?php }
+
+if ($path === '/admin/login') {
+    render_header('Вход');
+    ?>
+    <section class="panel narrow">
+      <h1>Вход в админку</h1>
+      <?php if (!empty($loginError)): ?><p class="error">Неверный email или пароль</p><?php endif; ?>
+      <form method="post">
+        <?= csrf_field() ?>
+        <label>Email <input name="email" type="email" value="admin@example.com" required></label>
+        <label>Пароль <input name="password" type="password" placeholder="admin123" required></label>
+        <button>Войти</button>
+      </form>
+      <p class="muted">Demo password: admin123. Смените пароль перед продакшеном.</p>
+    </section>
+    <?php
+    render_footer();
+    exit;
+}
+
+if ($path === '/admin') {
+    require_admin();
+    global $adminTitle, $catalogLabel, $itemsLabel, $activeLabel, $ordersLabel, $revenueLabel;
+    $products = products();
+    $orders = db()->query('SELECT * FROM orders ORDER BY id DESC LIMIT 50')->fetchAll();
+    $activeProducts = 0;
+    foreach ($products as $productRow) {
+        if ((int) $productRow['is_active'] === 1) {
+            $activeProducts++;
+        }
+    }
+    $ordersTotal = 0.0;
+    foreach ($orders as $orderRow) {
+        $ordersTotal += (float) $orderRow['total'];
+    }
+    render_header('Админка');
+    ?>
+    <section class="admin-hero">
+      <div>
+        <p class="kicker">Admin dashboard</p>
+        <h1><?= h($adminTitle) ?></h1>
+        <p class="muted">Каталог, заявки, заказы, статусы и подготовка к hosted checkout в одном месте.</p>
+      </div>
+      <a class="admin-logout" href="/admin/logout">Выйти</a>
+    </section>
+
+    <section class="admin-stats">
+      <article><span><?= h($itemsLabel) ?></span><strong><?= (int) count($products) ?></strong></article>
+      <article><span><?= h($activeLabel) ?></span><strong><?= (int) $activeProducts ?></strong></article>
+      <article><span><?= h($ordersLabel) ?></span><strong><?= (int) count($orders) ?></strong></article>
+      <article><span><?= h($revenueLabel) ?></span><strong><?= h(number_format($ordersTotal, 2, '.', ' ')) ?></strong></article>
+    </section>
+
+    <section class="admin-grid">
+      <div class="panel admin-products">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow"><?= h($catalogLabel) ?></p>
+            <h2><?= h($itemsLabel) ?></h2>
+          </div>
+          <span class="badge"><?= (int) $activeProducts ?> active</span>
+        </div>
+        <?php foreach ($products as $p): ?>
+          <form class="product-form" method="post" action="/admin/product/save">
+            <?= csrf_field() ?>
+            <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+            <label class="field span-6"><span>Название</span><input name="name" value="<?= h($p['name']) ?>"></label>
+            <label class="field span-3"><span>Цена</span><input name="price" type="number" step="0.01" value="<?= h((string) $p['price']) ?>"></label>
+            <label class="field span-3"><span>Порядок</span><input name="sort_order" type="number" value="<?= (int) $p['sort_order'] ?>"></label>
+            <label class="switch span-3"><input type="checkbox" name="is_active" value="1" <?php if ((int) $p['is_active'] === 1) echo 'checked'; ?>><span>Активен</span></label>
+            <label class="field span-9"><span>Описание</span><textarea name="description"><?= h($p['description']) ?></textarea></label>
+            <button class="span-12">Сохранить товар</button>
+          </form>
+        <?php endforeach; ?>
+        <div class="section-title compact">
+          <div>
+            <p class="eyebrow">New item</p>
+            <h2>Новый товар</h2>
+          </div>
+        </div>
+        <form class="product-form new-product" method="post" action="/admin/product/save">
+          <?= csrf_field() ?>
+          <label class="field span-6"><span>Название</span><input name="name" placeholder="Например: Premium package"></label>
+          <label class="field span-3"><span>Цена</span><input name="price" type="number" step="0.01" placeholder="9900"></label>
+          <label class="field span-3"><span>Порядок</span><input name="sort_order" type="number" value="99"></label>
+          <label class="switch span-3"><input type="checkbox" name="is_active" value="1" checked><span>Активен</span></label>
+          <label class="field span-9"><span>Описание</span><textarea name="description" placeholder="Коротко опишите товар или пакет"></textarea></label>
+          <button class="span-12">Добавить товар</button>
+        </form>
+      </div>
+      <div class="panel admin-orders">
+        <div class="section-title">
+          <div>
+            <p class="eyebrow">Orders</p>
+            <h2>Заказы</h2>
+          </div>
+          <span class="badge"><?= (int) count($orders) ?> total</span>
+        </div>
+        <?php foreach ($orders as $o): ?>
+          <article class="order-card">
+            <div class="order-head">
+              <div>
+                <b>#<?= (int) $o['id'] ?> · <?= h($o['customer_name']) ?></b>
+                <span><?= h($o['customer_email']) ?><?= $o['customer_phone'] !== '' ? ' · ' . h($o['customer_phone']) : '' ?></span>
+              </div>
+              <span class="status status-<?= h($o['status']) ?>"><?= h($o['status']) ?></span>
+            </div>
+            <div class="order-meta">
+              <span>Total: <strong><?= h((string) $o['total']) ?></strong></span>
+              <span><?= h($o['created_at']) ?></span>
+            </div>
+            <form class="status-form" method="post" action="/admin/order/status">
+              <?= csrf_field() ?>
+              <input type="hidden" name="id" value="<?= (int) $o['id'] ?>">
+              <select name="status">
+                <?php foreach (['new', 'paid', 'processing', 'completed', 'cancelled', 'failed'] as $status): ?>
+                  <option value="<?= h($status) ?>" <?php if ($o['status'] === $status) echo 'selected'; ?>><?= h($status) ?></option>
+                <?php endforeach; ?>
+              </select>
+              <button>Обновить</button>
+            </form>
+          </article>
+        <?php endforeach; ?>
+        <?php if ($orders === []): ?>
+          <p class="empty">Заказов пока нет. Создайте тестовый заказ из корзины.</p>
+        <?php endif; ?>
+      </div>
+    </section>
+    <?php
+    render_footer();
+    exit;
+}
+
+if ($path === '/cart') {
+    $cart = cart_items();
+    render_header('Корзина');
+    ?>
+    <section class="panel">
+      <h1>Корзина</h1>
+      <?php if ($cart === []): ?>
+        <p>Корзина пуста.</p>
+      <?php else: ?>
+        <p class="total">Итого: <?= h((string) cart_total()) ?></p>
+        <form method="post" action="/checkout" class="checkout">
+          <?= csrf_field() ?>
+          <label>Имя <input name="name" required></label>
+          <label>Email <input name="email" type="email" required></label>
+          <label>Телефон <input name="phone"></label>
+          <button>Оформить заказ</button>
+        </form>
+      <?php endif; ?>
+    </section>
+    <?php
+    render_footer();
+    exit;
+}
+
+if ($path === '/checkout/success') {
+    render_header('Заказ создан');
+    echo '<section class="panel narrow"><h1>Заказ создан</h1><p>Мы сохранили заявку. Следующий шаг MVP: подключить hosted checkout и webhook платежного провайдера.</p></section>';
+    render_footer();
+    exit;
+}
+
+render_header('Витрина');
+?>
+<section class="store-hero">
+  <div class="hero-copy">
+    <p class="kicker"><?= h($heroEyebrow) ?></p>
+    <h1><?= h($headline) ?></h1>
+    <p><?= h($subheadline) ?></p>
+    <div class="hero-actions">
+      <a class="hero-btn" href="#catalog"><?= h($cta) ?></a>
+      <a class="hero-link" href="#catalog">Посмотреть предложения</a>
+    </div>
+  </div>
+  <div class="hero-visual" aria-label="Визуальная карточка предложения">
+    <div class="visual-photo">
+      <span><?= h($heroVisualTitle) ?></span>
+    </div>
+    <div class="visual-card main">
+      <span>Доступно</span>
+      <strong><?= (int) count(products()) ?></strong>
+      <small><?= h($heroVisualMetric) ?></small>
+    </div>
+    <div class="visual-card floating one">Ответ 15 мин</div>
+    <div class="visual-card floating two">Без предоплаты</div>
+  </div>
+</section>
+<section class="trust-strip">
+  <article><strong><?= h($trustOne) ?></strong><span>социальное доказательство</span></article>
+  <article><strong><?= h($trustTwo) ?></strong><span>режим обработки</span></article>
+  <article><strong>Безопасное оформление</strong><span>заявка сохраняется сразу</span></article>
+</section>
+<section class="catalog-head" id="catalog">
+  <div>
+    <p class="eyebrow">Витрина</p>
+    <h2><?= h($catalogHeading) ?></h2>
+  </div>
+  <p class="muted">Выберите предложение, добавьте в корзину и оставьте заявку за пару кликов.</p>
+</section>
+<section class="products">
+  <?php foreach (products() as $p): ?>
+    <article class="product">
+      <div class="product-art" aria-hidden="true">
+        <span></span>
+        <i></i>
+        <b></b>
+      </div>
+      <div class="product-body">
+      <h2><?= h($p['name']) ?></h2>
+      <p><?= h($p['description']) ?></p>
+      <strong><?= h((string) $p['price']) ?></strong>
+      <form method="post" action="/cart/add">
+        <?= csrf_field() ?>
+        <input type="hidden" name="product_id" value="<?= (int) $p['id'] ?>">
+        <button><?= h($cta) ?></button>
+      </form>
+      </div>
+    </article>
+  <?php endforeach; ?>
+</section>
+<section class="showcase-section">
+  <div class="showcase-copy">
+    <p class="eyebrow">Опыт клиента</p>
+    <h2><?= h($showcaseTitle) ?></h2>
+    <p><?= h($showcaseLead) ?></p>
+  </div>
+  <div class="showcase-grid">
+    <?php foreach ($showcaseItems as $index => $item): ?>
+      <article class="showcase-card">
+        <span>0<?= (int) $index + 1 ?></span>
+        <h3><?= h($item['title']) ?></h3>
+        <p><?= h($item['text']) ?></p>
+      </article>
+    <?php endforeach; ?>
+  </div>
+</section>
+<section class="benefits-section">
+  <div class="section-kicker">
+    <p class="eyebrow">Почему удобно</p>
+    <h2><?= h($benefitsHeading) ?></h2>
+  </div>
+  <div class="benefit-grid">
+    <?php foreach ($benefits as $benefit): ?>
+      <article class="benefit-card">
+        <span></span>
+        <h3><?= h($benefit['title']) ?></h3>
+        <p><?= h($benefit['description']) ?></p>
+      </article>
+    <?php endforeach; ?>
+  </div>
+</section>
+<section class="reviews-section">
+  <div class="section-kicker">
+    <p class="eyebrow">Отзывы</p>
+    <h2>Люди приходят за понятным сервисом, а не за формой на сайте</h2>
+  </div>
+  <div class="review-grid">
+    <?php foreach ($reviews as $review): ?>
+      <article class="review-card">
+        <div class="review-avatar"><?= h(mb_substr((string) $review['name'], 0, 1)) ?></div>
+        <div>
+          <div class="stars">★★★★★</div>
+          <p><?= h($review['text']) ?></p>
+          <strong><?= h($review['name']) ?></strong>
+        </div>
+      </article>
+    <?php endforeach; ?>
+  </div>
+</section>
+<section class="proof-section">
+  <div>
+    <p class="eyebrow">Вопросы перед заявкой</p>
+    <h2>Ответы, которые снимают сомнения</h2>
+  </div>
+  <div class="faq-grid">
+    <?php foreach ($faqItems as $item): ?>
+      <article>
+        <h3><?= h($item['question']) ?></h3>
+        <p><?= h($item['answer']) ?></p>
+      </article>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php
+render_footer();
+`;
+}
+
+function buildStyleCss(plan: Plan): string {
+  const dark = plan.color_mood === "dark-premium" || plan.color_mood === "vibrant-neon";
+  const isBeauty = /beauty|красот|салон|космет/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
+  const isFood = /food|еда|доставк|ресторан|меню/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
+  const isRealEstate = /real estate|недвиж|объект/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
+  const bg = dark ? "#090b13" : isBeauty ? "#fbf3f6" : isFood ? "#fff7ed" : isRealEstate ? "#f3f7f4" : "#f7f4ee";
+  const ink = dark ? "#f6f7fb" : "#111827";
+  const muted = dark ? "#9aa4b2" : "#667085";
+  const card = dark ? "#111827" : "rgba(255,255,255,.82)";
+  const accent = dark ? "#5eead4" : isBeauty ? "#d9468f" : isFood ? "#ea580c" : isRealEstate ? "#15803d" : "#2563eb";
+
+  return `:root{--bg:${bg};--ink:${ink};--muted:${muted};--card:${card};--accent:${accent};--line:rgba(127,127,127,.22);--soft:rgba(127,127,127,.08);--danger:#ef4444;--ok:#16a34a;--warn:#f59e0b;--shadow:0 32px 100px rgba(15,23,42,.12)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 8% -12%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 30%),radial-gradient(circle at 90% 8%,rgba(255,255,255,.42),transparent 26%),var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.page-shell{min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 420px)}
+a{color:inherit}.topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(24px);border-bottom:1px solid var(--line)}
+.topbar-inner{width:min(1180px,88vw);height:72px;margin:0 auto;display:grid;grid-template-columns:220px minmax(260px,1fr) 190px;gap:18px;align-items:center}.brand{min-width:0;font-weight:950;text-decoration:none;font-size:18px;display:flex;align-items:center;gap:12px}.brand-mark{flex:0 0 auto;width:38px;height:38px;border-radius:14px;background:radial-gradient(circle at 35% 30%,#fff 0 10%,transparent 11%),linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 30%,#fff));box-shadow:0 0 0 8px color-mix(in srgb,var(--accent) 10%,transparent),0 18px 40px color-mix(in srgb,var(--accent) 18%,transparent)}.brand-copy{display:grid;line-height:1.05;min-width:0}.brand-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.brand-copy small{margin-top:4px;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:900;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.nav-pill{justify-self:center;display:flex;align-items:center;gap:4px;padding:5px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--card) 70%,transparent);box-shadow:0 18px 50px rgba(15,23,42,.08)}.nav-pill a{color:var(--muted);text-decoration:none;font-weight:850;padding:10px 18px;border-radius:999px;white-space:nowrap}.nav-pill a:hover,.nav-pill a.active{color:var(--ink);background:var(--card);box-shadow:0 10px 24px rgba(15,23,42,.08)}.top-actions{display:flex;justify-content:flex-end;align-items:center;gap:8px;min-width:0}.runtime-chip{display:none}.top-cta{display:inline-flex;align-items:center;justify-content:center;border-radius:999px;padding:12px 16px;text-decoration:none;color:${dark ? "#061014" : "#fff"};font-weight:950;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#fff));box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 22%,transparent);max-width:170px;text-align:center;line-height:1.05}
+main{width:min(1180px,88vw);margin:0 auto}.store-hero{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:56px;align-items:center;padding:92px 0 56px}.store-hero h1{font-size:clamp(58px,8vw,104px);line-height:.88;letter-spacing:-.08em;margin:18px 0 22px;max-width:760px}.store-hero p{max-width:650px;color:var(--muted);font-size:20px}.hero-actions{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:30px}.hero-btn{display:inline-flex;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#fff));color:#fff;text-decoration:none;border-radius:18px;padding:16px 22px;font-weight:950;box-shadow:0 20px 50px color-mix(in srgb,var(--accent) 22%,transparent)}.hero-link{color:var(--muted);font-weight:850;text-decoration:none}.hero-visual{height:430px;position:relative;border:1px solid var(--line);border-radius:42px;background:linear-gradient(135deg,rgba(255,255,255,.58),rgba(255,255,255,.18));box-shadow:var(--shadow);overflow:hidden}.hero-visual::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 34% 22%,color-mix(in srgb,var(--accent) 34%,transparent),transparent 26%),radial-gradient(circle at 80% 76%,rgba(255,255,255,.55),transparent 24%)}.visual-photo{position:absolute;left:34px;right:34px;top:34px;bottom:34px;border-radius:32px;border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 16%,transparent),rgba(255,255,255,.2));overflow:hidden}.visual-photo::before{content:"";position:absolute;left:18%;right:18%;bottom:0;height:52%;border-radius:999px 999px 0 0;background:linear-gradient(180deg,rgba(255,255,255,.72),color-mix(in srgb,var(--accent) 18%,transparent))}.visual-photo span{position:absolute;left:24px;top:24px;color:var(--accent);font-size:12px;font-weight:950;text-transform:uppercase;letter-spacing:.12em}.visual-card{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:18px 20px;box-shadow:var(--shadow);backdrop-filter:blur(12px)}.visual-card.main{left:38px;bottom:38px;width:210px}.visual-card.main span{display:block;color:var(--muted);font-size:12px;text-transform:uppercase;font-weight:900}.visual-card.main strong{font-size:64px;line-height:.9;color:var(--accent)}.visual-card.main small{display:block;color:var(--muted);font-weight:800}.visual-card.floating{font-weight:950;color:var(--accent)}.visual-card.one{right:30px;top:34px}.visual-card.two{right:64px;bottom:78px}.kicker,.eyebrow{display:inline-flex;border:1px solid var(--line);padding:8px 12px;border-radius:999px;color:var(--accent)!important;background:color-mix(in srgb,var(--card) 66%,transparent);font-size:12px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}
+.trust-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:8px 0 42px}.trust-strip article{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow)}.trust-strip strong{display:block;color:var(--ink);font-size:17px}.trust-strip span{display:block;color:var(--muted);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-top:4px}.catalog-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:26px 0 18px}.catalog-head h2{font-size:42px;letter-spacing:-.05em;margin:8px 0 0}.catalog-head p{max-width:420px}
+.products{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;padding:8px 0 90px}.product,.panel{background:var(--card);border:1px solid var(--line);border-radius:30px;padding:0;box-shadow:var(--shadow);backdrop-filter:blur(14px)}
+.product{position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:520px}.product-art{height:190px;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 20%,color-mix(in srgb,var(--accent) 28%,transparent),transparent 32%),linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,transparent),rgba(255,255,255,.2));border-bottom:1px solid var(--line)}.product-art span{position:absolute;left:50%;top:50%;width:96px;height:96px;transform:translate(-50%,-50%);border-radius:32px;background:linear-gradient(135deg,rgba(255,255,255,.86),color-mix(in srgb,var(--accent) 20%,transparent));box-shadow:var(--shadow)}.product-art i{position:absolute;left:18%;bottom:-16%;width:150px;height:150px;border-radius:50%;background:color-mix(in srgb,var(--accent) 18%,transparent);filter:blur(.2px)}.product-art b{position:absolute;right:14%;top:18%;width:74px;height:74px;border-radius:24px;background:rgba(255,255,255,.62);box-shadow:0 20px 60px rgba(15,23,42,.08)}.product-body{padding:26px;display:flex;flex:1;flex-direction:column}.product h2{margin:0 0 18px;font-size:28px;letter-spacing:-.03em}.product p,.muted{color:var(--muted)}.product strong{display:block;font-size:38px;margin:22px 0;color:var(--accent);letter-spacing:-.05em}.product form{margin-top:auto}
+.showcase-section{display:grid;grid-template-columns:.86fr 1.14fr;gap:24px;align-items:stretch;padding:6px 0 82px}.showcase-copy{border-radius:32px;padding:32px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 16%,transparent),rgba(255,255,255,.2));border:1px solid var(--line);box-shadow:var(--shadow)}.showcase-copy h2{font-size:clamp(34px,5vw,62px);line-height:.94;letter-spacing:-.06em;margin:12px 0}.showcase-copy p{color:var(--muted);font-size:18px}.showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.showcase-card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:24px;box-shadow:var(--shadow)}.showcase-card span{display:inline-flex;color:var(--accent);font-weight:950;font-size:13px;margin-bottom:38px}.showcase-card h3{font-size:24px;margin:0 0 10px;letter-spacing:-.04em}.showcase-card p{margin:0;color:var(--muted)}
+.theme-beauty .hero-visual{background:linear-gradient(135deg,rgba(255,255,255,.58),rgba(255,236,246,.28));}.theme-beauty .hero-visual::after{content:"";position:absolute;right:54px;top:82px;width:112px;height:112px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 10%,transparent 11%),linear-gradient(135deg,#f9a8d4,var(--accent));box-shadow:0 34px 80px color-mix(in srgb,var(--accent) 24%,transparent)}.theme-beauty .visual-photo::after{content:"";position:absolute;left:28%;right:28%;top:30%;height:42%;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.18));box-shadow:0 28px 80px rgba(217,70,143,.16)}.theme-beauty .product-art{background:radial-gradient(circle at 52% 28%,rgba(255,255,255,.78),transparent 18%),linear-gradient(135deg,rgba(249,168,212,.42),rgba(255,255,255,.38))}.theme-beauty .product-art::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(217,70,143,.18));filter:blur(.2px)}
+.benefits-section,.proof-section{padding:12px 0 82px}.section-kicker{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:20px}.section-kicker h2,.proof-section h2{font-size:clamp(34px,5vw,64px);line-height:.94;letter-spacing:-.06em;margin:10px 0 0;max-width:760px}.benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.benefit-card,.faq-grid article{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:24px;box-shadow:var(--shadow)}.benefit-card span{width:42px;height:42px;border-radius:16px;display:block;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 32%,#fff));box-shadow:0 16px 40px color-mix(in srgb,var(--accent) 20%,transparent);margin-bottom:24px}.benefit-card h3,.faq-grid h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.benefit-card p,.faq-grid p{color:var(--muted);margin:0}.proof-section{display:grid;grid-template-columns:.82fr 1.18fr;gap:24px;align-items:start}.faq-grid{display:grid;gap:14px}
+.reviews-section{padding:0 0 82px}.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.review-card{display:grid;grid-template-columns:auto 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:var(--shadow)}.review-avatar{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 36%,#fff));color:#fff;font-weight:950;font-size:22px}.stars{color:var(--accent);letter-spacing:.08em;font-size:13px;margin-bottom:8px}.review-card p{margin:0 0 12px;color:var(--muted)}.review-card strong{font-weight:950}
+button,.admin-logout{border:0;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 76%,#fff));color:${dark ? "#061014" : "#fff"};border-radius:16px;padding:13px 18px;font-weight:950;cursor:pointer;text-decoration:none;text-align:center;box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 22%,transparent)}button:hover,.admin-logout:hover{filter:brightness(1.04);transform:translateY(-1px)}
+input,textarea,select{width:100%;border:1px solid var(--line);border-radius:16px;padding:13px 15px;background:${dark ? "rgba(255,255,255,.03)" : "rgba(255,255,255,.86)"};color:var(--ink);font:inherit;outline:none}input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 12%,transparent)}textarea{min-height:92px;resize:vertical}.field{display:grid;gap:7px}.field span{font-size:11px;color:var(--muted);font-weight:900;text-transform:uppercase;letter-spacing:.1em}
+.grid.two{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;padding:34px 0 70px}.narrow{max-width:520px;margin:44px auto}.checkout{display:grid;gap:12px;margin:14px 0}.total{font-size:28px;font-weight:900;color:var(--accent)}.error{color:var(--danger)}
+.admin-hero{display:flex;align-items:end;justify-content:space-between;gap:18px;padding:52px 0 24px}.admin-hero h1{font-size:clamp(42px,6vw,82px);line-height:.88;letter-spacing:-.07em;margin:14px 0 12px}.admin-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin:10px 0 24px}.admin-stats article{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:22px;box-shadow:var(--shadow)}.admin-stats span{display:block;color:var(--muted);font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.1em}.admin-stats strong{font-size:38px;color:var(--accent);letter-spacing:-.06em}
+.admin-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr);gap:18px;padding:12px 0 70px}.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.section-title.compact{margin-top:24px}.section-title h2{font-size:30px;margin:2px 0 0}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:7px 10px;background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);font-size:12px;font-weight:900}
+.product-form{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:14px;background:var(--soft)}.span-3{grid-column:span 3}.span-6{grid-column:span 6}.span-9{grid-column:span 9}.span-12{grid-column:span 12}.switch{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--muted);font-weight:800}.switch input{width:auto;accent-color:var(--accent)}
+.order-card{display:grid;gap:14px;border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;background:var(--soft)}.order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.order-head b{display:block}.order-head span,.order-meta{color:var(--muted);font-size:13px}.order-meta{display:flex;justify-content:space-between;gap:10px}.status{border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;text-transform:uppercase;background:var(--line)}.status-paid,.status-completed{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}.status-processing{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.status-cancelled,.status-failed{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}.status-form{display:grid;grid-template-columns:1fr auto;gap:10px}.empty{color:var(--muted);padding:20px;border:1px dashed var(--line);border-radius:18px}
+footer{width:min(1180px,88vw);margin:0 auto;padding:28px 0 44px;color:var(--muted);border-top:1px solid var(--line)}
+@media(max-width:900px){.topbar-inner{height:auto;padding:14px 0;display:grid;grid-template-columns:1fr}.nav-pill{justify-content:space-between;overflow:auto}.top-actions{justify-content:flex-start}.store-hero,.grid.two,.admin-grid,.proof-section,.showcase-section{grid-template-columns:1fr}.hero-visual{min-height:320px}.trust-strip,.admin-stats,.benefit-grid,.review-grid,.showcase-grid{grid-template-columns:1fr}.catalog-head,.admin-hero,.section-kicker{align-items:flex-start;flex-direction:column}.span-3,.span-6,.span-9{grid-column:span 12}}
+`;
+}
+
+function buildReadme(plan: Plan): string {
+  return `# ${plan.business_type}
+
+Generated by NIT backend mode: HTML + PHP + SQLite.
+
+## Requirements
+
+- PHP 7.4+
+- PDO SQLite enabled for the default setup
+- Optional: PDO MySQL for \`DB_DRIVER=mysql\`
+
+## Run locally
+
+\`\`\`bash
+php -S localhost:8080 router.php
+\`\`\`
+
+Open http://localhost:8080
+
+Admin:
+- URL: http://localhost:8080/admin/login
+- Email: admin@example.com
+- Password: admin123
+
+## Database
+
+Default database is SQLite at \`storage/app.sqlite\`.
+
+- SQLite schema: \`database/schema.sqlite.sql\`
+- MySQL schema: \`database/schema.mysql.sql\`
+
+For MySQL, set:
+
+\`\`\`bash
+DB_DRIVER=mysql
+MYSQL_DSN='mysql:host=127.0.0.1;dbname=nit_app;charset=utf8mb4'
+MYSQL_USER=root
+MYSQL_PASSWORD=secret
+\`\`\`
+
+## Payments
+
+This MVP stores orders and routes checkout through \`app/payments.php\`.
+
+Default:
+
+\`\`\`bash
+PAYMENT_PROVIDER=manual
+\`\`\`
+
+Hosted checkout adapter:
+
+\`\`\`bash
+PAYMENT_PROVIDER=stripe
+PAYMENT_CHECKOUT_BASE_URL='https://payments.example.com/create-session'
+PAYMENT_WEBHOOK_SECRET='change-me'
+\`\`\`
+
+Keep Stripe/YooKassa/CloudPayments secret keys on the server side only.
+
+## Apache shared hosting
+
+Upload the project so \`public/\` is the document root. The generated
+\`public/.htaccess\` routes clean URLs to \`public/index.php\`.
+`;
+}
+
+export function buildPhpSqliteArtifact(params: {
+  plan: Plan;
+  userMessage: string;
+}): PhpSqliteArtifact {
+  const { plan } = params;
+  return {
+    kind: "php-sqlite-app",
+    version: 1,
+    entrypoint: "public/index.php",
+    database: "sqlite",
+    notes: [
+      "MVP ecommerce backend: catalog, cart, checkout order capture, admin login, product CRUD, orders list.",
+      "Payments are intentionally represented as hosted-checkout integration points, not secret keys in generated HTML.",
+      "SQLite is the default; MySQL can be enabled through environment variables.",
+    ],
+    files: [
+      { path: "README.md", content: buildReadme(plan) },
+      { path: "router.php", content: buildRouterPhp() },
+      { path: "app/config.php", content: buildConfigPhp(plan) },
+      { path: "app/db.php", content: buildDbPhp() },
+      { path: "app/security.php", content: buildSecurityPhp() },
+      { path: "app/auth.php", content: buildAuthPhp() },
+      { path: "app/payments.php", content: buildPaymentsPhp() },
+      { path: "database/schema.sqlite.sql", content: buildSqliteSchemaSql(plan) },
+      { path: "database/schema.mysql.sql", content: buildMysqlSchemaSql(plan) },
+      { path: "public/index.php", content: buildIndexPhp(plan) },
+      { path: "public/.htaccess", content: buildHtaccess() },
+      { path: "public/assets/style.css", content: buildStyleCss(plan) },
+      { path: "storage/.gitkeep", content: "" },
+    ],
+  };
+}
+
+export function renderPhpSqliteArtifactPreview(params: {
+  artifact: PhpSqliteArtifact;
+  plan: Plan;
+  userMessage: string;
+}): string {
+  const { artifact, plan, userMessage } = params;
+  const title = `${plan.business_type}: PHP + SQLite backend`;
+  const subtitle =
+    plan.hero_subheadline ||
+    plan.target_audience ||
+    userMessage;
+  const files = artifact.files
+    .map((file) => `<li><code>${esc(file.path)}</code><span>${esc(String(file.content.length))} chars</span></li>`)
+    .join("");
+  const notes = artifact.notes.map((note) => `<li>${esc(note)}</li>`).join("");
+  const manifestJson = JSON.stringify(artifact).replace(/</g, "\\u003c");
+  const projectSlug = slug(plan.business_type);
+
+  return `<!DOCTYPE html>
+<html lang="${esc(plan.language || "ru")}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(title)} · NIT backend artifact</title>
+<style>
+:root{--bg:#080b12;--panel:#101624;--ink:#f7f8fb;--muted:#9aa4b2;--accent:#5eead4;--line:rgba(255,255,255,.12);--warn:#fbbf24}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,rgba(94,234,212,.18),transparent 32%),#080b12;color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.55}
+main{width:min(1180px,90vw);margin:0 auto;padding:48px 0 70px}.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:stretch;margin-bottom:24px}
+.card{background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 30px 100px rgba(0,0,0,.28)}
+.kicker{display:inline-flex;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px}h1{font-size:clamp(42px,7vw,82px);line-height:.92;letter-spacing:-.06em;margin:22px 0}p{color:var(--muted);font-size:17px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0}.stat b{display:block;font-size:32px;color:var(--accent)}.stat span{color:var(--muted);font-size:13px}
+ul.files{list-style:none;padding:0;margin:0;display:grid;gap:10px}.files li{display:flex;justify-content:space-between;gap:16px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.03)}code{color:var(--accent)}.terminal{background:#020617;border-radius:20px;padding:20px;border:1px solid var(--line);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#d1fae5;overflow:auto}.badge{display:inline-flex;background:rgba(251,191,36,.12);color:var(--warn);border:1px solid rgba(251,191,36,.28);border-radius:999px;padding:6px 10px;font-size:12px}.notes{display:grid;gap:8px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}.btn{border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--ink);text-decoration:none}.btn.primary{background:var(--accent);color:#06211e;font-weight:900}
+@media(max-width:860px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero">
+    <div class="card">
+      <span class="kicker">NIT backend artifact · PHP + SQLite</span>
+      <h1>${esc(title)}</h1>
+      <p>${esc(subtitle)}</p>
+      <div class="grid">
+        <div class="stat"><b>${artifact.files.length}</b><span>files</span></div>
+        <div class="stat"><b>SQLite</b><span>default DB</span></div>
+        <div class="stat"><b>CRUD</b><span>products admin</span></div>
+        <div class="stat"><b>PDO</b><span>prepared SQL</span></div>
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="#manifest">View manifest</a>
+        <a class="btn" href="#run">Run command</a>
+      </div>
+    </div>
+    <div class="card">
+      <span class="badge">Payments: hosted checkout adapter point</span>
+      <h2>Generated app surface</h2>
+      <ul class="notes">${notes}</ul>
+    </div>
+  </section>
+  <section class="card">
+    <h2>Project files</h2>
+    <ul class="files">${files}</ul>
+  </section>
+  <section class="card" id="run" style="margin-top:24px">
+    <h2>Run locally</h2>
+    <div class="terminal">mkdir ${esc(projectSlug)} && cd ${esc(projectSlug)}
+# write files from the embedded manifest, then:
+php -S localhost:8080 -t public</div>
+  </section>
+  <section class="card" id="manifest" style="margin-top:24px">
+    <h2>Embedded artifact manifest</h2>
+    <p>The generated PHP project is embedded below for export/download tooling.</p>
+    <script id="nit-artifact-manifest" type="application/json">${manifestJson}</script>
+    <div class="terminal">window.NIT_ARTIFACT_KIND = "php-sqlite-app"</div>
+  </section>
+</main>
+</body>
+</html>`;
+}

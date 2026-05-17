@@ -29,6 +29,9 @@ const SECTION_RULES: Array<{ pattern: RegExp; sections: string[] }> = [
 ];
 
 const TEMPLATE_RULES: Array<{ pattern: RegExp; templateId: string }> = [
+  { pattern: /game studio|indie|гейм|игр|steam|wishlist|trailer/i, templateId: "game-studio" },
+  { pattern: /химчист|диван|ковр|уборк|клининг|выезд|whatsapp/i, templateId: "blank-landing" },
+  { pattern: /студи[яи]\s+интерьер|дизайн\s+интерьер|интерьер.*портфолио|портфолио.*интерьер/i, templateId: "blank-landing" },
   { pattern: /перевод|переводчик|локализац|германи|израил/i, templateId: "blank-landing" },
   { pattern: /стомат|клиник|медцентр|врач|лечен/i, templateId: "medical-clinic" },
   { pattern: /юрист|адвокат|право|m&a|налог|судеб|(^|[\s,.;:!?-])суд($|[\s,.;:!?-])|договор|инвестор|опцион/i, templateId: "legal-firm" },
@@ -47,11 +50,25 @@ const TEMPLATE_RULES: Array<{ pattern: RegExp; templateId: string }> = [
   { pattern: /торт|десерт|хендмейд|свеч|керамик|украшен/i, templateId: "handmade-shop" },
 ];
 
+const RU_COPY_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/translate your medical documents and start treating abroad\.?/gi, "Медицинские документы для лечения за границей"],
+  [/expert translations for doctors and patients, starting today\.?/gi, "Переводим выписки, анализы и заключения для клиник Германии и Израиля."],
+  [/professional translators/gi, "Медицинские переводчики"],
+  [/comprehensive coverage/gi, "Полный пакет документов"],
+  [/customized solutions/gi, "Под задачу клиники"],
+  [/book now(?: for a personalized experience)?/gi, "Записаться"],
+  [/get information/gi, "Получить консультацию"],
+];
+
 function sanitizeCopy(text: string | undefined): string | undefined {
   if (!text) return text;
-  return BANNED_REPLACEMENTS.reduce(
+  const withoutBanned = BANNED_REPLACEMENTS.reduce(
     (out, [pattern, replacement]) => out.replace(pattern, replacement),
     text,
+  );
+  return RU_COPY_REPLACEMENTS.reduce(
+    (out, [pattern, replacement]) => out.replace(pattern, replacement),
+    withoutBanned,
   );
 }
 
@@ -120,9 +137,19 @@ function wantsContact(query: string): boolean {
 }
 
 function inferPrimaryCta(query: string, current: string): string {
+  if (/wishlist|steam/i.test(query)) return "Wishlist on Steam";
+  if (/trailer/i.test(query)) return "Watch trailer";
+  if (/химчист|диван|ковр|выезд|whatsapp/i.test(query)) return "Рассчитать стоимость";
+  if (/пекарн|пакарн|хлеб|булоч|выпеч/i.test(query)) return "Смотреть меню";
+  if (/студи[яи]\s+интерьер|дизайн\s+интерьер|интерьер.*заявк|портфолио.*заявк/i.test(query)) {
+    return "Оставить заявку";
+  }
   if (/брон|столик/i.test(query)) return "Забронировать столик";
   if (/мастер-класс|гончар|керамик|двоих|романтическ/i.test(query)) {
     return "Записаться на мастер-класс";
+  }
+  if (/салон красоты|стриж|окрашив|маникюр|бров|ресниц|визаж|косметолог/i.test(query)) {
+    return "Записаться на консультацию";
   }
   if (/консультац/i.test(query)) return "Получить консультацию";
   if (/запис|при[её]м|сеанс/i.test(query)) return "Записаться";
@@ -226,6 +253,40 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
   }
   normalized.keywords = addKeywordHints(normalized.keywords, query);
 
+  if (/медицинск.*перевод|перевод.*(германи|израил|лечен)/i.test(query)) {
+    normalized.language = "ru";
+    normalized.business_type = "медицинский перевод документов";
+    normalized.hero_headline = "Документы, которые поймёт зарубежная клиника";
+    normalized.hero_subheadline =
+      "Переводим выписки, анализы и заключения для лечения в Германии и Израиле. Медицинский редактор проверяет термины, формат и имена врачей.";
+    normalized.key_benefits = [
+      { title: "Медицинская терминология", description: "Переводчик и редактор сверяют диагнозы, дозировки и названия анализов." },
+      { title: "Срок от 24 часов", description: "Срочные выписки и анализы переводим за 1 рабочий день." },
+      { title: "Для клиник Германии и Израиля", description: "Готовим PDF в формате, который удобно отправить врачу координатору." },
+    ];
+    normalized.social_proof_line = "1200+ медицинских переводов для пациентов с 2023 года";
+    normalized.cta_microcopy = "Консультация по пакету документов — бесплатно";
+    normalized.keywords = addKeywordHints(
+      ["медицинский перевод", "перевод документов", "Германия", "Израиль", "лечение"],
+      query,
+    );
+  }
+
+  if (/химчист|диван|ковр|выезд|whatsapp/i.test(query)) {
+    normalized.business_type = "выездная химчистка диванов и ковров";
+    normalized.hero_headline = "Диван снова выглядит новым";
+    normalized.hero_subheadline =
+      "Выезжаем сегодня, чистим диваны, ковры и кресла на месте. Показываем тест-пятно до старта и считаем цену заранее.";
+    normalized.key_benefits = [
+      { title: "Выезд сегодня", description: "Мастер приезжает в течение 3 часов по городу." },
+      { title: "Цена до начала", description: "Считаем стоимость после фото в WhatsApp за 15 минут." },
+      { title: "Безопасно для детей", description: "Используем составы без резкого запаха, можно сидеть через 4 часа." },
+    ];
+    normalized.social_proof_line = "3500+ диванов и ковров очищены с 2021 года";
+    normalized.cta_microcopy = "Расчёт по фото в WhatsApp — бесплатно";
+    normalized.suggested_template_id = "blank-landing";
+  }
+
   if (normalized.cta_microcopy && !/бесплатн|без\s+(оплат|штраф|кар|обяз|предоплат)|гарант|возврат|0\s*₽|0\s+руб|консультац.+бесплат/i.test(normalized.cta_microcopy)) {
     normalized.cta_microcopy = "Без предоплаты. Ответ за 15 минут.";
   }
@@ -257,7 +318,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
   const inferredTemplate = inferTemplateId(query);
   if (inferredTemplate && getTemplateById(inferredTemplate)) {
     const currentExists = getTemplateById(normalized.suggested_template_id);
-    const strongTemplateHint = /стомат|клиник|saas|edtech|платформ|фитнес|йог|кофе|кофей|спешелти|обжар|cupping|пекарн|пакарн|хлеб|булоч|выпеч|ресторан|барбер|юрист|фотограф|архитектур|интерьер|loft|английск|маникюр|салон|торт|цвет|букет|флорист|перевод|германи|израил|тату/i.test(query);
+    const strongTemplateHint = /game studio|indie|гейм|игр|steam|wishlist|trailer|химчист|диван|ковр|уборк|клининг|выезд|whatsapp|стомат|клиник|saas|edtech|платформ|фитнес|йог|кофе|кофей|спешелти|обжар|cupping|пекарн|пакарн|хлеб|булоч|выпеч|ресторан|барбер|юрист|фотограф|архитектур|интерьер|loft|английск|маникюр|салон|торт|цвет|букет|флорист|перевод|германи|израил|тату/i.test(query);
     if (!currentExists || normalized.suggested_template_id === "blank-landing" || strongTemplateHint) {
       normalized.suggested_template_id = inferredTemplate;
     }

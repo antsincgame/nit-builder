@@ -262,20 +262,22 @@ function replaceHeroPrimaryCta(
   if (!heroRange || !ctaText.trim()) return { html, replaced: false };
 
   const sectionHtml = html.slice(heroRange.start, heroRange.end);
-  const anchorMatch = sectionHtml.match(/<a\b[^>]*>[\s\S]*?<\/a>/i);
-  if (!anchorMatch || anchorMatch.index === undefined) {
+  const ctaMatch = sectionHtml.match(/<(a|button)\b[^>]*>[\s\S]*?<\/\1>/i);
+  if (!ctaMatch || ctaMatch.index === undefined) {
     return { html, replaced: false };
   }
 
-  const openEndInAnchor = anchorMatch[0].indexOf(">");
-  if (openEndInAnchor < 0) return { html, replaced: false };
+  const openEndInElement = ctaMatch[0].indexOf(">");
+  if (openEndInElement < 0) return { html, replaced: false };
 
-  const textStart = heroRange.start + anchorMatch.index + openEndInAnchor + 1;
+  const tagName = ctaMatch[1] ?? "a";
+  const closeTag = `</${tagName}>`;
+  const textStart = heroRange.start + ctaMatch.index + openEndInElement + 1;
   const textEnd =
     heroRange.start +
-    anchorMatch.index +
-    anchorMatch[0].length -
-    "</a>".length;
+    ctaMatch.index +
+    ctaMatch[0].length -
+    closeTag.length;
 
   return {
     html: html.slice(0, textStart) + escapeHtml(ctaText) + html.slice(textEnd),

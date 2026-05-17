@@ -10,6 +10,11 @@ import { useControlSocket } from "~/lib/hooks/useControlSocket";
 import { useGenerationFlow } from "~/lib/hooks/useGenerationFlow";
 import { toast } from "~/lib/stores/toastStore";
 import { uuid } from "~/lib/utils/uuid";
+import {
+  artifactDownloadName,
+  buildStoredZipBlob,
+  extractPhpSqliteArtifact,
+} from "~/lib/utils/artifactExport";
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { GridBg, Orbs, Chip, StatusDot, GlitchHeading, Particles, HorizontalParticles, ConicRays, Beams } from "~/components/nit";
@@ -100,6 +105,19 @@ export default function Home() {
   const downloadHtml = useCallback(async () => {
     const content = streamingHtml || html;
     if (!content) return;
+    const artifact = extractPhpSqliteArtifact(content);
+    if (artifact) {
+      const blob = buildStoredZipBlob(artifact.files);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = artifactDownloadName(artifact);
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PHP-проект скачан");
+      return;
+    }
+
     const filename = `nit-${lastTemplateId || "site"}-${Date.now()}.html`;
 
     // Скачиваем через /api/bundle — серверный compile-step Tailwind:
@@ -438,6 +456,7 @@ export default function Home() {
   if (mode === "generating" || mode === "editing") {
     const previewHtml = streamingHtml || html;
     const isGenerating = mode === "generating";
+    const isBackendArtifact = !!extractPhpSqliteArtifact(previewHtml);
 
     return (
       <div className="h-screen text-[color:var(--ink)] flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
@@ -555,13 +574,13 @@ export default function Home() {
                       border: "1px solid var(--accent)",
                       color: "var(--accent-glow)",
                     }}
-                    title="Скачать HTML (⌘D)"
+                    title={isBackendArtifact ? "Скачать PHP-проект (⌘D)" : "Скачать HTML (⌘D)"}
                   >
                     <span>↓</span>
-                    <span className="hidden sm:inline">HTML</span>
+                    <span className="hidden sm:inline">{isBackendArtifact ? "Export ZIP" : "HTML"}</span>
                   </button>
                 )}
-                {html && hasEditableZones && (
+                {html && hasEditableZones && !isBackendArtifact && (
                   <button
                     type="button"
                     onClick={downloadPhp}
