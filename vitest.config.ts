@@ -9,7 +9,7 @@ export default defineConfig({
     // tests/ui/ нужен jsdom, остальным node. Раньше разделялось через
     // deprecated `environmentMatchGlobs`.
     globals: false,
-    setupFiles: [".//tests/setup.ts"],
+    setupFiles: ["./tests/setup.ts"],
     projects: [
       {
         extends: true,
