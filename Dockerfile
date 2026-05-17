@@ -1,7 +1,13 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+# npm ci вместо npm install: воспроизводимый build по package-lock.json,
+# без случайных minor-бампов во время docker build.
+#
+# --ignore-scripts СОЗНАТЕЛЬНО ИЛИН НЕ ставится здесь — argon2 (native module,
+# используется в tunnelTokens.server.ts) требует postinstall для подкачки prebuilt
+# binary или сборки из исходников. Без этого require('argon2') падает на старте.
 COPY package.json package-lock.json* ./
-RUN npm install
+RUN npm ci
 COPY . .
 RUN npm run build
 
@@ -11,7 +17,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 
 COPY --from=builder /app/package.json /app/package-lock.json* ./
-RUN npm install --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
