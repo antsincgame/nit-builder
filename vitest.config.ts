@@ -16,7 +16,15 @@ export default defineConfig({
         test: {
           name: "node",
           environment: "node",
-          include: ["tests/**/*.test.ts"],
+          // Раньше было только `tests/**/*.test.ts` — коллокированные тесты
+          // (app/lib/**/*.test.ts) НЕ запускались. У нас на момент правки
+          // 3 таких файла в app/lib/bake/ (compileTailwind, extractZones,
+          // htmlToPhp), все рабочие — их CI игнорировал. Расширяем include
+          // чтобы такие тесты тоже подбирались.
+          include: [
+            "tests/**/*.test.ts",
+            "app/**/*.test.ts",
+          ],
           exclude: ["tests/ui/**"],
           // Argon2 и параллельные воркеры иногда «крадут» CPU: 5s не хватает.
           testTimeout: 15_000,
@@ -27,7 +35,11 @@ export default defineConfig({
         test: {
           name: "ui",
           environment: "jsdom",
-          include: ["tests/ui/**/*.test.{ts,tsx}", "tests/**/*.test.tsx"],
+          include: [
+            "tests/ui/**/*.test.{ts,tsx}",
+            "tests/**/*.test.tsx",
+            "app/**/*.test.tsx",
+          ],
         },
       },
     ],
@@ -45,6 +57,7 @@ export default defineConfig({
         "app/lib/config/**/*.ts",
         "app/lib/contexts/**/*.{ts,tsx}",
         "app/lib/hooks/**/*.{ts,tsx}",
+        "app/lib/bake/**/*.ts",
         "shared/src/**/*.ts",
       ],
       exclude: [
