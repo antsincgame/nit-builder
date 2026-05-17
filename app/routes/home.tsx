@@ -17,6 +17,7 @@ import {
 } from "~/lib/utils/artifactExport";
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
+import { ShareDialog } from "~/components/simple/ShareDialog";
 import { GridBg, Orbs, Chip, StatusDot, GlitchHeading, Particles, HorizontalParticles, ConicRays, Beams } from "~/components/nit";
 import { TerminalCodeCard } from "~/components/nit/TerminalCodeCard";
 
@@ -41,6 +42,7 @@ export default function Home() {
   // state: open/close drawer не должно пересоздавать generate-callback'и.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Mobile tab (видим только на < md). На широких экранах оба панели
   // показываются в split-layout одновременно, на узких — переключаемся
@@ -102,6 +104,7 @@ export default function Home() {
     canRedo,
     versions,
     currentVersionIndex,
+    currentSiteId,
   } = flow;
 
   // UX-хелпер: при старте генерации авто-переключаемся на preview-таб
@@ -519,6 +522,11 @@ export default function Home() {
           isOpen={settingsOpen}
           onClose={() => setSettingsOpen(false)}
         />
+        <ShareDialog
+          isOpen={shareOpen}
+          siteId={currentSiteId}
+          onClose={() => setShareOpen(false)}
+        />
 
         {/* Top bar */}
         <div
@@ -682,6 +690,21 @@ export default function Home() {
                   >
                     <span>↓</span>
                     <span className="hidden sm:inline">PHP</span>
+                  </button>
+                )}
+                {html && auth.status === "authenticated" && (
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(true)}
+                    className="px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase transition flex items-center gap-2"
+                    style={{
+                      border: "1px solid var(--magenta)",
+                      color: "var(--magenta)",
+                    }}
+                    title="Поделиться публичной ссылкой"
+                  >
+                    <span>↗</span>
+                    <span className="hidden sm:inline">Share</span>
                   </button>
                 )}
                 {auth.status === "authenticated" && (
