@@ -81,6 +81,15 @@ export type UseGenerationFlow = {
   lastPrompt: string;
   lastTemplateId: string;
   chatMessages: ChatMessage[];
+  /**
+   * История версий после polish-каскадов. Каждый успешный create или polish
+   * push'ит новую запись. Индекс currentVersionIndex указывает на показанную
+   * версию. canUndo/canRedo — производные удобства для UI.
+   */
+  versions: VersionEntry[];
+  currentVersionIndex: number;
+  canUndo: boolean;
+  canRedo: boolean;
 
   // ─── Actions ────────────────────────────────────────
   createSite: (prompt: string) => Promise<void>;
@@ -89,6 +98,10 @@ export type UseGenerationFlow = {
   /** Используется HistoryPanel при открытии существующего сайта. */
   loadFromHistory: (entry: HistoryEntry) => void;
   reset: () => void;
+  /** Откат на предыдущую версию (если есть). */
+  undoVersion: () => void;
+  /** Возврат к следующей версии (если есть). */
+  redoVersion: () => void;
 
   // ─── Direct setters (для специфичных UI-нужд) ──────
   setMode: (m: ViewMode) => void;
@@ -97,6 +110,23 @@ export type UseGenerationFlow = {
   // ─── WebSocket bridge ───────────────────────────────
   /** Передавать в useControlSocket({ onEvent: handleWsEvent }). */
   handleWsEvent: (event: ServerToBrowser) => void;
+};
+
+/**
+ * Запись в истории версий внутри сессии (НЕ путать с HistoryEntry —
+ * полные сохранённые сайты в Appwrite/localStorage).
+ *
+ * Хранится только в памяти; теряется при reload — это намеренно, чтобы
+ * undo/redo был лёгким и не плодил persisted state.
+ */
+export type VersionEntry = {
+  html: string;
+  /** Какой prompt привёл к этой версии. Для UI-подсказок при undo. */
+  prompt: string;
+  /** "create" — стартовая версия после первой генерации, "polish" — каскад. */
+  kind: "create" | "polish";
+  /** Unix ms, для отображения «N мин назад». */
+  timestamp: number;
 };
 
 // ─── Implementation ────────────────────────────────────────────────
@@ -117,6 +147,28 @@ export function useGenerationFlow(
   const [lastPrompt, setLastPrompt] = useState("");
   const [lastTemplateId, setLastTemplateId] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+  // ─── Polish undo/redo ────────────────────────────────────────────
+  // Версии копятся при каждом успешном create / polish. currentVersionIndex
+  // указывает на актуальную (отображаемую) версию; undo/redo двигают индекс
+  // не трогая массив (то есть undo не теряет «будущее» — пока не сделан
+  // новый polish, после которого redo-«хвост» сбрасывается).
+  const [versions, setVersions] = useState<VersionEntry[]>([]);
+  const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
+
+  // Helper — атомарно добавить новую версию. Если мы стояли НЕ на конце
+  // (после undo пользователь сделал новый polish), отбрасываем «redo-хвост»
+  // и кладём новую версию поверх — стандартное undo/redo поведение.
+  const pushVersion = useCallback(
+    (entry: VersionEntry) => {
+      setVersions((prev) => {
+        const head = prev.slice(0, currentVersionIndex + 1);
+        return [...head, entry];
+      });
+      setCurrentVersionIndex((idx) => idx + 1);
+    },
+    [currentVersionIndex],
+  );
 
   // Refs (state мы не кладём сюда — useState даёт реактивность; refs только
   // для значений которые не должны вызывать пересоздание callback'ов)
@@ -149,6 +201,14 @@ export function useGenerationFlow(
   useEffect(() => {
     lastPromptRef.current = lastPrompt;
   }, [lastPrompt]);
+
+  // chatMessagesRef — handleWsEvent на generate_done определяет это
+  // create или polish (по наличию assistant-сообщения от прошлых
+  // итераций), не вызывая пересоздание callback при каждом setChatMessages.
+  const chatMessagesRef = useRef(chatMessages);
+  useEffect(() => {
+    chatMessagesRef.current = chatMessages;
+  }, [chatMessages]);
 
   // getSocket-ref: caller передаёт стабильную функцию-геттер, мы сохраняем
   // её и читаем актуальный socket на каждый action. Это разрывает
@@ -208,6 +268,19 @@ export function useGenerationFlow(
           setCurrentStep("done");
           activeRequestIdRef.current = null;
 
+          // Polish undo/redo: новая версия в стек. Различаем create vs
+          // polish по наличию assistant-сообщения в chat (proxy для того
+          // что это уже не первая генерация в сессии).
+          const isPolish = chatMessagesRef.current.some(
+            (m) => m.role === "assistant",
+          );
+          pushVersion({
+            html: event.html,
+            prompt: lastPromptRef.current,
+            kind: isPolish ? "polish" : "create",
+            timestamp: Date.now(),
+          });
+
           setChatMessages((prev) => [
             ...prev,
             {
@@ -266,7 +339,7 @@ export function useGenerationFlow(
         }
       }
     },
-    [scheduleIframeUpdate],
+    [scheduleIframeUpdate, pushVersion],
   );
 
   // ─── Actions ──────────────────────────────────────────────────────
@@ -353,6 +426,14 @@ export function useGenerationFlow(
         setStreamingHtml("");
         setLastTemplateId(result.templateId);
 
+        // Polish undo/redo: новая версия в стек (HTTP fallback path).
+        pushVersion({
+          html: result.finalHtml,
+          prompt,
+          kind: "create",
+          timestamp: Date.now(),
+        });
+
         if (result.finalHtml && result.templateId) {
           saveToHistory({
             prompt,
@@ -383,7 +464,7 @@ export function useGenerationFlow(
         abortCtrlRef.current = null;
       }
     },
-    [projectId, scheduleIframeUpdate],
+    [projectId, scheduleIframeUpdate, pushVersion],
   );
 
   const polishSite = useCallback(
@@ -443,6 +524,12 @@ export function useGenerationFlow(
 
         setHtml(result.finalHtml);
         setStreamingHtml("");
+        pushVersion({
+          html: result.finalHtml,
+          prompt: request,
+          kind: "polish",
+          timestamp: Date.now(),
+        });
         setChatMessages((prev) => [...prev, { role: "assistant", text: "Готово ✨" }]);
         toast.success("Правки применены");
       } catch (err) {
@@ -457,7 +544,7 @@ export function useGenerationFlow(
         abortCtrlRef.current = null;
       }
     },
-    [projectId, scheduleIframeUpdate],
+    [projectId, scheduleIframeUpdate, pushVersion],
   );
 
   const cancelGeneration = useCallback(() => {
@@ -479,6 +566,14 @@ export function useGenerationFlow(
     setTemplateName(entry.templateName);
     setChatMessages([]);
     setMode("editing");
+    // Стек версий сбрасываем — открытие сайта из истории это новая
+    // «сессия» с точки зрения undo/redo. Полировки старой сессии не
+    // переносятся (их можно было бы сохранять с самим сайтом, но это
+    // отдельная фича Continue-from-history).
+    setVersions([
+      { html: entry.html, prompt: entry.prompt, kind: "create", timestamp: Date.now() },
+    ]);
+    setCurrentVersionIndex(0);
   }, []);
 
   const reset = useCallback(() => {
@@ -489,8 +584,38 @@ export function useGenerationFlow(
     setTemplateName("");
     setStreamingChars(0);
     setCurrentStep("plan");
+    setVersions([]);
+    setCurrentVersionIndex(-1);
     sessionIdRef.current = undefined;
   }, []);
+
+  // Undo/redo — двигаем индекс, восстанавливаем html. Не дёргаем сеть,
+  // не пишем в history (это та же сессия, не новый сайт).
+  const undoVersion = useCallback(() => {
+    setCurrentVersionIndex((idx) => {
+      if (idx <= 0) return idx;
+      const target = idx - 1;
+      const entry = versions[target];
+      if (entry) {
+        setHtml(entry.html);
+        setStreamingHtml("");
+      }
+      return target;
+    });
+  }, [versions]);
+
+  const redoVersion = useCallback(() => {
+    setCurrentVersionIndex((idx) => {
+      if (idx >= versions.length - 1) return idx;
+      const target = idx + 1;
+      const entry = versions[target];
+      if (entry) {
+        setHtml(entry.html);
+        setStreamingHtml("");
+      }
+      return target;
+    });
+  }, [versions]);
 
   return {
     mode,
@@ -503,11 +628,17 @@ export function useGenerationFlow(
     lastPrompt,
     lastTemplateId,
     chatMessages,
+    versions,
+    currentVersionIndex,
+    canUndo: currentVersionIndex > 0,
+    canRedo: currentVersionIndex < versions.length - 1,
     createSite,
     polishSite,
     cancelGeneration,
     loadFromHistory,
     reset,
+    undoVersion,
+    redoVersion,
     setMode,
     setChatMessages,
     handleWsEvent,
