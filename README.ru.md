@@ -169,7 +169,7 @@ assets/uploads/       ← MIME-валидация, .htaccess блокирует 
 - **ws** + **Tauri 2.0** для туннеля
 - **Argon2id** + HMAC-SHA256 для tunnel-токенов, **session-version revocation** для cookie
 - **Appwrite** для пользователей, сайтов и persistent guest-IP квот
-- **Vitest 3** — 69 тест-файлов, ~11k LOC тестов, CI зелёный на каждом push
+- **Vitest 3** — 74 тест-файла, ~11k LOC тестов, CI зелёный на каждом push
 
 ---
 
@@ -189,13 +189,93 @@ Issue по шаблонам из `.github/ISSUE_TEMPLATE/`. CI должен ос
 
 ## Roadmap
 
-- [x] v1.0 — HTML-first pipeline, 22 шаблона, LM Studio + Groq + OpenRouter
-- [x] v2.0-beta — P2P туннель, Tauri desktop client, мультиюзер через Appwrite, persistent guest-квоты, PHP-baker, inline Tailwind compile
-- [ ] v2.1 — страница «Мои сайты» (CRUD UI), shareable preview-ссылки
-- [ ] v2.2 — галерея комьюнити-шаблонов, загрузка своих
-- [ ] v2.3 — локальная генерация картинок (Stable Diffusion через туннель)
-- [ ] v2.4 — экспорт в React / Vue / Astro
-- [ ] v3.0 — встроенный LLM runtime в Tauri-клиенте (без зависимости от LM Studio)
+### Сделано
+
+- [x] **v1.0** — HTML-first pipeline, 22 шаблона, LM Studio + cloud fallback
+- [x] **v2.0-beta** — peer-to-peer WSS-туннель, Tauri desktop-клиент (tray
+  icon / autostart / auto-update), мультиюзер через Appwrite, persistent
+  guest-квоты, PHP-бейкер с `data-edit` зонами, Tailwind v4 inline compile,
+  RAG-каскад (BM25 + dense + RRF + reranker), eval harness, рандомизация
+  имени `setup.php` против race на свежем деплое, киберпанк-редизайн UI
+
+### v2.1 — UX polish (next)
+
+- [ ] Shareable preview links (`/p/<token>`) — публичные read-only ссылки
+  на сгенерированные сайты, без необходимости скачивать ZIP
+- [ ] «Save as Template» — сделать из своей удачной генерации
+  переиспользуемый template (личный или, в v2.2, публичный)
+- [ ] Continue-from-history — продолжить полировку сохранённого сайта
+  вместо новой сессии с нуля
+- [ ] Polish undo/redo — все итерации polish-каскада сохраняются и
+  доступны для возврата
+- [ ] Mobile UI — split layout не работает на узких экранах, нужен
+  tab-switcher или drawer
+
+### v2.2 — Community templates
+
+- [ ] Pipeline сабмита шаблонов (review → publish), коллекция
+  `nit_user_templates` в Appwrite
+- [ ] Публичная галерея (`/templates`) с поиском, тегами, превью
+- [ ] Голосование (👍/👎) и usage-статистика — попадает в RAG как weak
+  signal для Planner'а
+- [ ] Форкинг — взять чужой template в свой аккаунт и доработать
+
+### v2.3 — Генерация картинок через туннель
+
+- [ ] Stable Diffusion XL / Flux Schnell через тот же WSS-туннель (новый
+  message type `tunnel:image_generate`)
+- [ ] Tauri-клиент автоматически обнаруживает SD WebUI / ComfyUI / Flux
+  локально — так же как сейчас обнаруживает LM Studio
+- [ ] Hero-картинки inline вместо Unsplash placeholder'ов — Planner
+  подсказывает prompt, Coder ставит `<img data-edit-gen="hero">`,
+  post-processor рендерит
+- [ ] Кнопка «regenerate image» в PHP-админке — вызывает SD на туннеле
+  владельца, не на VPS
+
+### v2.4 — Экспорт в фреймворки
+
+- [ ] Export в React + Vite (компоненты по секциям, Tailwind config,
+  готовый `package.json`)
+- [ ] Export в Vue 3 + Vite
+- [ ] Export в Astro (лучше всего ложится на текущую template-архитектуру)
+- [ ] Export в WordPress theme — переиспользует PHP-baker, добавляет
+  `style.css` header, `functions.php` и Customizer вместо flat-file админки
+
+### v2.5 — Расширение backend-артефакта
+
+`phpSqliteArtifactBuilder` (коммит 8abfe86) даёт base. Сверху:
+
+- [ ] Contact forms — `POST /contact.php` с rate-limit и email-уведомлением
+- [ ] Booking calendar — date-slot picker на SQLite, без зависимостей
+- [ ] Multi-language (i18n) — атрибут `data-edit-lang="ru,en"`, выбор
+  языка через `?lang=` или Accept-Language
+
+### v3.0 — Встроенный LLM runtime (большая)
+
+- [ ] Встроить `llama.cpp` (через `llama-rs` или прямой FFI) в Tauri-клиент.
+  Tunnel-протокол не меняется — клиент сам решает откуда брать inference:
+  LM Studio (как сейчас), bundled runtime, внешний OpenAI-совместимый
+  endpoint
+- [ ] Auto-download GGUF при первом запуске (`Qwen2.5-Coder-7B-Q4_K_M`,
+  ~4.5 GB) с прогресс-баром
+- [ ] Onboarding wizard — «первый раз? подберём модель под твой GPU»
+
+### v3.1 — Plugin marketplace
+
+- [ ] Site-level plugins (analytics, chat-widget, cookie banner, GA/GTM)
+  — drop-in injection через baker
+- [ ] Theme-level plugins (доп. секции: pricing table, testimonials slider,
+  FAQ accordion) — расширяют Planner-схему
+- [ ] Plugin API спецификация, manifest, signing
+
+### Continuous (без привязки к версии)
+
+- Расширение RAG-корпуса: `planExamples` сейчас ~50, цель 300+; weak
+  signals из юзер-фидбэка (`feedbackIngest`)
+- Eval harness: nightly regression matrix, публичный leaderboard,
+  per-template quality scores
+- i18n UI: украинский, польский, немецкий — для regional small business
+- Больше примеров промптов, видео-туториалов
 
 ---
 
