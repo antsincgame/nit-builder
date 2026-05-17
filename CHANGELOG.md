@@ -644,22 +644,46 @@ First public beta of NIT Builder — an HTML-first AI site generator optimized f
 > отменены вместе с cloud-providers в v2 (Groq/OpenRouter удалены —
 > v2 это local-only через LM Studio).
 
-### v2.1 — UX polish (next)
+### v2.1 — UX polish (in progress, 3/5 done)
 
-- **Shareable preview links** — публичный URL вида `/p/<token>` на любой
-  сгенерированный сайт без необходимости скачивать ZIP. Read-only,
-  short-token (12 chars), TTL 30 дней по умолчанию.
+**Done (закрыто в этой раскатке):**
+
+- ✓ **Polish undo/redo** (`02cd9da`, `eca7578`, `5897f74`) —
+  `VersionEntry[]` stack в `useGenerationFlow`; каждый успешный
+  create/polish push'ит новую версию через `pushVersion`. После undo
+  → new polish, redo-«хвост» отбрасывается (стандартная модель IDE).
+  UI: ↶/↷ buttons в top-bar (показываются при `versions.length > 1`),
+  keyboard `⌘Z` / `⌘⇧Z` (+ Ctrl-варианты). 9 unit-тестов в
+  `tests/ui/useGenerationFlow.test.tsx`. Хранится in-memory, не
+  persistent — намеренно, чтобы было легко.
+
+- ✓ **Mobile UI** (`eca7578`) — split layout (chat+preview) на узких
+  экранах не работал; теперь tab-bar Chat/Preview на `< md`, со
+  счётчиком сообщений в Chat-табе и auto-switch на preview при старте
+  генерации. Split-layout на `md+` нетронут.
+
+- ✓ **Shareable preview links** (`9216519`, `d1b554d`, `6640a48`,
+  `bea0a00`, `3121c58`, `b8fc2ef`, `9ed01bb`, `cc02777`) — Appwrite
+  collection `nit_shared_previews` (token CSPRNG 12-char alphanum,
+  snapshot HTML, expiresAt с TTL 30 дней, views counter). Routes:
+  `POST /api/share` (создать с ownership-check), `DELETE /api/share/:id`
+  (отозвать), `GET /p/:token` (public, без auth, security headers:
+  X-Frame-Options SAMEORIGIN, X-Robots-Tag noindex). UI: кнопка ↗ Share
+  в editing-mode → ShareDialog с copy/open. 14 тестов в
+  `tests/api.share.test.ts`. Применить миграцию на VPS:
+  `APPWRITE_API_KEY=<key> npm run migrate:appwrite`.
+
+**Pending:**
+
 - **"Save as Template"** — кнопка на удачном результате генерации;
   сохраняет HTML + извлечённые `data-edit` зоны в `nit_user_templates`
   (Appwrite). Доступно только владельцу, можно "promote" в публичную
   галерею (v2.2).
 - **Continue from history** — сейчас открытие сайта из HistoryPanel
   создаёт новую сессию. Нужен continue-mode: загрузить предыдущее
-  состояние + chat-history + полировать дальше.
-- **Polish undo/redo** — сейчас polish-каскад одноразовый, прошлые
-  версии теряются. Завести `polishHistory[]` в сессии.
-- **Mobile UI** — split layout (chat+preview) на узких экранах не
-  работает; нужен tab-switcher или drawer.
+  состояние + chat-history + полировать дальше. Требует расширения
+  схемы `nit_sites` (chatMessages JSON), API contract update и
+  пересохранение chat в `useGenerationFlow.loadFromHistory`.
 
 ### v2.2 — Community templates
 
