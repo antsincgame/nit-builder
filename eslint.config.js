@@ -126,8 +126,11 @@ export default tseslint.config(
   },
 
   // ─── 6. Скрипты — Node-only globals ────────────────────────
+  // .mjs включён вместе с .ts — sync-version.mjs (запускается из npm-hook
+  // "version") использует console/process; без явного globals.node lint
+  // падает no-undef.
   {
-    files: ["scripts/**/*.ts"],
+    files: ["scripts/**/*.{ts,mjs}"],
     languageOptions: { globals: { ...globals.node } },
   },
 
