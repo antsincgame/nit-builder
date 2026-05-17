@@ -324,6 +324,51 @@ async function migrate(): Promise<void> {
   await ensureIndex("nit_guest_limits", "ipHash_unique", "unique", ["ipHash"]);
   console.log("");
 
+  // ── nit_shared_previews ──
+  // Публичные read-only ссылки на сгенерированные сайты (/p/:token).
+  // Snapshot HTML на момент шеринга — если юзер удалит site, share живёт.
+  // TTL 30 дней по умолчанию (expiresAt), после — отдаём 410 Gone.
+  console.log("Collection: nit_shared_previews");
+  await ensureCollection("nit_shared_previews", "NIT Shared Previews");
+  await ensureAttribute("nit_shared_previews", "token", {
+    kind: "string",
+    size: 12,
+    required: true,
+  });
+  await ensureAttribute("nit_shared_previews", "siteId", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_shared_previews", "userId", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_shared_previews", "html", {
+    kind: "string",
+    size: 1_000_000,
+    required: true,
+  });
+  await ensureAttribute("nit_shared_previews", "expiresAt", {
+    kind: "datetime",
+    required: true,
+  });
+  await ensureAttribute("nit_shared_previews", "views", {
+    kind: "integer",
+    required: true,
+    min: 0,
+    default: 0,
+  });
+  await sleep(2000);
+  // token — уникальный (для быстрого lookup в GET /p/:token).
+  await ensureIndex("nit_shared_previews", "token_unique", "unique", ["token"]);
+  // userId — для list "мои share'ы".
+  await ensureIndex("nit_shared_previews", "userId_idx", "key", ["userId"]);
+  // expiresAt — для cron-cleanup истёкших записей.
+  await ensureIndex("nit_shared_previews", "expiresAt_idx", "key", ["expiresAt"]);
+  console.log("");
+
   console.log("✓ Migration complete");
 }
 
