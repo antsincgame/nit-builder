@@ -30,7 +30,7 @@ import {
   Query,
   type Models,
 } from "node-appwrite";
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 // ─── Config ──────────────────────────────────
 
@@ -43,6 +43,7 @@ export const APPWRITE_CONFIG = {
     sites: "nit_sites",
     generations: "nit_generations",
     guestLimits: "nit_guest_limits",
+    sharedPreviews: "nit_shared_previews",
   },
 } as const;
 
@@ -145,6 +146,29 @@ export type NitGuestLimit = Models.Document & {
   ipHash: string;
   count: number;
   resetAt: string;
+};
+
+/**
+ * Публичная shareable-ссылка на сгенерированный сайт.
+ *
+ * Юзер с editing-mode жмёт "Share", сервер создаёт запись с рандомным
+ * 12-символьным token и snapshot'ом HTML на момент шеринга (если позже
+ * сайт меняется, share-ссылка ОСТАЁТСЯ той же — поведение копии, не ссылки).
+ *
+ * - token: alphanumeric 12 chars (CSPRNG), используется в URL /p/:token
+ * - siteId: ссылка на nit_sites доку (для отзыва "отозвать все share'ы этого сайта")
+ * - userId: для ownership-проверок и моих share'ов
+ * - html: snapshot, чтобы share-ссылка не сломалась если юзер удалил сайт
+ * - expiresAt: ISO дата, после которой /p/:token отдаст 410 Gone (TTL 30 дней по умолчанию)
+ * - views: счётчик показов, инкрементируется на каждый GET /p/:token
+ */
+export type NitSharedPreview = Models.Document & {
+  token: string;
+  siteId: string;
+  userId: string;
+  html: string;
+  expiresAt: string;
+  views: number;
 };
 
 // ─── Session operations ────────────────────────────────
@@ -597,6 +621,144 @@ export async function deleteSite(userId: string, siteId: string): Promise<boolea
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.sites,
       siteId,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ─── Shared previews (public /p/:token links) ────────────────────
+
+/**
+ * Сгенерировать 12-символьный token из URL-safe alphabet.
+ * 62^12 ≈ 3.2e21 комбинаций — коллизия в realistic-объёме нереалистична,
+ * но при `createSharedPreview` всё равно retry-цикл (унификация с другими
+ * unique-token схемами в проекте).
+ */
+function generateShareToken(): string {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  const buf = randomBytes(12);
+  let out = "";
+  for (let i = 0; i < 12; i++) {
+    out += alphabet[buf[i] % alphabet.length];
+  }
+  return out;
+}
+
+/** Дефолтный TTL для shared previews — 30 дней. */
+export const SHARED_PREVIEW_TTL_DAYS = 30;
+
+export async function createSharedPreview(params: {
+  siteId: string;
+  userId: string;
+  html: string;
+  ttlDays?: number;
+}): Promise<NitSharedPreview> {
+  const db = getAdminDatabases();
+  const ttl = params.ttlDays ?? SHARED_PREVIEW_TTL_DAYS;
+  const expiresAt = new Date(Date.now() + ttl * 24 * 60 * 60 * 1000).toISOString();
+
+  // Retry на коллизию token — 3 попытки достаточно при 62^12 пространстве.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const token = generateShareToken();
+    try {
+      const doc = await db.createDocument<NitSharedPreview>(
+        APPWRITE_CONFIG.databaseId,
+        APPWRITE_CONFIG.collections.sharedPreviews,
+        ID.unique(),
+        {
+          token,
+          siteId: params.siteId,
+          userId: params.userId,
+          html: params.html,
+          expiresAt,
+          views: 0,
+        },
+      );
+      return doc;
+    } catch (err) {
+      // Если это не unique-violation на token, прокидываем дальше.
+      // Appwrite кидает 409 на duplicate key; различить по message нет
+      // стабильного способа, поэтому ретраим до 3х раз — для не-коллизий
+      // вторая попытка тоже упадёт.
+      if (attempt === 2) throw err;
+    }
+  }
+  throw new Error("createSharedPreview: failed after 3 attempts");
+}
+
+/**
+ * Прочитать share по token'у. Возвращает null если не найден или истёк.
+ * Не инкрементирует views — вызывающий код делает это отдельно (чтобы
+ * иметь возможность сначала прочитать, потом решить инкрементить ли).
+ */
+export async function getSharedPreviewByToken(
+  token: string,
+): Promise<NitSharedPreview | null> {
+  if (!/^[A-Za-z0-9]{12}$/.test(token)) return null;
+
+  const db = getAdminDatabases();
+  const result = await db.listDocuments<NitSharedPreview>(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.sharedPreviews,
+    [Query.equal("token", token), Query.limit(1)],
+  );
+  const doc = result.documents[0];
+  if (!doc) return null;
+  if (new Date(doc.expiresAt).getTime() < Date.now()) return null;
+  return doc;
+}
+
+/** Инкрементировать счётчик показов (best-effort, не ломаем чтение если упало). */
+export async function incrementSharedPreviewViews(docId: string, currentViews: number): Promise<void> {
+  try {
+    const db = getAdminDatabases();
+    await db.updateDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.sharedPreviews,
+      docId,
+      { views: currentViews + 1 },
+    );
+  } catch {
+    // metric — не критично
+  }
+}
+
+/** Список share'ов конкретного юзера (для UI «мои публичные ссылки»). */
+export async function listUserSharedPreviews(
+  userId: string,
+  limit = 50,
+): Promise<NitSharedPreview[]> {
+  const db = getAdminDatabases();
+  const result = await db.listDocuments<NitSharedPreview>(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.sharedPreviews,
+    [Query.equal("userId", userId), Query.orderDesc("$createdAt"), Query.limit(limit)],
+  );
+  return result.documents;
+}
+
+/**
+ * Отозвать share. Возвращает true если успешно (с ownership-проверкой).
+ * Удаляет документ — после этого /p/:token будет отдавать 404.
+ */
+export async function revokeSharedPreview(
+  userId: string,
+  docId: string,
+): Promise<boolean> {
+  const db = getAdminDatabases();
+  try {
+    const doc = await db.getDocument<NitSharedPreview>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.sharedPreviews,
+      docId,
+    );
+    if (doc.userId !== userId) return false;
+    await db.deleteDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.sharedPreviews,
+      docId,
     );
     return true;
   } catch {
