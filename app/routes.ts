@@ -21,6 +21,10 @@ export default [
   // Sites CRUD (Phase B.6)
   route("api/sites", "routes/api.sites.ts"),
   route("api/sites/:id", "routes/api.sites.$id.ts"),
+  // Shareable preview links (v2.1)
+  route("api/share", "routes/api.share.ts"),
+  route("api/share/:id", "routes/api.share.$id.ts"),
+  route("p/:token", "routes/p.$token.ts"),
   // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
