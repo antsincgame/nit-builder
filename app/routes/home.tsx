@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
 import { TemplateGrid } from "~/components/simple/TemplateGrid";
 import { PolishChat } from "~/components/simple/PolishChat";
@@ -41,6 +41,11 @@ export default function Home() {
   // state: open/close drawer не должно пересоздавать generate-callback'и.
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Mobile tab (видим только на < md). На широких экранах оба панели
+  // показываются в split-layout одновременно, на узких — переключаемся
+  // между chat и preview через tab-bar.
+  const [mobileTab, setMobileTab] = useState<"chat" | "preview">("preview");
 
   // ─── Generation pipeline + WebSocket flow ─────────────────────────
   //
@@ -91,7 +96,20 @@ export default function Home() {
     cancelGeneration,
     loadFromHistory: openFromHistory,
     reset,
+    undoVersion,
+    redoVersion,
+    canUndo,
+    canRedo,
+    versions,
+    currentVersionIndex,
   } = flow;
+
+  // UX-хелпер: при старте генерации авто-переключаемся на preview-таб
+  // (на mobile). Логика консервативная — срабатывает только на переходе
+  // в "generating", не на каждый чанк стрима.
+  useEffect(() => {
+    if (mode === "generating") setMobileTab("preview");
+  }, [mode]);
 
   // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
   // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
@@ -246,6 +264,32 @@ export default function Home() {
       ctrl: true,
       handler: () => setSettingsOpen(true),
       description: "Ctrl+, — Настройки",
+    },
+    {
+      key: "z",
+      meta: true,
+      handler: () => mode === "editing" && canUndo && undoVersion(),
+      description: "⌘Z — Откатить",
+    },
+    {
+      key: "z",
+      ctrl: true,
+      handler: () => mode === "editing" && canUndo && undoVersion(),
+      description: "Ctrl+Z — Откатить",
+    },
+    {
+      key: "z",
+      meta: true,
+      shift: true,
+      handler: () => mode === "editing" && canRedo && redoVersion(),
+      description: "⌘⇧Z — Вперёд",
+    },
+    {
+      key: "z",
+      ctrl: true,
+      shift: true,
+      handler: () => mode === "editing" && canRedo && redoVersion(),
+      description: "Ctrl+⇧Z — Вперёд",
     },
   ]);
 
@@ -560,6 +604,46 @@ export default function Home() {
               </button>
             ) : (
               <>
+                {versions.length > 1 && (
+                  <div
+                    className="hidden sm:flex items-center"
+                    style={{ border: "1px solid var(--line)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={undoVersion}
+                      disabled={!canUndo}
+                      className="px-2.5 py-1.5 text-[11px] transition"
+                      style={{
+                        color: canUndo ? "var(--ink)" : "var(--muted-2)",
+                        cursor: canUndo ? "pointer" : "not-allowed",
+                        opacity: canUndo ? 1 : 0.4,
+                        borderRight: "1px solid var(--line)",
+                      }}
+                      title={
+                        canUndo
+                          ? `Откатить (${currentVersionIndex}/${versions.length - 1})`
+                          : "Нет предыдущих версий"
+                      }
+                    >
+                      ↶
+                    </button>
+                    <button
+                      type="button"
+                      onClick={redoVersion}
+                      disabled={!canRedo}
+                      className="px-2.5 py-1.5 text-[11px] transition"
+                      style={{
+                        color: canRedo ? "var(--ink)" : "var(--muted-2)",
+                        cursor: canRedo ? "pointer" : "not-allowed",
+                        opacity: canRedo ? 1 : 0.4,
+                      }}
+                      title={canRedo ? "Вперёд" : "Нет следующих версий"}
+                    >
+                      ↷
+                    </button>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={reset}
@@ -621,26 +705,68 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Chat (left) + Preview (right) */}
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-[400px_1fr] overflow-hidden">
-          <PolishChat
-            onPolish={polishSite}
-            messages={chatMessages}
-            loading={loading}
-            loadingLabel={
-              isGenerating
-                ? currentStep === "plan"
-                  ? "// analyzing prompt..."
-                  : currentStep === "template"
-                    ? "// selecting template..."
-                    : currentStep === "code"
-                      ? `// streaming code [${streamingChars} bytes]`
-                      : "// working..."
-                : "// applying patch..."
-            }
-          />
+        {/* Mobile tab-switcher (только < md). Split-layout ниже на широких. */}
+        <div
+          className="md:hidden flex shrink-0"
+          style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}
+        >
+          <button
+            type="button"
+            onClick={() => setMobileTab("chat")}
+            className="flex-1 py-2.5 text-[10px] tracking-[0.2em] uppercase transition"
+            style={{
+              color: mobileTab === "chat" ? "var(--accent-glow)" : "var(--muted)",
+              borderBottom:
+                mobileTab === "chat"
+                  ? "2px solid var(--accent-glow)"
+                  : "2px solid transparent",
+            }}
+          >
+            💬 Chat{chatMessages.length > 0 ? ` · ${chatMessages.length}` : ""}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileTab("preview")}
+            className="flex-1 py-2.5 text-[10px] tracking-[0.2em] uppercase transition"
+            style={{
+              color: mobileTab === "preview" ? "var(--accent-glow)" : "var(--muted)",
+              borderBottom:
+                mobileTab === "preview"
+                  ? "2px solid var(--accent-glow)"
+                  : "2px solid transparent",
+            }}
+          >
+            👁 Preview
+          </button>
+        </div>
 
-          <div className="flex flex-col overflow-hidden relative" style={{ background: "var(--bg-2)" }}>
+        {/* Chat (left) + Preview (right) — split на md+, tab-switch ниже */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-[400px_1fr] overflow-hidden">
+          <div
+            className={`overflow-hidden ${mobileTab === "chat" ? "flex" : "hidden"} md:flex md:flex-col`}
+          >
+            <PolishChat
+              onPolish={polishSite}
+              messages={chatMessages}
+              loading={loading}
+              loadingLabel={
+                isGenerating
+                  ? currentStep === "plan"
+                    ? "// analyzing prompt..."
+                    : currentStep === "template"
+                      ? "// selecting template..."
+                      : currentStep === "code"
+                        ? `// streaming code [${streamingChars} bytes]`
+                        : "// working..."
+                  : "// applying patch..."
+              }
+            />
+          </div>
+
+          <div
+            className={`flex-col overflow-hidden relative ${mobileTab === "preview" ? "flex" : "hidden"} md:flex`}
+            style={{ background: "var(--bg-2)" }}
+          >
             {previewHtml ? (
               <iframe
                 title="preview"
