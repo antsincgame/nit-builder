@@ -130,6 +130,13 @@ export type NitSite = Models.Document & {
   templateName: string;
   /** Preview thumbnail SVG data URI (optional) */
   thumbnail?: string;
+  /**
+   * JSON-сериализованный массив ChatMessage'ей (history полировки).
+   * Хранится строкой чтобы не плодить связанную коллекцию ради 2-50 простых
+   * записей. Лимит 100_000 chars в схеме (~250 сообщений по 400 chars).
+   * Optional: старые документы до v2.1 не имеют этого поля.
+   */
+  chatMessages?: string;
 };
 
 export type NitGeneration = Models.Document & {
@@ -583,6 +590,8 @@ export async function saveSite(params: {
   templateId: string;
   templateName: string;
   thumbnail?: string;
+  /** JSON-сериализованный массив ChatMessage'ей (v2.1 — Continue from history). */
+  chatMessages?: string;
 }): Promise<string> {
   const db = getAdminDatabases();
   const doc = await db.createDocument(
@@ -621,6 +630,47 @@ export async function deleteSite(userId: string, siteId: string): Promise<boolea
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.sites,
       siteId,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Обновить уже существующий сайт. Используется для v2.1 Continue from
+ * history: после polish'а клиент шлёт PATCH с новым html и обновлённым
+ * chatMessages, чтобы при повторном открытии из истории можно было
+ * восстановить весь диалог.
+ *
+ * Ownership-проверка через getDocument перед update'ом. Возвращает
+ * false если сайт чужой или не существует.
+ *
+ * Patch — partial: передавай только то что меняешь. Запрещено менять
+ * userId, prompt, templateId, templateName (это identity сайта).
+ */
+export async function updateSite(
+  userId: string,
+  siteId: string,
+  patch: {
+    html?: string;
+    chatMessages?: string;
+    thumbnail?: string;
+  },
+): Promise<boolean> {
+  const db = getAdminDatabases();
+  try {
+    const site = await db.getDocument<NitSite>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.sites,
+      siteId,
+    );
+    if (site.userId !== userId) return false;
+    await db.updateDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.sites,
+      siteId,
+      patch,
     );
     return true;
   } catch {
