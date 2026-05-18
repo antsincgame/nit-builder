@@ -25,6 +25,9 @@ export default [
   route("api/share", "routes/api.share.ts"),
   route("api/share/:id", "routes/api.share.$id.ts"),
   route("p/:token", "routes/p.$token.ts"),
+  // User templates — Save as Template (v2.1)
+  route("api/user-templates", "routes/api.user-templates.ts"),
+  route("api/user-templates/:id", "routes/api.user-templates.$id.ts"),
   // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
