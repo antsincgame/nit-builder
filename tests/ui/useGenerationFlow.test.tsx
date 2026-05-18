@@ -25,6 +25,7 @@ vi.mock("~/lib/stores/historyStore", () => ({
 
 vi.mock("~/lib/stores/remoteHistoryStore", () => ({
   saveRemoteSite: vi.fn().mockResolvedValue(undefined),
+  updateRemoteSite: vi.fn().mockResolvedValue(true),
 }));
 
 vi.mock("~/lib/stores/toastStore", () => ({
@@ -639,6 +640,112 @@ describe("useGenerationFlow > misc actions", () => {
     expect(result.current.lastTemplateId).toBe("old-tpl");
     expect(result.current.templateName).toBe("Old Template");
     expect(result.current.chatMessages).toEqual([]);
+  });
+
+  it("loadFromHistory (v2.1) восстанавливает chatMessages из JSON-string", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    const stored = JSON.stringify([
+      { role: "user", text: "сделай кнопки больше" },
+      { role: "assistant", text: "Готово ✨" },
+      { role: "user", text: "и добавь форму" },
+      { role: "assistant", text: "Готово ✨" },
+    ]);
+
+    act(() =>
+      result.current.loadFromHistory({
+        id: "site-abc",
+        createdAt: 0,
+        prompt: "лендинг кофейни",
+        templateId: "coffee",
+        templateName: "Coffee Shop",
+        html: "<html>v3</html>",
+        chatMessages: stored,
+      }),
+    );
+
+    expect(result.current.chatMessages).toHaveLength(4);
+    expect(result.current.chatMessages[0]).toEqual({
+      role: "user",
+      text: "сделай кнопки больше",
+    });
+    expect(result.current.chatMessages[3]).toEqual({
+      role: "assistant",
+      text: "Готово ✨",
+    });
+    // currentSiteId должен встать в id из entry, чтобы дальше polish PATCH'ил
+    expect(result.current.currentSiteId).toBe("site-abc");
+  });
+
+  it("loadFromHistory с невалидным chatMessages JSON → пустой chat (graceful)", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    act(() =>
+      result.current.loadFromHistory({
+        id: "site-bad",
+        createdAt: 0,
+        prompt: "p",
+        templateId: "t",
+        templateName: "T",
+        html: "<html/>",
+        chatMessages: "{not-valid-json",
+      }),
+    );
+
+    expect(result.current.chatMessages).toEqual([]);
+    expect(result.current.mode).toBe("editing"); // всё равно открыли
+  });
+
+  it("loadFromHistory отфильтровывает невалидные элементы chatMessages массива", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    // Подсовываем массив где не все элементы — валидные ChatMessage
+    const dirty = JSON.stringify([
+      { role: "user", text: "ok" },
+      { role: "system", text: "невалидная role" },
+      null,
+      "string",
+      { role: "assistant", text: 42 }, // невалидный text
+      { role: "assistant", text: "тоже ok" },
+    ]);
+
+    act(() =>
+      result.current.loadFromHistory({
+        id: "site-dirty",
+        createdAt: 0,
+        prompt: "p",
+        templateId: "t",
+        templateName: "T",
+        html: "<html/>",
+        chatMessages: dirty,
+      }),
+    );
+
+    expect(result.current.chatMessages).toEqual([
+      { role: "user", text: "ok" },
+      { role: "assistant", text: "тоже ok" },
+    ]);
   });
 
   it("cancelGeneration → loading=false + welcome + sendAbort если есть active request", async () => {
