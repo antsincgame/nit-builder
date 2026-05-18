@@ -14,7 +14,7 @@ import {
   saveUserTemplate,
 } from "~/lib/server/appwrite.server";
 
-// ─── GET /api/user-templates ──────────────────────────────
+// ─── GET /api/user-templates ───────────────────────────────────────
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const user = await requireAuth(request);
@@ -41,7 +41,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-// ─── POST /api/user-templates ──────────────────────────────
+// ─── POST /api/user-templates ──────────────────────────────────────
 
 const SaveTemplateSchema = z.object({
   name: z.string().min(1).max(128),
