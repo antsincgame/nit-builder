@@ -22,9 +22,11 @@ import {
 import { LandingNav } from "~/components/landing/LandingNav";
 import { HeroSection } from "~/components/landing/HeroSection";
 import { ProblemSection } from "~/components/landing/ProblemSection";
+import { ComparisonSection } from "~/components/landing/ComparisonSection";
 import { HowItWorksSection } from "~/components/landing/HowItWorksSection";
 import { HardwareSection } from "~/components/landing/HardwareSection";
 import { FeaturesSection } from "~/components/landing/FeaturesSection";
+import { TechStackSection } from "~/components/landing/TechStackSection";
 import { CtaSection } from "~/components/landing/CtaSection";
 import { LandingFooter } from "~/components/landing/LandingFooter";
 
@@ -73,9 +75,11 @@ export default function Landing() {
       />
 
       <ProblemSection />
+      <ComparisonSection />
       <HowItWorksSection />
       <HardwareSection />
       <FeaturesSection />
+      <TechStackSection />
       <CtaSection isAuthed={isAuthed} />
       <LandingFooter />
     </div>
