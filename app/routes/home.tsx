@@ -19,6 +19,7 @@ import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
 import { SaveAsTemplateDialog } from "~/components/simple/SaveAsTemplateDialog";
+import { MyTemplatesPanel } from "~/components/simple/MyTemplatesPanel";
 import { GridBg, Orbs, Chip, StatusDot, GlitchHeading, Particles, HorizontalParticles, ConicRays, Beams } from "~/components/nit";
 import { TerminalCodeCard } from "~/components/nit/TerminalCodeCard";
 
@@ -45,6 +46,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   // Mobile tab (видим только на < md). На широких экранах оба панели
   // показываются в split-layout одновременно, на узких — переключаемся
@@ -116,6 +118,28 @@ export default function Home() {
   useEffect(() => {
     if (mode === "generating") setMobileTab("preview");
   }, [mode]);
+
+  // Использование пользовательского шаблона из MyTemplatesPanel: переключаемся
+  // в editing-mode с HTML и prompt из шаблона. Передаём id="" в loadFromHistory
+  // — это намеренно: currentSiteIdRef.current=="" falsy, при первом polish'е
+  // создастся новый Appwrite-site (POST), а не PATCH несуществующего id.
+  // Логика: "шаблон — это стартовая точка; полировка превращает его в новый сайт
+  // в моей истории".
+  const handleUseTemplate = useCallback(
+    (template: { id: string; name: string; html: string; prompt: string | null }) => {
+      openFromHistory({
+        id: "",
+        prompt: template.prompt ?? "",
+        html: template.html,
+        templateId: `user-template:${template.id}`,
+        templateName: template.name,
+        createdAt: Date.now(),
+      });
+      toast.success(`Шаблон «${template.name}» загружен`);
+    },
+    [openFromHistory],
+  );
+
 
   // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
   // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
@@ -311,6 +335,11 @@ export default function Home() {
         <HorizontalParticles count={15} />
         <ToastContainer />
         <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onOpen={openFromHistory} />
+        <MyTemplatesPanel
+          isOpen={templatesOpen}
+          onClose={() => setTemplatesOpen(false)}
+          onUse={handleUseTemplate}
+        />
         <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
         {/* NAV */}
@@ -353,6 +382,16 @@ export default function Home() {
                 >
                   <span>⌘H</span>
                   <span>History</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTemplatesOpen(true)}
+                  className="hidden sm:flex px-4 py-2 text-[11px] tracking-[0.15em] uppercase text-[color:var(--muted)] hover:text-[color:var(--ink)] transition items-center gap-2"
+                  style={{ border: "1px solid var(--line)" }}
+                  title="Мои сохранённые шаблоны"
+                >
+                  <span>★</span>
+                  <span>Templates</span>
                 </button>
               </>
             )}
@@ -520,6 +559,11 @@ export default function Home() {
           isOpen={historyOpen}
           onClose={() => setHistoryOpen(false)}
           onOpen={openFromHistory}
+        />
+        <MyTemplatesPanel
+          isOpen={templatesOpen}
+          onClose={() => setTemplatesOpen(false)}
+          onUse={handleUseTemplate}
         />
         <SettingsDrawer
           isOpen={settingsOpen}
@@ -738,6 +782,18 @@ export default function Home() {
                   >
                     <span>⌘H</span>
                     <span className="hidden md:inline">History</span>
+                  </button>
+                )}
+                {auth.status === "authenticated" && (
+                  <button
+                    type="button"
+                    onClick={() => setTemplatesOpen(true)}
+                    className="hidden sm:flex px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase transition items-center gap-2 text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+                    style={{ border: "1px solid var(--line)" }}
+                    title="Мои сохранённые шаблоны"
+                  >
+                    <span>★</span>
+                    <span className="hidden md:inline">Templates</span>
                   </button>
                 )}
               </>
