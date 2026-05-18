@@ -28,7 +28,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   }
 }
 
-// ─── POST /api/sites — save a new site ───────────────────────────
+// ─── POST /api/sites — save a new site ─────────────────────────
 
 const SaveSiteSchema = z.object({
   prompt: z.string().min(1).max(5000),
@@ -36,6 +36,13 @@ const SaveSiteSchema = z.object({
   templateId: z.string().min(1).max(64),
   templateName: z.string().min(1).max(128),
   thumbnail: z.string().max(100_000).optional(),
+  /**
+   * JSON-сериализованный массив ChatMessage'ей (для v2.1 Continue from
+   * history). Клиент сериализует на своей стороне (см. saveRemoteSite
+   * в remoteHistoryStore). Сервер хранит как строку без re-validation —
+   * это самая дешёвая контракт-граница.
+   */
+  chatMessages: z.string().max(100_000).optional(),
 });
 
 export async function action({ request }: ActionFunctionArgs) {

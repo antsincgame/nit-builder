@@ -1,9 +1,11 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "react-router";
+import { z } from "zod";
 import { requireAuth } from "~/lib/server/requireAuth.server";
 import {
   APPWRITE_CONFIG,
   deleteSite,
   getAdminDatabases,
+  updateSite,
   type NitSite,
 } from "~/lib/server/appwrite.server";
 
@@ -38,29 +40,67 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       templateId: site.templateId,
       templateName: site.templateName,
       thumbnail: site.thumbnail ?? null,
+      // v2.1 Continue from history — JSON-string или null.
+      // Клиент десериализует через JSON.parse(...) в loadFromHistory.
+      chatMessages: site.chatMessages ?? null,
     });
   } catch {
     return Response.json({ error: "Not found" }, { status: 404 });
   }
 }
 
-// ─── DELETE /api/sites/:id ───────────────────────────────────────
+// ─── PATCH /api/sites/:id — update html / chatMessages / thumbnail ──
+
+const PatchSiteSchema = z.object({
+  html: z.string().min(1).max(1_000_000).optional(),
+  chatMessages: z.string().max(100_000).optional(),
+  thumbnail: z.string().max(100_000).optional(),
+});
+
+// ─── DELETE /api/sites/:id ────────────────────────────────
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  if (request.method !== "DELETE") {
-    return Response.json({ error: "Method not allowed" }, { status: 405 });
-  }
-
   const user = await requireAuth(request);
   const siteId = params.id;
   if (!siteId) {
     return Response.json({ error: "Site ID required" }, { status: 400 });
   }
 
-  const ok = await deleteSite(user.userId, siteId);
-  if (!ok) {
-    return Response.json({ error: "Not found" }, { status: 404 });
+  if (request.method === "DELETE") {
+    const ok = await deleteSite(user.userId, siteId);
+    if (!ok) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    return Response.json({ message: "Site deleted" });
   }
 
-  return Response.json({ message: "Site deleted" });
+  if (request.method === "PATCH") {
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const parsed = PatchSiteSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { error: "Validation failed", issues: parsed.error.flatten().fieldErrors },
+        { status: 400 },
+      );
+    }
+
+    // Пустой patch — ничего не делаем, возвращаем 200 (idempotent).
+    if (Object.keys(parsed.data).length === 0) {
+      return Response.json({ message: "Nothing to update" });
+    }
+
+    const ok = await updateSite(user.userId, siteId, parsed.data);
+    if (!ok) {
+      return Response.json({ error: "Not found" }, { status: 404 });
+    }
+    return Response.json({ message: "Site updated" });
+  }
+
+  return Response.json({ error: "Method not allowed" }, { status: 405 });
 }
