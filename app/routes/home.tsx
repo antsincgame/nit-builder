@@ -18,6 +18,7 @@ import {
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
+import { SaveAsTemplateDialog } from "~/components/simple/SaveAsTemplateDialog";
 import { GridBg, Orbs, Chip, StatusDot, GlitchHeading, Particles, HorizontalParticles, ConicRays, Beams } from "~/components/nit";
 import { TerminalCodeCard } from "~/components/nit/TerminalCodeCard";
 
@@ -43,6 +44,7 @@ export default function Home() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
 
   // Mobile tab (видим только на < md). На широких экранах оба панели
   // показываются в split-layout одновременно, на узких — переключаемся
@@ -105,6 +107,7 @@ export default function Home() {
     versions,
     currentVersionIndex,
     currentSiteId,
+    lastPrompt,
   } = flow;
 
   // UX-хелпер: при старте генерации авто-переключаемся на preview-таб
@@ -527,6 +530,12 @@ export default function Home() {
           siteId={currentSiteId}
           onClose={() => setShareOpen(false)}
         />
+        <SaveAsTemplateDialog
+          isOpen={saveTemplateOpen}
+          html={html}
+          prompt={lastPrompt}
+          onClose={() => setSaveTemplateOpen(false)}
+        />
 
         {/* Top bar */}
         <div
@@ -705,6 +714,18 @@ export default function Home() {
                   >
                     <span>↗</span>
                     <span className="hidden sm:inline">Share</span>
+                  </button>
+                )}
+                {html && auth.status === "authenticated" && (
+                  <button
+                    type="button"
+                    onClick={() => setSaveTemplateOpen(true)}
+                    className="px-3 py-1.5 text-[10px] tracking-[0.15em] uppercase transition flex items-center gap-2 text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+                    style={{ border: "1px solid var(--line)" }}
+                    title="Сохранить как переиспользуемый шаблон"
+                  >
+                    <span>★</span>
+                    <span className="hidden sm:inline">Save</span>
                   </button>
                 )}
                 {auth.status === "authenticated" && (
