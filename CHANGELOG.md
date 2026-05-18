@@ -644,7 +644,7 @@ First public beta of NIT Builder — an HTML-first AI site generator optimized f
 > отменены вместе с cloud-providers в v2 (Groq/OpenRouter удалены —
 > v2 это local-only через LM Studio).
 
-### v2.1 — UX polish (in progress, 4/5 done)
+### v2.1 — UX polish (complete, 5/5)
 
 **Done (закрыто в этой раскатке):**
 
@@ -696,12 +696,41 @@ First public beta of NIT Builder — an HTML-first AI site generator optimized f
   - Применить миграцию на VPS:
     `APPWRITE_API_KEY=<key> npm run migrate:appwrite && pm2 reload nit-builder-v2`.
 
-**Pending:**
+- ✓ **Save as Template** (`859273f`, `107861f`, `fcdb99d`, `434bb1d`,
+  `13decd6`, `d8c7b38`, `bc08d8c`, `27ae29f`) — юзер сохраняет HTML
+  текущего сайта в свою библиотеку шаблонов через кнопку ★ Save в
+  top-bar editing-mode. Реализация:
+  - Новая Appwrite collection `nit_user_templates` (схема: userId,
+    name 128, prompt? 5000, html 1MB, zones? 100KB, isPublic bool,
+    votes int). Индексы userId_idx + isPublic_idx (последний для
+    v2.2 community gallery).
+  - Тип `NitUserTemplate` + 4 CRUD функции в `appwrite.server.ts`:
+    saveUserTemplate (soft-limit 50/юзер через listDocuments(limit=51) →
+    throw 'USER_TEMPLATE_LIMIT_EXCEEDED'), listUserTemplates, getUserTemplate
+    (с ownership-check, returns null), deleteUserTemplate.
+  - Routes: `POST /api/user-templates` (Zod schema, 403+LIMIT_EXCEEDED
+    code на лимит), `GET /api/user-templates` (summary с hasZones, без
+    html), `GET /api/user-templates/:id` (full body), `DELETE
+    /api/user-templates/:id` (ownership).
+  - Client wrapper `userTemplatesStore.ts` с discriminated union
+    `SaveTemplateResult` ({ok+id} | {ok=false, error, code?
+    LIMIT_EXCEEDED|VALIDATION}) — UI получает понятный сигнал на лимит.
+  - `SaveAsTemplateDialog.tsx` — модалка с полем name (1-128 chars,
+    счётчик, autoFocus, Enter submit), DialogState (idle|saving|saved|
+    error+isLimit), особый текст про лимит "Достигнут лимит 50 шаблонов".
+    Стиль идентичен ShareDialog.
+  - `home.tsx`: кнопка ★ Save после Share (для html && authenticated),
+    `lastPrompt` пробрасывается в dialog для записи в шаблон.
+  - 14 тестов в `tests/api.user-templates.test.ts` (GET list/single,
+    POST validation + 403 limit, DELETE ownership + 405 PATCH).
+  - Применить миграцию на VPS:
+    `APPWRITE_API_KEY=<key> npm run migrate:appwrite && pm2 reload nit-builder-v2`.
 
-- **"Save as Template"** — кнопка на удачном результате генерации;
-  сохраняет HTML + извлечённые `data-edit` зоны в `nit_user_templates`
-  (Appwrite). Доступно только владельцу, можно "promote" в публичную
-  галерею (v2.2).
+Zones extraction отложен на v2.2 — пока сохраняем raw HTML без
+выделения data-edit зон. Для MVP-флоу сохранения этого достаточно.
+
+**v2.1 закрыта** — все 5 фич done. CI стабильно зелёный 20+ коммитов
+подряд. Метрика: 953 теста в репо (было 800 до v2.1).
 
 ### v2.2 — Community templates
 
