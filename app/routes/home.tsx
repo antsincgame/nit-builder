@@ -140,6 +140,49 @@ export default function Home() {
     [openFromHistory],
   );
 
+  // Pending template из sessionStorage (v2.2 Community gallery):
+  // /templates сохраняет туда выбранный шаблон перед редиректом на /. Здесь
+  // подбираем — один раз при mount — и грузим через тот же handleUseTemplate.
+  // Ключ затирается сразу после consume, чтобы reload не повторил загрузку.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let pending: string | null;
+    try {
+      pending = sessionStorage.getItem("nit-pending-template");
+    } catch {
+      return;
+    }
+    if (!pending) return;
+    try {
+      sessionStorage.removeItem("nit-pending-template");
+    } catch {
+      // ignore — если remove упал, при следующем mount грузанём снова, не критично
+    }
+    try {
+      const parsed = JSON.parse(pending) as {
+        id?: unknown;
+        name?: unknown;
+        html?: unknown;
+        prompt?: unknown;
+      };
+      if (
+        typeof parsed.id === "string" &&
+        typeof parsed.name === "string" &&
+        typeof parsed.html === "string" &&
+        (parsed.prompt === null || typeof parsed.prompt === "string")
+      ) {
+        handleUseTemplate({
+          id: parsed.id,
+          name: parsed.name,
+          html: parsed.html,
+          prompt: parsed.prompt,
+        });
+      }
+    } catch {
+      // невалидный JSON — silently skip
+    }
+  }, [handleUseTemplate]);
+
 
   // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
   // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
