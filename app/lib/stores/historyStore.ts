@@ -12,6 +12,12 @@ export type HistoryEntry = {
   templateName: string;
   createdAt: number;
   thumbnail?: string; // data:image/svg (optional)
+  /**
+   * JSON-сериализованный массив ChatMessage'ей (v2.1 Continue from history).
+   * Только для remote-источника (Appwrite). Локальная история их не пишет
+   * — это сознательное упрощение (localStorage и так быстро забивается).
+   */
+  chatMessages?: string;
 };
 
 const STORAGE_KEY = "nit:history";

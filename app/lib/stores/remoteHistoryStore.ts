@@ -8,6 +8,7 @@
  *   GET    /api/sites            → list user's sites (without HTML)
  *   POST   /api/sites            → save a new site
  *   GET    /api/sites/:id        → fetch one site with full HTML
+ *   PATCH  /api/sites/:id        → partial update (v2.1)
  *   DELETE /api/sites/:id        → delete a site
  */
 
@@ -46,6 +47,7 @@ export async function getRemoteSite(id: string): Promise<HistoryEntry | null> {
     templateId: string;
     templateName: string;
     thumbnail: string | null;
+    chatMessages: string | null;
   };
   return {
     id: data.id,
@@ -55,6 +57,7 @@ export async function getRemoteSite(id: string): Promise<HistoryEntry | null> {
     templateId: data.templateId,
     templateName: data.templateName,
     thumbnail: data.thumbnail ?? undefined,
+    chatMessages: data.chatMessages ?? undefined,
   };
 }
 
@@ -64,6 +67,12 @@ export async function saveRemoteSite(params: {
   templateId: string;
   templateName: string;
   thumbnail?: string;
+  /**
+   * JSON-сериализованный chat-history (v2.1 Continue from history).
+   * Клиент сам сериализует через JSON.stringify(chatMessages) перед
+   * передачей. Сервер не валидирует содержимое, только размер ≤100_000.
+   */
+  chatMessages?: string;
 }): Promise<string | null> {
   const res = await fetch("/api/sites", {
     method: "POST",
@@ -84,7 +93,36 @@ export async function deleteRemoteSite(id: string): Promise<boolean> {
   return res.ok;
 }
 
-// ─── Migration helper ────────────────────────────────────────────
+/**
+ * PATCH /api/sites/:id — partial update сайта.
+ *
+ * Используется в v2.1 Continue from history: после каждой polish-итерации
+ * клиент шлёт (fire-and-forget) обновлённый html + сериализованный
+ * chatMessages, чтобы при повторном открытии сайта из истории
+ * восстановить весь диалог.
+ *
+ * Контракт совпадает с серверным PatchSiteSchema (html, chatMessages,
+ * thumbnail — все optional). Пустой patch → 200 без действий.
+ */
+export async function updateRemoteSite(
+  id: string,
+  patch: {
+    html?: string;
+    chatMessages?: string;
+    thumbnail?: string;
+  },
+): Promise<boolean> {
+  if (Object.keys(patch).length === 0) return true;
+  const res = await fetch(`/api/sites/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(patch),
+  });
+  return res.ok;
+}
+
+// ─── Migration helper ──────────────────────────────────
 
 const MIGRATION_FLAG_KEY = "nit:history-migrated";
 
