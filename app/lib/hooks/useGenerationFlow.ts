@@ -23,7 +23,7 @@ import type { ServerToBrowser } from "@nit/shared";
 import type { ControlSocketStatus, TunnelStatus } from "~/lib/hooks/useControlSocket";
 import { runHttpPipeline } from "~/lib/services/pipelineHttpFallback";
 import { saveToHistory, type HistoryEntry } from "~/lib/stores/historyStore";
-import { saveRemoteSite } from "~/lib/stores/remoteHistoryStore";
+import { saveRemoteSite, updateRemoteSite } from "~/lib/stores/remoteHistoryStore";
 import { toast } from "~/lib/stores/toastStore";
 import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
 import { uuid } from "~/lib/utils/uuid";
@@ -219,6 +219,14 @@ export function useGenerationFlow(
     chatMessagesRef.current = chatMessages;
   }, [chatMessages]);
 
+  // currentSiteIdRef — на момент успешного polish'а нужен актуальный
+  // id сайта для PATCH /api/sites/:id. Не хотим пересоздавать callback
+  // через deps — поэтому ref.
+  const currentSiteIdRef = useRef(currentSiteId);
+  useEffect(() => {
+    currentSiteIdRef.current = currentSiteId;
+  }, [currentSiteId]);
+
   // getSocket-ref: caller передаёт стабильную функцию-геттер, мы сохраняем
   // её и читаем актуальный socket на каждый action. Это разрывает
   // зависимостный круг useControlSocket ↔ useGenerationFlow.
@@ -290,12 +298,19 @@ export function useGenerationFlow(
             timestamp: Date.now(),
           });
 
+          // Собираем актуальные сообщения чата (включая только что
+          // добавленный assistant-ответ) — на момент здесь setChatMessages
+          // ещё не application-state'нулся, поэтому собираем "ручками"
+          // из ref + новый.
+          const assistantText = `Готово ✨ Шаблон: ${event.templateName}. Сгенерировано за ${(event.durationMs / 1000).toFixed(1)}s. Опиши правки — применю.`;
+          const updatedMessages: ChatMessage[] = [
+            ...chatMessagesRef.current,
+            { role: "assistant", text: assistantText },
+          ];
+
           setChatMessages((prev) => [
             ...prev,
-            {
-              role: "assistant",
-              text: `Готово ✨ Шаблон: ${event.templateName}. Сгенерировано за ${(event.durationMs / 1000).toFixed(1)}s. Опиши правки — применю.`,
-            },
+            { role: "assistant", text: assistantText },
           ]);
 
           // Save to history (local + remote если authed)
@@ -309,14 +324,25 @@ export function useGenerationFlow(
               html: event.html,
             };
             saveToHistory(entry);
-            void saveRemoteSite({
-              prompt: lastPromptRef.current,
-              html: event.html,
-              templateId: event.templateId,
-              templateName: event.templateName,
-            }).then((id) => {
-              if (id) setCurrentSiteId(id);
-            });
+            const serializedChat = JSON.stringify(updatedMessages);
+            // На polish — PATCH существующего сайта (не плодим копии).
+            // На create — POST нового сайта.
+            if (isPolish && currentSiteIdRef.current) {
+              void updateRemoteSite(currentSiteIdRef.current, {
+                html: event.html,
+                chatMessages: serializedChat,
+              });
+            } else {
+              void saveRemoteSite({
+                prompt: lastPromptRef.current,
+                html: event.html,
+                templateId: event.templateId,
+                templateName: event.templateName,
+                chatMessages: serializedChat,
+              }).then((id) => {
+                if (id) setCurrentSiteId(id);
+              });
+            }
           } catch {
             // ignore storage failures
           }
@@ -543,7 +569,19 @@ export function useGenerationFlow(
           kind: "polish",
           timestamp: Date.now(),
         });
+        const updatedMessages: ChatMessage[] = [
+          ...chatMessagesRef.current,
+          { role: "assistant", text: "Готово ✨" },
+        ];
         setChatMessages((prev) => [...prev, { role: "assistant", text: "Готово ✨" }]);
+        // Persist на remote если есть siteId. На HTTP-path polish мог
+        // быть и для guest'а (без siteId) — тогда просто пропускаем.
+        if (currentSiteIdRef.current) {
+          void updateRemoteSite(currentSiteIdRef.current, {
+            html: result.finalHtml,
+            chatMessages: JSON.stringify(updatedMessages),
+          });
+        }
         toast.success("Правки применены");
       } catch (err) {
         const msg = (err as Error).message;
@@ -577,7 +615,32 @@ export function useGenerationFlow(
     setLastPrompt(entry.prompt);
     setLastTemplateId(entry.templateId);
     setTemplateName(entry.templateName);
-    setChatMessages([]);
+
+    // v2.1 Continue from history: если есть сохранённый chat — восстанавливаем
+    // его, чтобы юзер мог продолжить полировку с того места где остановился.
+    // Парсинг безопасный: если JSON.parse упадёт или формат не совпадёт —
+    // откатимся на пустой массив (как было до v2.1).
+    let restoredChat: ChatMessage[] = [];
+    if (entry.chatMessages) {
+      try {
+        const parsed: unknown = JSON.parse(entry.chatMessages);
+        if (Array.isArray(parsed)) {
+          restoredChat = parsed.filter(
+            (m): m is ChatMessage =>
+              typeof m === "object" &&
+              m !== null &&
+              "role" in m &&
+              "text" in m &&
+              (m.role === "user" || m.role === "assistant") &&
+              typeof m.text === "string",
+          );
+        }
+      } catch {
+        // невалидный JSON — silently fallback на пустой chat
+      }
+    }
+    setChatMessages(restoredChat);
+
     setMode("editing");
     // entry.id — id из Appwrite (для remote-источника) или uuid (для local).
     // ShareDialog проверяет на этот id; если это local-id (uuid),
@@ -585,9 +648,8 @@ export function useGenerationFlow(
     // сайт которого нет в облаке).
     setCurrentSiteId(entry.id);
     // Стек версий сбрасываем — открытие сайта из истории это новая
-    // «сессия» с точки зрения undo/redo. Полировки старой сессии не
-    // переносятся (их можно было бы сохранять с самим сайтом, но это
-    // отдельная фича Continue-from-history).
+    // «сессия» с точки зрения undo/redo. Версии прошлых полировок не
+    // переносятся (сохраняется только final HTML + chat для контекста).
     setVersions([
       { html: entry.html, prompt: entry.prompt, kind: "create", timestamp: Date.now() },
     ]);
