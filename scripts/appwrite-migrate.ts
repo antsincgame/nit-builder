@@ -378,6 +378,57 @@ async function migrate(): Promise<void> {
   await ensureIndex("nit_shared_previews", "expiresAt_idx", "key", ["expiresAt"]);
   console.log("");
 
+  // ── nit_user_templates ──
+  // v2.1 Save as Template — юзеры сохраняют свои сайты как переиспользуемые
+  // шаблоны. В v2.2 isPublic + votes используются для community gallery
+  // (promote из приватных в публичные).
+  console.log("Collection: nit_user_templates");
+  await ensureCollection("nit_user_templates", "NIT User Templates");
+  await ensureAttribute("nit_user_templates", "userId", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_user_templates", "name", {
+    kind: "string",
+    size: 128,
+    required: true,
+  });
+  await ensureAttribute("nit_user_templates", "prompt", {
+    kind: "string",
+    size: 5000,
+    required: false,
+  });
+  await ensureAttribute("nit_user_templates", "html", {
+    kind: "string",
+    size: 1_000_000,
+    required: true,
+  });
+  // zones — JSON-сериализованный массив data-edit зон (для v2.2 smart re-use).
+  // Optional: пока сохраняем HTML "сырьём", extraction отложен.
+  await ensureAttribute("nit_user_templates", "zones", {
+    kind: "string",
+    size: 100_000,
+    required: false,
+  });
+  await ensureAttribute("nit_user_templates", "isPublic", {
+    kind: "boolean",
+    required: true,
+    default: false,
+  });
+  await ensureAttribute("nit_user_templates", "votes", {
+    kind: "integer",
+    required: true,
+    min: 0,
+    default: 0,
+  });
+  await sleep(2000);
+  // userId — для list "мои шаблоны".
+  await ensureIndex("nit_user_templates", "userId_idx", "key", ["userId"]);
+  // isPublic — для v2.2 public gallery list.
+  await ensureIndex("nit_user_templates", "isPublic_idx", "key", ["isPublic"]);
+  console.log("");
+
   console.log("✓ Migration complete");
 }
 
