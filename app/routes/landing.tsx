@@ -27,6 +27,8 @@ import { HowItWorksSection } from "~/components/landing/HowItWorksSection";
 import { HardwareSection } from "~/components/landing/HardwareSection";
 import { FeaturesSection } from "~/components/landing/FeaturesSection";
 import { TechStackSection } from "~/components/landing/TechStackSection";
+import { FaqSection } from "~/components/landing/FaqSection";
+import { TimelineSection } from "~/components/landing/TimelineSection";
 import { CtaSection } from "~/components/landing/CtaSection";
 import { LandingFooter } from "~/components/landing/LandingFooter";
 
@@ -80,6 +82,8 @@ export default function Landing() {
       <HardwareSection />
       <FeaturesSection />
       <TechStackSection />
+      <FaqSection />
+      <TimelineSection />
       <CtaSection isAuthed={isAuthed} />
       <LandingFooter />
     </div>
