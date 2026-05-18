@@ -107,3 +107,57 @@ export async function deleteMyTemplate(id: string): Promise<boolean> {
   );
   return res.ok;
 }
+
+// ─── Public templates (v2.2 Community gallery) ────────────────────
+
+/**
+ * Краткое описание публичного шаблона (для /templates галереи).
+ *
+ * Отличия от UserTemplateSummary:
+ *   - нет isPublic (всегда true — public list)
+ *   - нет userId (анонимизация чужих авторов, как у share-ссылок)
+ */
+export type PublicTemplateSummary = {
+  id: string;
+  name: string;
+  prompt: string | null;
+  createdAt: string;
+  votes: number;
+  hasZones: boolean;
+};
+
+export type PublicTemplateFull = {
+  id: string;
+  name: string;
+  prompt: string | null;
+  html: string;
+  zones: string | null;
+  votes: number;
+  createdAt: string;
+};
+
+/**
+ * Список публичных шаблонов из /api/public-templates. Без auth (open
+ * endpoint). Бросает при сетевой/HTTP ошибке — caller должен показать
+ * понятное сообщение.
+ */
+export async function listPublicTemplates(): Promise<PublicTemplateSummary[]> {
+  const res = await fetch("/api/public-templates");
+  if (!res.ok) {
+    throw new Error(`Failed to load public templates: ${res.status}`);
+  }
+  const data = (await res.json()) as { templates: PublicTemplateSummary[] };
+  return data.templates;
+}
+
+/**
+ * Загрузить full template для использования как стартовая точка.
+ * Возвращает null если шаблон удалён или больше не публичный.
+ */
+export async function getPublicTemplate(
+  id: string,
+): Promise<PublicTemplateFull | null> {
+  const res = await fetch(`/api/public-templates/${encodeURIComponent(id)}`);
+  if (!res.ok) return null;
+  return (await res.json()) as PublicTemplateFull;
+}

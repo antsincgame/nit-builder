@@ -31,6 +31,8 @@ export default [
   // Public templates — Community gallery (v2.2)
   route("api/public-templates", "routes/api.public-templates.ts"),
   route("api/public-templates/:id", "routes/api.public-templates.$id.ts"),
+  // Public community gallery page (v2.2)
+  route("templates", "routes/templates.tsx"),
   // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
