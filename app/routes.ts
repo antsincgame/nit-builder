@@ -28,6 +28,9 @@ export default [
   // User templates — Save as Template (v2.1)
   route("api/user-templates", "routes/api.user-templates.ts"),
   route("api/user-templates/:id", "routes/api.user-templates.$id.ts"),
+  // Public templates — Community gallery (v2.2)
+  route("api/public-templates", "routes/api.public-templates.ts"),
+  route("api/public-templates/:id", "routes/api.public-templates.$id.ts"),
   // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
@@ -37,6 +40,8 @@ export default [
   route("api/admin/rag/ingest-feedback", "routes/api.admin.rag.ingest-feedback.ts"),
   route("api/admin/rag/search", "routes/api.admin.rag.search.ts"),
   route("api/admin/rag/stats", "routes/api.admin.rag.stats.ts"),
+  // Admin template moderation (v2.2)
+  route("api/admin/templates/:id/approve", "routes/api.admin.templates.approve.$id.ts"),
   // Static assets
   route("sitemap.xml", "routes/sitemap[.xml].ts"),
   route("robots.txt", "routes/robots[.txt].ts"),
