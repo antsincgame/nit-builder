@@ -253,6 +253,15 @@ async function migrate(): Promise<void> {
     size: 100_000,
     required: false,
   });
+  // v2.1 — Continue from history: JSON-сериализованный массив chat'а.
+  // Хранится строкой; десериализуется в loadFromHistory клиента.
+  // 100_000 символов = ~250 сообщений по 400 chars — достаточно для
+  // типичной сессии полировок (не претендует на full audit log).
+  await ensureAttribute("nit_sites", "chatMessages", {
+    kind: "string",
+    size: 100_000,
+    required: false,
+  });
   await sleep(2000);
   await ensureIndex("nit_sites", "userId_idx", "key", ["userId"]);
   await ensureIndex("nit_sites", "userId_createdAt_idx", "key", ["userId"]);
