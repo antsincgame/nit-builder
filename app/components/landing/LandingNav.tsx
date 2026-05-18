@@ -1,6 +1,6 @@
 /**
  * LandingNav — fixed nav на лендинге с anchor-навигацией к секциям
- * (problem / how / stack / features) + правый CTA-button "Launch app".
+ * (problem / compare / how / stack / features / under-hood) + правый CTA-button "Launch app".
  *
  * Рендерится отдельно от editor-nav (тот в home.tsx) — у лендинга своя
  * структура и свой brand-feel.
@@ -42,8 +42,13 @@ export function LandingNav({ isAuthed }: Props) {
             </a>
           </li>
           <li>
+            <a href="#compare" className="text-[color:var(--muted)] hover:text-[color:var(--accent-glow)] no-underline transition">
+              Compare
+            </a>
+          </li>
+          <li>
             <a href="#how" className="text-[color:var(--muted)] hover:text-[color:var(--accent-glow)] no-underline transition">
-              How it works
+              How
             </a>
           </li>
           <li>
@@ -54,6 +59,11 @@ export function LandingNav({ isAuthed }: Props) {
           <li>
             <a href="#features" className="text-[color:var(--muted)] hover:text-[color:var(--accent-glow)] no-underline transition">
               Features
+            </a>
+          </li>
+          <li>
+            <a href="#under-hood" className="text-[color:var(--muted)] hover:text-[color:var(--accent-glow)] no-underline transition">
+              Under hood
             </a>
           </li>
         </ul>

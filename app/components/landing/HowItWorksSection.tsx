@@ -1,5 +1,5 @@
 /**
- * HowItWorksSection — секция "02 · How it works".
+ * HowItWorksSection — секция "03 · How it works".
  * 4 step cards (LM Studio install / Register / CLI / Generate)
  * + animated SVG ArchDiagram (Browser → Server → Your GPU).
  */
@@ -39,7 +39,7 @@ export function HowItWorksSection() {
   return (
     <section id="how" className="relative z-10 max-w-[1400px] mx-auto px-8 py-32">
       <RevealOnScroll>
-        <SectionLabel number="02">How it works</SectionLabel>
+        <SectionLabel number="03">How it works</SectionLabel>
       </RevealOnScroll>
       <RevealOnScroll>
         <h2 className="nit-display text-[clamp(36px,5vw,72px)] mb-16">

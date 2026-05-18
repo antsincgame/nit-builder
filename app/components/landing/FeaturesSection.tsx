@@ -1,5 +1,5 @@
 /**
- * FeaturesSection — секция "04 · What's inside".
+ * FeaturesSection — секция "05 · What's inside".
  * 9-cell grid с ключевыми фичами (streaming preview, polish, undo/redo,
  * shareable links, templates, mobile, export, open source).
  */
@@ -51,7 +51,7 @@ export function FeaturesSection() {
   return (
     <section id="features" className="relative z-10 max-w-[1400px] mx-auto px-8 py-32">
       <RevealOnScroll>
-        <SectionLabel number="04">What&apos;s inside</SectionLabel>
+        <SectionLabel number="05">What&apos;s inside</SectionLabel>
       </RevealOnScroll>
       <RevealOnScroll>
         <h2 className="nit-display text-[clamp(36px,5vw,72px)] mb-12">

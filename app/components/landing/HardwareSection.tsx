@@ -1,5 +1,5 @@
 /**
- * HardwareSection — секция "03 · Hardware tier".
+ * HardwareSection — секция "04 · Hardware tier".
  * 4-cell grid с тирами VRAM (Minimum/Recommended/Pro/Apple Silicon).
  */
 
@@ -26,7 +26,7 @@ export function HardwareSection() {
       <div className="flex justify-between items-end mb-12 flex-wrap gap-6">
         <div>
           <RevealOnScroll>
-            <SectionLabel number="03">Hardware tier</SectionLabel>
+            <SectionLabel number="04">Hardware tier</SectionLabel>
           </RevealOnScroll>
           <RevealOnScroll>
             <h2 className="nit-display text-[clamp(36px,5vw,72px)]">
