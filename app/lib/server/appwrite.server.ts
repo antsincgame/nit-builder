@@ -957,6 +957,86 @@ export async function deleteUserTemplate(
   }
 }
 
+/**
+ * Получить публичные шаблоны (v2.2 Community templates). Без auth-фильтра —
+ * любой посетитель видит галерею. Возвращает только шаблоны с isPublic=true.
+ *
+ * Сортировка: по убыванию votes, потом по дате создания (новые сверху при
+ * равных votes). Для v2.2 этого достаточно; в v2.3+ можно добавить фильтры
+ * по тегам / категориям.
+ *
+ * @param limit максимум документов в выдаче (default 50)
+ */
+export async function listPublicTemplates(limit = 50): Promise<NitUserTemplate[]> {
+  const db = getAdminDatabases();
+  const result = await db.listDocuments<NitUserTemplate>(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.userTemplates,
+    [
+      Query.equal("isPublic", true),
+      Query.orderDesc("votes"),
+      Query.orderDesc("$createdAt"),
+      Query.limit(limit),
+    ],
+  );
+  return result.documents;
+}
+
+/**
+ * Прочитать публичный шаблон по id. В отличие от getUserTemplate, не делает
+ * ownership-check: любой может получить полный HTML публичного шаблона.
+ * Возвращает null если шаблон не найден или isPublic=false.
+ *
+ * Используется при клике на карточку в публичной галерее → загрузка HTML
+ * как стартовой точки для нового сайта (forking, v2.2 phase 3).
+ */
+export async function getPublicTemplate(
+  templateId: string,
+): Promise<NitUserTemplate | null> {
+  const db = getAdminDatabases();
+  try {
+    const doc = await db.getDocument<NitUserTemplate>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+    );
+    if (!doc.isPublic) return null;
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Модерация шаблона (v2.2 Community templates) — admin переключает
+ * isPublic у пользовательского шаблона. Защищён через checkAdminToken на
+ * route-уровне.
+ *
+ * Возможны три действия:
+ *   - "approve" — устанавливает isPublic=true, шаблон попадает в публичную галерею
+ *   - "reject"  — устанавливает isPublic=false, убирает из галереи (но не удаляет)
+ *
+ * Не трогает другие поля (votes, name, html) — модерация только про видимость.
+ * Возвращает true если документ существовал и обновлён, false иначе.
+ */
+export async function setTemplatePublicState(
+  templateId: string,
+  isPublic: boolean,
+): Promise<boolean> {
+  const db = getAdminDatabases();
+  try {
+    await db.updateDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+      { isPublic },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ─── Metric logging ─────────────────────────────────
 
 export async function logGeneration(
