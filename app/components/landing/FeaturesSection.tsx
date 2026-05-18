@@ -1,6 +1,7 @@
 /**
  * FeaturesSection — секция "04 · What's inside".
- * 6-cell grid с ключевыми фичами (streaming preview, polish, templates, etc).
+ * 9-cell grid с ключевыми фичами (streaming preview, polish, undo/redo,
+ * shareable links, templates, mobile, export, open source).
  */
 
 import { RevealOnScroll, SectionLabel } from "~/components/nit";
@@ -21,8 +22,20 @@ const FEATURES: Feature[] = [
     text: "После генерации не начинаешь с нуля — пишешь правки в чат справа: 'сделай кнопки больше', 'добавь форму' — AI редактирует HTML.",
   },
   {
+    title: "Undo / redo полировок",
+    text: "Каждая правка сохраняет версию — не понравилось, откатился на шаг назад. ⌘Z / ⌘⇧Z как в IDE. Можно итерировать без страха сломать.",
+  },
+  {
+    title: "Shareable links",
+    text: "Кнопка Share создаёт публичную ссылку /p/<token> на сгенерированный сайт — снимок HTML на 30 дней. Скинул клиенту, не надо разворачивать.",
+  },
+  {
     title: "Template library",
     text: "22 шаблона на старте: лендинги, портфолио, кофейни, барбершопы, репетиторы. Все Tailwind CDN, ноль зависимостей.",
+  },
+  {
+    title: "Mobile-ready editor",
+    text: "Полировать сайт можно с телефона — chat и preview через табы, генерация авто-переключает на превью. Не только для десктопа.",
   },
   {
     title: "Export anywhere",
