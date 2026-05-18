@@ -644,7 +644,7 @@ First public beta of NIT Builder — an HTML-first AI site generator optimized f
 > отменены вместе с cloud-providers в v2 (Groq/OpenRouter удалены —
 > v2 это local-only через LM Studio).
 
-### v2.1 — UX polish (in progress, 3/5 done)
+### v2.1 — UX polish (in progress, 4/5 done)
 
 **Done (закрыто в этой раскатке):**
 
@@ -673,17 +673,35 @@ First public beta of NIT Builder — an HTML-first AI site generator optimized f
   `tests/api.share.test.ts`. Применить миграцию на VPS:
   `APPWRITE_API_KEY=<key> npm run migrate:appwrite`.
 
+- ✓ **Continue from history** (`8520353`, `bb8c612`, `cc086d0`,
+  `30fb76a`, `6a34069`, `905cfc4`, `c50c4df`) — раньше открытие сайта
+  из HistoryPanel загружало только HTML, chat начинался с нуля. Теперь:
+  - `NitSite.chatMessages?: string` — JSON-сериализованный массив
+    сообщений (лимит 100_000 chars в Appwrite-схеме, ~250 сообщений).
+  - Новая `updateSite(userId, siteId, patch)` функция + PATCH route
+    `/api/sites/:id` (html?, chatMessages?, thumbnail? все optional).
+    Без PATCH'а каждый polish плодил бы копии сайта в Appwrite.
+  - `useGenerationFlow`: новый `currentSiteIdRef` для актуального id
+    из callback'ов; WS+HTTP polish-пути теперь делают `PATCH` (не
+    `POST новый`); `loadFromHistory(entry)` парсит `entry.chatMessages`
+    через JSON.parse с двухуровневой валидацией (type guard на каждый
+    элемент: role ∈ {user, assistant} + typeof text === "string").
+    Невалидные элементы выбрасываются, невалидный JSON → пустой chat
+    (graceful fallback).
+  - `updateRemoteSite(id, patch)` в remoteHistoryStore с
+    fire-and-forget семантикой.
+  - 13 новых тестов на PATCH route в `tests/api.sites.test.ts` +
+    3 новых теста на loadFromHistory restore в
+    `tests/ui/useGenerationFlow.test.tsx`. Всего 939 тестов в репо.
+  - Применить миграцию на VPS:
+    `APPWRITE_API_KEY=<key> npm run migrate:appwrite && pm2 reload nit-builder-v2`.
+
 **Pending:**
 
 - **"Save as Template"** — кнопка на удачном результате генерации;
   сохраняет HTML + извлечённые `data-edit` зоны в `nit_user_templates`
   (Appwrite). Доступно только владельцу, можно "promote" в публичную
   галерею (v2.2).
-- **Continue from history** — сейчас открытие сайта из HistoryPanel
-  создаёт новую сессию. Нужен continue-mode: загрузить предыдущее
-  состояние + chat-history + полировать дальше. Требует расширения
-  схемы `nit_sites` (chatMessages JSON), API contract update и
-  пересохранение chat в `useGenerationFlow.loadFromHistory`.
 
 ### v2.2 — Community templates
 
