@@ -44,6 +44,7 @@ export const APPWRITE_CONFIG = {
     generations: "nit_generations",
     guestLimits: "nit_guest_limits",
     sharedPreviews: "nit_shared_previews",
+    userTemplates: "nit_user_templates",
   },
 } as const;
 
@@ -176,6 +177,37 @@ export type NitSharedPreview = Models.Document & {
   html: string;
   expiresAt: string;
   views: number;
+};
+
+/**
+ * Пользовательский шаблон (v2.1 Save as Template).
+ *
+ * Юзер с editing-mode жмёт "Save as Template", сохраняя текущий HTML
+ * (опционально с extracted `data-edit` зонами) в свою коллекцию. Позже
+ * этот шаблон можно использовать как стартовую точку для новых сайтов
+ * (v2.2 — community gallery, где юзер сможет promote свои templates
+ * в публичные через isPublic + voting механизм).
+ *
+ * - userId: владелец, ownership-check на read/write
+ * - name: человекочитаемое имя (макс 128 chars)
+ * - prompt: optional — оригинальный prompt из которого был сгенерирован
+ *   сайт. Полезен для контекста "этот шаблон был сделан для ___".
+ * - html: финальный snapshot HTML на момент сохранения (≤1 MB)
+ * - zones: JSON-сериализованный массив extracted data-edit-зон (≤100 KB).
+ *   Optional — пока сохраняем "сырой" HTML без extraction.
+ *   В v2.2 будет использоваться для smart re-use (apply template к новому
+ *   prompt'у с подменой зон).
+ * - isPublic: false по умолчанию. В v2.2 после "promote" → true.
+ * - votes: для v2.2 public gallery (👍/👎 счётчик). Default 0.
+ */
+export type NitUserTemplate = Models.Document & {
+  userId: string;
+  name: string;
+  prompt?: string;
+  html: string;
+  zones?: string;
+  isPublic: boolean;
+  votes: number;
 };
 
 // ─── Session operations ────────────────────────────────
@@ -809,6 +841,115 @@ export async function revokeSharedPreview(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.sharedPreviews,
       docId,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ─── User templates (Save as Template, v2.1) ─────────────────────
+
+/**
+ * Сохранить пользовательский шаблон.
+ *
+ * Limit: 50 templates на юзера (по аналогии с sites). Если лимит превышен —
+ * throw'ит ошибку (вызывающий код должен показать понятное сообщение).
+ * Лимит-проверка происходит через listDocuments(limit=51); если 50+ —
+ * отказ. Это не атомарно (concurrent saves могут проскочить), но в худшем
+ * случае юзер получает 51 шаблон — это не проблема.
+ */
+export async function saveUserTemplate(params: {
+  userId: string;
+  name: string;
+  html: string;
+  prompt?: string;
+  zones?: string;
+}): Promise<string> {
+  const db = getAdminDatabases();
+
+  // Soft-limit на 50 templates per user (защита от спама).
+  const existing = await db.listDocuments<NitUserTemplate>(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.userTemplates,
+    [Query.equal("userId", params.userId), Query.limit(51)],
+  );
+  if (existing.documents.length >= 50) {
+    throw new Error("USER_TEMPLATE_LIMIT_EXCEEDED");
+  }
+
+  const doc = await db.createDocument(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.userTemplates,
+    ID.unique(),
+    {
+      userId: params.userId,
+      name: params.name,
+      html: params.html,
+      prompt: params.prompt,
+      zones: params.zones,
+      isPublic: false,
+      votes: 0,
+    },
+  );
+  return doc.$id;
+}
+
+export async function listUserTemplates(
+  userId: string,
+  limit = 50,
+): Promise<NitUserTemplate[]> {
+  const db = getAdminDatabases();
+  const result = await db.listDocuments<NitUserTemplate>(
+    APPWRITE_CONFIG.databaseId,
+    APPWRITE_CONFIG.collections.userTemplates,
+    [
+      Query.equal("userId", userId),
+      Query.orderDesc("$createdAt"),
+      Query.limit(limit),
+    ],
+  );
+  return result.documents;
+}
+
+/**
+ * Получить шаблон по id с ownership-check.
+ * Возвращает null если шаблон чужой / не существует.
+ */
+export async function getUserTemplate(
+  userId: string,
+  templateId: string,
+): Promise<NitUserTemplate | null> {
+  const db = getAdminDatabases();
+  try {
+    const doc = await db.getDocument<NitUserTemplate>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+    );
+    if (doc.userId !== userId) return null;
+    return doc;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteUserTemplate(
+  userId: string,
+  templateId: string,
+): Promise<boolean> {
+  const db = getAdminDatabases();
+  try {
+    const doc = await db.getDocument<NitUserTemplate>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+    );
+    if (doc.userId !== userId) return false;
+    await db.deleteDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
     );
     return true;
   } catch {
