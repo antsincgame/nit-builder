@@ -1,7 +1,9 @@
 /**
  * ProblemSection — секция "01 · The broken market".
- * 4 problem cards (Cloud cost / Privacy / Vendor lock / Censorship)
- * + acid-bordered блок с peer-to-peer pitch'ем.
+ *
+ * 4 problem cards с конкретными pain points cloud-AI билдеров:
+ * v0/Bolt/Lovable их ценами, лимитами и vendor-lock'ом.
+ * Затем acid-bordered блок с peer-to-peer pitch'ем.
  */
 
 import { Card, Chip, RevealOnScroll, SectionLabel } from "~/components/nit";
@@ -16,27 +18,27 @@ type Problem = {
 const PROBLEMS: Problem[] = [
   {
     num: "01",
-    tag: "Cloud LLM cost",
+    tag: "$20-50/mo paywall",
     title: "Vercel v0 · Bolt · Lovable",
-    text: "Платная подписка $20/мес или жёсткие лимиты. Каждая правка сжигает токены. Правишь дизайн 3 раза — лимит на день съеден.",
+    text: "v0 Premium $20/мес · 100 msgs/мес. Bolt Pro $20/мес · 10M токенов. Lovable Pro $25/мес · 100 prompts. Правишь дизайн 5 раз — лимит на день съеден. Кодеру дешевле нанять стажёра.",
   },
   {
     num: "02",
-    tag: "Privacy",
-    title: "Твой промпт уезжает в прод",
-    text: "OpenAI, Anthropic, Vercel логируют всё. Корпоративный NDA? Внутренние данные? Лучше не вставляй — кто-то это прочитает.",
+    tag: "Your data → их сервера",
+    title: "Промпт уезжает к OpenAI",
+    text: "Все эти стартапы — обёртки над OpenAI/Anthropic API. Логируется: твой промпт, твой бизнес-план, твоё имя клиента, твои внутренние данные. NDA? Шутить про это в команде не стоит.",
   },
   {
     num: "03",
-    tag: "Vendor lock",
+    tag: "Lock-in by design",
     title: "Чёрные ящики и API",
-    text: "Сегодня Lovable работает, завтра передумали и закрыли — твои сайты не экспортируешь. Зависишь от чужого стартапа в чужой стране.",
+    text: "Сгенерированный код часто завязан на их runtime / hosting / database. Хочешь съехать на свой сервер — переписывать. Стартап закрылся (это случается) — сайты пропадают вместе с ним.",
   },
   {
     num: "04",
-    tag: "Censorship",
+    tag: "Content moderation",
     title: "Кто-то решает что тебе можно",
-    text: "Random content moderator завернёт промпт за «триггерное слово». Шутка про политику? Кибербез research? Получи 'I cannot help'.",
+    text: "Random content moderator завернёт промпт за «триггерное слово». Юридический сайт про оружие, кибербез research, шутка про политику — получи 'I cannot help with that' и неработающий план.",
   },
 ];
 
@@ -60,10 +62,15 @@ export function ProblemSection() {
         </h2>
       </RevealOnScroll>
       <RevealOnScroll delay={100}>
-        <p className="text-[15px] text-[color:var(--muted)] max-w-[600px] leading-[1.7] mb-16">
-          Vercel v0, Bolt, Lovable — все они продают одну и ту же модель: твой
-          промпт уезжает в их облако, кто-то сжигает твои токены, кто-то
-          читает твои данные, кто-то решает что тебе можно генерить.
+        <p className="text-[15px] text-[color:var(--muted)] max-w-[700px] leading-[1.7] mb-16">
+          Vercel v0, Bolt, Lovable, Replit Agent — все они продают одну и ту же
+          модель: твой промпт уезжает в их облако, кто-то сжигает{" "}
+          <span style={{ color: "var(--magenta)" }}>твои</span> токены,
+          кто-то читает{" "}
+          <span style={{ color: "var(--magenta)" }}>твои</span> данные, кто-то
+          решает что{" "}
+          <span style={{ color: "var(--magenta)" }}>тебе</span> можно
+          генерить.
         </p>
       </RevealOnScroll>
 
@@ -83,13 +90,19 @@ export function ProblemSection() {
             background: "rgba(212,255,0,0.03)",
           }}
         >
-          <p className="nit-display text-[24px] font-light leading-[1.4]">
+          <p className="nit-display text-[24px] font-light leading-[1.4] mb-4">
             Никто не делает{" "}
             <b className="font-bold" style={{ color: "var(--acid)" }}>
               peer-to-peer
             </b>{" "}
-            генератор где LLM крутится на железе пользователя, а сервер только
-            маршрутизирует запросы. Мы делаем.
+            AI-билдер где LLM крутится на железе пользователя, а сервер только
+            маршрутизирует.
+          </p>
+          <p className="text-[14px] text-[color:var(--muted)] leading-[1.7]">
+            <span style={{ color: "var(--acid)" }}>Мы делаем.</span>{" "}
+            Твой GPU. Твой LM Studio. Твой контроль. Наш сервер — тонкая прокладка
+            на 340 строк, без LLM-внутрянки. Если нас закроют, ты ставишь
+            self-hosted версию из репозитория и продолжаешь.
           </p>
         </div>
       </RevealOnScroll>
