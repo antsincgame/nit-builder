@@ -28,9 +28,11 @@ export default [
   // User templates — Save as Template (v2.1)
   route("api/user-templates", "routes/api.user-templates.ts"),
   route("api/user-templates/:id", "routes/api.user-templates.$id.ts"),
+  route("api/user-templates/:id/submit", "routes/api.user-templates.$id.submit.ts"),
   // Public templates — Community gallery (v2.2)
   route("api/public-templates", "routes/api.public-templates.ts"),
   route("api/public-templates/:id", "routes/api.public-templates.$id.ts"),
+  route("api/public-templates/:id/vote", "routes/api.public-templates.$id.vote.ts"),
   // Public community gallery page (v2.2)
   route("templates", "routes/templates.tsx"),
   // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
