@@ -161,3 +161,85 @@ export async function getPublicTemplate(
   if (!res.ok) return null;
   return (await res.json()) as PublicTemplateFull;
 }
+
+/**
+ * Проголосовать за публичный шаблон (v2.2 Phase 3).
+ * Возвращает новое значение votes или null если шаблон не найден / не публичный.
+ */
+export async function voteTemplate(
+  id: string,
+  direction: "up" | "down",
+): Promise<number | null> {
+  const res = await fetch(
+    `/api/public-templates/${encodeURIComponent(id)}/vote`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ direction }),
+    },
+  );
+  if (!res.ok) return null;
+  const data = (await res.json()) as { votes: number };
+  return data.votes;
+}
+
+/**
+ * Отправить пользовательский шаблон в очередь модерации.
+ * Возвращает true при успехе, false при ошибке (401/404/400).
+ */
+export async function submitTemplateForReview(id: string): Promise<boolean> {
+  const res = await fetch(
+    `/api/user-templates/${encodeURIComponent(id)}/submit`,
+    { method: "POST", credentials: "include" },
+  );
+  return res.ok;
+}
+
+// ─── localStorage helpers для дедупликации vote/submit ────────────────
+
+const VOTED_KEY = "nit-voted-templates";
+const SUBMITTED_KEY = "nit-submitted-templates";
+
+function readStringSet(key: string): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw) as unknown;
+    if (Array.isArray(arr)) {
+      return new Set(arr.filter((x): x is string => typeof x === "string"));
+    }
+    return new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function writeStringSet(key: string, set: Set<string>): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  } catch {
+    // localStorage может быть disabled / quota exceeded — silently skip
+  }
+}
+
+export function hasVotedFor(templateId: string): boolean {
+  return readStringSet(VOTED_KEY).has(templateId);
+}
+
+export function markVotedFor(templateId: string): void {
+  const set = readStringSet(VOTED_KEY);
+  set.add(templateId);
+  writeStringSet(VOTED_KEY, set);
+}
+
+export function hasSubmittedTemplate(templateId: string): boolean {
+  return readStringSet(SUBMITTED_KEY).has(templateId);
+}
+
+export function markSubmittedTemplate(templateId: string): void {
+  const set = readStringSet(SUBMITTED_KEY);
+  set.add(templateId);
+  writeStringSet(SUBMITTED_KEY, set);
+}
