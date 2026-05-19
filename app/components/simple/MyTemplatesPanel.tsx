@@ -3,6 +3,9 @@ import {
   listMyTemplates,
   getMyTemplate,
   deleteMyTemplate,
+  submitTemplateForReview,
+  hasSubmittedTemplate,
+  markSubmittedTemplate,
   type UserTemplateSummary,
   type UserTemplateFull,
 } from "~/lib/stores/userTemplatesStore";
@@ -22,18 +25,28 @@ type LoadState = "idle" | "loading" | "ready" | "error";
 
 /**
  * Drawer со списком пользовательских шаблонов (v2.1 Save as Template
- * follow-up). Параллельный к HistoryPanel, но для `nit_user_templates`:
+ * follow-up + v2.2 Phase 3 submit-for-review). Параллельный к HistoryPanel,
+ * но для `nit_user_templates`:
  *   - listMyTemplates() при открытии
  *   - клик по карточке → getMyTemplate(id) → onUse(template)
  *   - кнопка ✕ на hover → deleteMyTemplate(id)
+ *   - кнопка "submit ▲" на hover → submitTemplateForReview(id) (v2.2 Phase 3)
  *
  * Доступен только authenticated юзерам (template — это Appwrite-only фича).
  * Кнопка в home.tsx рендерится только при auth.status === "authenticated".
+ *
+ * Submit-state хранится в localStorage "nit-submitted-templates" — нужно
+ * чтобы юзер видел "pending review" badge сразу после отправки, без
+ * необходимости миграции Appwrite-схемы (отдельное поле submittedAt
+ * в коллекции — backlog для v2.3+).
  */
 export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
   const [state, setState] = useState<LoadState>("idle");
   const [templates, setTemplates] = useState<UserTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  // Locally-submitted set (v2.2 Phase 3) — кэш из localStorage.
+  const [submittedSet, setSubmittedSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,6 +63,25 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
         toast.error("Не удалось загрузить шаблоны");
       }
     })();
+
+    // Подтягиваем локально-отправленные шаблоны
+    if (typeof window !== "undefined") {
+      const initial = new Set<string>();
+      try {
+        const raw = localStorage.getItem("nit-submitted-templates");
+        if (raw) {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            parsed.forEach((x) => {
+              if (typeof x === "string") initial.add(x);
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+      setSubmittedSet(initial);
+    }
   }, [isOpen]);
 
   async function handleUse(id: string) {
@@ -76,6 +108,32 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
       toast.success("Шаблон удалён");
     } else {
       toast.error("Не удалось удалить");
+    }
+  }
+
+  async function handleSubmit(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (submittingId) return;
+    if (hasSubmittedTemplate(id)) {
+      toast.info("Уже на модерации");
+      return;
+    }
+    setSubmittingId(id);
+    try {
+      const ok = await submitTemplateForReview(id);
+      if (!ok) {
+        toast.error("Не удалось отправить");
+        return;
+      }
+      markSubmittedTemplate(id);
+      setSubmittedSet((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      toast.success("Шаблон отправлен на модерацию");
+    } finally {
+      setSubmittingId(null);
     }
   }
 
@@ -194,80 +252,136 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
           )}
 
           {state === "ready" &&
-            templates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                disabled={loadingId === t.id}
-                onClick={() => handleUse(t.id)}
-                className="w-full text-left p-4 transition group disabled:opacity-50"
-                style={{
-                  background: "rgba(10,13,24,0.6)",
-                  border: "1px solid var(--line)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--accent)";
-                  e.currentTarget.style.background = "rgba(0,212,255,0.04)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--line)";
-                  e.currentTarget.style.background = "rgba(10,13,24,0.6)";
-                }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className="nit-display text-[14px] mb-1 truncate"
-                      style={{ color: "var(--ink)" }}
-                    >
-                      {t.name}
-                    </p>
-                    {t.prompt && (
+            templates.map((t) => {
+              const isSubmitted = t.isPublic || submittedSet.has(t.id);
+              const isSubmitting = submittingId === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  disabled={loadingId === t.id}
+                  onClick={() => handleUse(t.id)}
+                  className="w-full text-left p-4 transition group disabled:opacity-50"
+                  style={{
+                    background: "rgba(10,13,24,0.6)",
+                    border: "1px solid var(--line)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "var(--accent)";
+                    e.currentTarget.style.background = "rgba(0,212,255,0.04)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "var(--line)";
+                    e.currentTarget.style.background = "rgba(10,13,24,0.6)";
+                  }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
                       <p
-                        className="text-[11px] font-mono line-clamp-2 leading-snug"
-                        style={{ color: "var(--muted)" }}
+                        className="nit-display text-[14px] mb-1 truncate"
+                        style={{ color: "var(--ink)" }}
                       >
-                        {t.prompt}
+                        {t.name}
                       </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      {t.hasZones && (
+                      {t.prompt && (
+                        <p
+                          className="text-[11px] font-mono line-clamp-2 leading-snug"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          {t.prompt}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        {t.hasZones && (
+                          <span
+                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                            style={{
+                              color: "var(--acid)",
+                              border: "1px solid var(--line-strong)",
+                            }}
+                          >
+                            zones
+                          </span>
+                        )}
+                        {t.isPublic && (
+                          <span
+                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                            style={{
+                              color: "var(--accent-glow)",
+                              border: "1px solid var(--accent-glow)",
+                            }}
+                            title="Опубликован в галерее"
+                          >
+                            public · ▲ {t.votes}
+                          </span>
+                        )}
+                        {!t.isPublic && submittedSet.has(t.id) && (
+                          <span
+                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                            style={{
+                              color: "var(--muted)",
+                              border: "1px dashed var(--line-strong)",
+                            }}
+                            title="Ждёт модерации"
+                          >
+                            pending review
+                          </span>
+                        )}
                         <span
-                          className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                          className="text-[10px] tracking-[0.05em]"
+                          style={{ color: "var(--muted-2)" }}
+                        >
+                          {formatDate(t.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(t.id, e)}
+                        className="opacity-0 group-hover:opacity-100 transition text-[14px]"
+                        style={{ color: "var(--muted)" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "var(--magenta)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "var(--muted)";
+                        }}
+                        aria-label="Удалить шаблон"
+                      >
+                        ✕
+                      </button>
+                      {!isSubmitted && (
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={(e) => handleSubmit(t.id, e)}
+                          className="opacity-0 group-hover:opacity-100 transition text-[9px] tracking-[0.15em] uppercase px-2 py-1 disabled:opacity-30"
                           style={{
-                            color: "var(--acid)",
+                            color: "var(--accent-glow)",
                             border: "1px solid var(--line-strong)",
                           }}
+                          onMouseEnter={(e) => {
+                            if (!isSubmitting) {
+                              e.currentTarget.style.borderColor = "var(--accent-glow)";
+                              e.currentTarget.style.background = "rgba(0,212,255,0.08)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "var(--line-strong)";
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                          title="Отправить в галерею на модерацию"
+                          aria-label="Submit for review"
                         >
-                          zones
-                        </span>
+                          {isSubmitting ? "…" : "submit ▲"}
+                        </button>
                       )}
-                      <span
-                        className="text-[10px] tracking-[0.05em]"
-                        style={{ color: "var(--muted-2)" }}
-                      >
-                        {formatDate(t.createdAt)}
-                      </span>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDelete(t.id, e)}
-                    className="opacity-0 group-hover:opacity-100 transition text-[14px]"
-                    style={{ color: "var(--muted)" }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "var(--magenta)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "var(--muted)";
-                    }}
-                    aria-label="Удалить шаблон"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
         </div>
 
         {state === "ready" && templates.length > 0 && (
