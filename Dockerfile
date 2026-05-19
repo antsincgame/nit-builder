@@ -38,7 +38,7 @@ COPY --from=builder /app/shared/package.json ./shared/
 RUN npm ci --omit=dev && npm cache clean --force
 
 # server.ts — entrypoint приложения, запускается через tsx в runtime.
-# tsconfig.json + env.d.ts также нужны tsx для resolve type-aware impoртов.
+# tsconfig.json + env.d.ts также нужны tsx для resolve type-aware imports.
 COPY --from=builder /app/server.ts ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/env.d.ts ./
@@ -46,7 +46,13 @@ COPY --from=builder /app/env.d.ts ./
 # Артефакты сборки и runtime-файлы
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/app/templates ./app/templates
+
+# КРИТИЧНО: server.ts тянет ./app/lib/server/wsHandlers.server.ts напрямую,
+# а tsconfig имеет path-алиас ~/* → ./app/*. Поэтому нужна вся папка app/,
+# а не только app/templates (раньше тут было только templates — ловили
+# ERR_MODULE_NOT_FOUND на wsHandlers.server.ts).
+COPY --from=builder /app/app ./app
+
 # shared/ нужен в runtime — на него ссылается symlink @nit/shared
 COPY --from=builder /app/shared ./shared
 
