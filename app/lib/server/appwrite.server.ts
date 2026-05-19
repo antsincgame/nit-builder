@@ -1037,6 +1037,49 @@ export async function setTemplatePublicState(
   }
 }
 
+/**
+ * Голосование за публичный шаблон (v2.2 Phase 3).
+ *
+ * Изменяет votes на delta (+1 или -1). Только для публичных шаблонов
+ * (isPublic=true) — за приватные голосовать нельзя.
+ *
+ * NOTE про защиту от accumulation: эта функция не отслеживает кто голосовал —
+ * любой может вызвать N раз. Защита от спама делается на API-уровне через
+ * sessionStorage rate-limit (1 vote per template per session). Полноценный
+ * persistent voting registry (отдельная коллекция nit_template_votes с
+ * userId+templateId unique constraint) — backlog для v2.3+. Для текущей
+ * стадии достаточно client-side de-dup плюс невозможность отрицательных
+ * votes (clamp на 0).
+ *
+ * Возвращает новое значение votes или null если шаблон не найден / не
+ * публичный. Чтение-модификация-запись неатомарна, при concurrent vote'ах
+ * последний writer выигрывает — приемлемо для счётчика.
+ */
+export async function voteForTemplate(
+  templateId: string,
+  delta: 1 | -1,
+): Promise<number | null> {
+  const db = getAdminDatabases();
+  try {
+    const doc = await db.getDocument<NitUserTemplate>(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+    );
+    if (!doc.isPublic) return null;
+    const newVotes = Math.max(0, doc.votes + delta);
+    await db.updateDocument(
+      APPWRITE_CONFIG.databaseId,
+      APPWRITE_CONFIG.collections.userTemplates,
+      templateId,
+      { votes: newVotes },
+    );
+    return newVotes;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Metric logging ─────────────────────────────────
 
 export async function logGeneration(
