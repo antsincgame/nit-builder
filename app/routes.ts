@@ -1,8 +1,12 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
-  index("routes/home.tsx"),
+  // "/" — auth-aware splitter: guest → лендинг, authed → приложение
+  index("routes/index.tsx"),
+  // /about остаётся для прямых ссылок на лендинг
   route("about", "routes/landing.tsx"),
+  // /app — приложение-генератор напрямую (для старых закладок / SSO-редиректов)
+  route("app", "routes/home.tsx"),
   route("login", "routes/login.tsx"),
   route("register", "routes/register.tsx"),
   route("download", "routes/download.tsx"),
@@ -35,7 +39,7 @@ export default [
   route("api/public-templates/:id/vote", "routes/api.public-templates.$id.vote.ts"),
   // Public community gallery page (v2.2)
   route("templates", "routes/templates.tsx"),
-  // Admin / RAG / Eval (раньше были orphaned — файлы есть, но в роутер не подключены)
+  // Admin / RAG / Eval
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
   route("api/admin/metrics", "routes/api.admin.metrics.ts"),
