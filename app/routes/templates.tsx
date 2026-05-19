@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import {
   listPublicTemplates,
   getPublicTemplate,
+  voteTemplate,
+  hasVotedFor,
+  markVotedFor,
   type PublicTemplateSummary,
 } from "~/lib/stores/userTemplatesStore";
 import { toast } from "~/lib/stores/toastStore";
@@ -20,13 +23,18 @@ export function meta() {
 }
 
 /**
- * /templates — публичная галерея community-шаблонов (v2.2 Phase 2).
+ * /templates — публичная галерея community-шаблонов (v2.2 Phase 2/3).
  *
  * Загрузка через fetch /api/public-templates на клиенте (не SSR loader)
  * для согласованности с остальным flow (home.tsx тоже client-fetch).
  * Клик по карточке → fetch full → sessionStorage с pending-template
  * payload → переход на /. home.tsx при mount подберёт это и загрузит
  * шаблон как стартовую точку через handleUseTemplate.
+ *
+ * Phase 3: vote-кнопка ▲ на каждой карточке. localStorage дедуп через
+ * "nit-voted-templates" ключ — если юзер уже голосовал за шаблон в этой
+ * браузер-сессии, кнопка disabled. Server-side persistent vote registry
+ * — backlog для v2.3+ (см. doc в voteForTemplate в appwrite.server.ts).
  *
  * Без auth — открыт guest'ам. Использовать шаблон могут только authed
  * юзеры (после редиректа на / увидят форму регистрации если не залогинены).
@@ -35,6 +43,10 @@ export default function PublicTemplatesGallery() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [templates, setTemplates] = useState<PublicTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [votingId, setVotingId] = useState<string | null>(null);
+  // Reactive snapshot localStorage'а — обновляем после каждого vote чтобы UI
+  // мгновенно показывал disabled-состояние ▲ кнопки.
+  const [votedSet, setVotedSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     void (async () => {
@@ -47,6 +59,24 @@ export default function PublicTemplatesGallery() {
         setState("error");
       }
     })();
+    // Подтягиваем locally-voted set из localStorage один раз при mount.
+    if (typeof window !== "undefined") {
+      const initial = new Set<string>();
+      try {
+        const raw = localStorage.getItem("nit-voted-templates");
+        if (raw) {
+          const parsed = JSON.parse(raw) as unknown;
+          if (Array.isArray(parsed)) {
+            parsed.forEach((x) => {
+              if (typeof x === "string") initial.add(x);
+            });
+          }
+        }
+      } catch {
+        // ignore — пустой set ок
+      }
+      setVotedSet(initial);
+    }
   }, []);
 
   async function handleUse(id: string) {
@@ -80,6 +110,36 @@ export default function PublicTemplatesGallery() {
       window.location.href = "/";
     } finally {
       setLoadingId(null);
+    }
+  }
+
+  async function handleVote(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (votingId) return;
+    if (hasVotedFor(id)) {
+      toast.info("Ты уже голосовал за этот шаблон");
+      return;
+    }
+    setVotingId(id);
+    try {
+      const newVotes = await voteTemplate(id, "up");
+      if (newVotes === null) {
+        toast.error("Не удалось проголосовать");
+        return;
+      }
+      markVotedFor(id);
+      setVotedSet((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      // Обновляем счётчик в локальном state без рефетча
+      setTemplates((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, votes: newVotes } : t)),
+      );
+      toast.success("Голос засчитан");
+    } finally {
+      setVotingId(null);
     }
   }
 
@@ -234,74 +294,99 @@ export default function PublicTemplatesGallery() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {templates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  disabled={loadingId === t.id}
-                  onClick={() => handleUse(t.id)}
-                  className="text-left p-5 transition group disabled:opacity-50"
-                  style={{
-                    background: "rgba(10,13,24,0.6)",
-                    border: "1px solid var(--line)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.background = "rgba(0,212,255,0.04)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--line)";
-                    e.currentTarget.style.background = "rgba(10,13,24,0.6)";
-                  }}
-                >
-                  <h3
-                    className="nit-display text-[16px] mb-2 truncate"
-                    style={{ color: "var(--ink)" }}
+              {templates.map((t) => {
+                const isVoted = votedSet.has(t.id);
+                const isVoting = votingId === t.id;
+                const isLoading = loadingId === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    className="p-5 transition group"
+                    style={{
+                      background: "rgba(10,13,24,0.6)",
+                      border: "1px solid var(--line)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--accent)";
+                      e.currentTarget.style.background = "rgba(0,212,255,0.04)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--line)";
+                      e.currentTarget.style.background = "rgba(10,13,24,0.6)";
+                    }}
                   >
-                    {t.name}
-                  </h3>
-                  {t.prompt && (
-                    <p
-                      className="text-[11px] font-mono line-clamp-3 leading-snug mb-4"
-                      style={{ color: "var(--muted)" }}
+                    <button
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => handleUse(t.id)}
+                      className="w-full text-left disabled:opacity-50"
                     >
-                      {t.prompt}
-                    </p>
-                  )}
-                  <div className="flex items-center justify-between mt-auto">
-                    <div className="flex items-center gap-2">
-                      {t.votes > 0 && (
-                        <span
-                          className="text-[10px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                      <h3
+                        className="nit-display text-[16px] mb-2 truncate"
+                        style={{ color: "var(--ink)" }}
+                      >
+                        {t.name}
+                      </h3>
+                      {t.prompt && (
+                        <p
+                          className="text-[11px] font-mono line-clamp-3 leading-snug mb-4"
+                          style={{ color: "var(--muted)" }}
+                        >
+                          {t.prompt}
+                        </p>
+                      )}
+                    </button>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={isVoting || isVoted}
+                          onClick={(e) => handleVote(t.id, e)}
+                          className="text-[10px] tracking-[0.15em] uppercase px-2 py-1 transition disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
-                            color: "var(--accent-glow)",
+                            color: isVoted ? "var(--acid)" : "var(--accent-glow)",
                             border: "1px solid var(--line-strong)",
                           }}
-                        >
-                          ▲ {t.votes}
-                        </span>
-                      )}
-                      {t.hasZones && (
-                        <span
-                          className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                          style={{
-                            color: "var(--acid)",
-                            border: "1px solid var(--line-strong)",
+                          onMouseEnter={(e) => {
+                            if (!isVoted && !isVoting) {
+                              e.currentTarget.style.borderColor = "var(--accent-glow)";
+                              e.currentTarget.style.background = "rgba(0,212,255,0.08)";
+                            }
                           }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "var(--line-strong)";
+                            e.currentTarget.style.background = "transparent";
+                          }}
+                          title={isVoted ? "Ты уже голосовал" : "Проголосовать"}
+                          aria-label="Vote for template"
                         >
-                          zones
-                        </span>
-                      )}
+                          {isVoting ? "…" : `▲ ${t.votes}`}
+                        </button>
+                        {t.hasZones && (
+                          <span
+                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
+                            style={{
+                              color: "var(--acid)",
+                              border: "1px solid var(--line-strong)",
+                            }}
+                          >
+                            zones
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => handleUse(t.id)}
+                        className="text-[10px] tracking-[0.15em] uppercase opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
+                        style={{ color: "var(--accent-glow)" }}
+                      >
+                        {isLoading ? "loading..." : "use →"}
+                      </button>
                     </div>
-                    <span
-                      className="text-[10px] tracking-[0.15em] uppercase opacity-0 group-hover:opacity-100 transition"
-                      style={{ color: "var(--accent-glow)" }}
-                    >
-                      {loadingId === t.id ? "loading..." : "use →"}
-                    </span>
                   </div>
-                </button>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
