@@ -37,6 +37,12 @@ COPY --from=builder /app/shared/package.json ./shared/
 
 RUN npm ci --omit=dev && npm cache clean --force
 
+# server.ts — entrypoint приложения, запускается через tsx в runtime.
+# tsconfig.json + env.d.ts также нужны tsx для resolve type-aware impoртов.
+COPY --from=builder /app/server.ts ./
+COPY --from=builder /app/tsconfig.json ./
+COPY --from=builder /app/env.d.ts ./
+
 # Артефакты сборки и runtime-файлы
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
@@ -46,7 +52,7 @@ COPY --from=builder /app/shared ./shared
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
   CMD wget -qO- http://localhost:3000/api/health || exit 1
 
 CMD ["npm", "start"]
