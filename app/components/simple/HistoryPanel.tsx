@@ -29,14 +29,15 @@ type DisplayEntry = {
   source: "local" | "remote";
 };
 
+/**
+ * HistoryPanel v2 — русский, без "// history" / "YOUR SITES" / "NO SITES YET".
+ */
 export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
   const auth = useAuth();
   const [source, setSource] = useState<Source>("loading");
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
   const [loadingEntry, setLoadingEntry] = useState<string | null>(null);
 
-  // Clear entries immediately when auth status changes (logout/login)
-  // to prevent showing previous user's data while new fetch loads
   useEffect(() => {
     setEntries([]);
     setSource("loading");
@@ -132,62 +133,49 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end p-4"
+      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end"
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={onClose}
     >
       <div
         className="w-full max-w-md h-full overflow-hidden flex flex-col"
         style={{
-          background: "var(--bg)",
-          border: "1px solid var(--line-strong)",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
+          background: "var(--bg-2)",
+          borderLeft: "1px solid var(--line-strong)",
+          boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="px-6 py-5 flex items-center justify-between"
+          className="px-5 py-4 flex items-center justify-between shrink-0"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
           <div>
-            <div
-              className="text-[10px] tracking-[0.2em] uppercase mb-1"
-              style={{ color: "var(--accent-glow)" }}
-            >
-              // history
-            </div>
-            <h3 className="nit-display text-[20px]" style={{ color: "var(--ink)" }}>
-              YOUR SITES
+            <h3 className="nit-display" style={{ fontSize: 18, color: "var(--ink)" }}>
+              История
             </h3>
-            <p
-              className="text-[10px] tracking-[0.1em] uppercase mt-1"
-              style={{ color: "var(--muted-2)" }}
-            >
+            <p className="text-[12px] mt-1" style={{ color: "var(--muted-2)" }}>
               {source === "loading"
-                ? "loading..."
+                ? "Загружаем…"
                 : entries.length === 0
-                  ? "empty"
-                  : `${entries.length} · ${source === "remote" ? "synced" : "local only"}`}
+                  ? "Пока пусто"
+                  : entries.length === 1
+                    ? "1 сайт"
+                    : entries.length < 5
+                      ? `${entries.length} сайта`
+                      : `${entries.length} сайтов`}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 transition flex items-center justify-center"
-            style={{
-              border: "1px solid var(--line-strong)",
-              color: "var(--muted)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--magenta)";
-              e.currentTarget.style.color = "var(--magenta)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--line-strong)";
-              e.currentTarget.style.color = "var(--muted)";
-            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition"
+            style={{ color: "var(--muted)" }}
+            aria-label="Закрыть"
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
 
@@ -197,46 +185,26 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="p-4 animate-pulse"
-                  style={{
-                    background: "rgba(10,13,24,0.6)",
-                    border: "1px solid var(--line)",
-                  }}
+                  className="p-4 rounded-xl animate-pulse"
+                  style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--line)" }}
                 >
-                  <div
-                    className="h-3 w-3/4 mb-3"
-                    style={{ background: "var(--line-strong)" }}
-                  />
-                  <div
-                    className="h-2 w-1/2"
-                    style={{ background: "var(--line)" }}
-                  />
+                  <div className="h-3 w-3/4 mb-3 rounded" style={{ background: "var(--line-strong)" }} />
+                  <div className="h-2 w-1/2 rounded" style={{ background: "var(--line)" }} />
                 </div>
               ))}
             </div>
           )}
 
           {source !== "loading" && entries.length === 0 && (
-            <div className="text-center py-20">
-              <div
-                className="text-[10px] tracking-[0.2em] uppercase mb-3"
-                style={{ color: "var(--muted-2)" }}
-              >
-                // null
-              </div>
-              <p
-                className="nit-display text-[24px] mb-3"
-                style={{ color: "var(--muted)" }}
-              >
-                NO SITES YET
-              </p>
-              <p
-                className="text-[11px] tracking-[0.05em] max-w-[260px] mx-auto"
-                style={{ color: "var(--muted-2)" }}
-              >
+            <div className="text-center py-16">
+              <div className="text-4xl mb-4 opacity-40">📋</div>
+              <h4 className="nit-display mb-2" style={{ fontSize: 18, color: "var(--ink)" }}>
+                Пока пусто
+              </h4>
+              <p className="text-[13px] max-w-[260px] mx-auto" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
                 {source === "remote"
-                  ? "Generated sites will sync to your account"
-                  : "Sign in to sync between devices"}
+                  ? "Созданные сайты автоматически появятся здесь"
+                  : "Войдите в аккаунт, чтобы ваши сайты сохранялись"}
               </p>
             </div>
           )}
@@ -247,42 +215,35 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
               type="button"
               disabled={loadingEntry === entry.id}
               onClick={() => handleOpen(entry.id, entry.source)}
-              className="w-full text-left p-4 transition group disabled:opacity-50"
+              className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50"
               style={{
-                background: "rgba(10,13,24,0.6)",
+                background: "rgba(255, 255, 255, 0.02)",
                 border: "1px solid var(--line)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent)";
-                e.currentTarget.style.background = "rgba(0,212,255,0.04)";
+                e.currentTarget.style.borderColor = "var(--line-hover)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = "var(--line)";
-                e.currentTarget.style.background = "rgba(10,13,24,0.6)";
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
               }}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p
-                    className="text-[12px] font-mono line-clamp-2 leading-snug"
-                    style={{ color: "var(--ink)" }}
-                  >
+                  <p className="text-[13px] line-clamp-2 leading-snug" style={{ color: "var(--ink)" }}>
                     {entry.prompt}
                   </p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span
-                      className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                      style={{
-                        color: "var(--accent-glow)",
-                        border: "1px solid var(--line-strong)",
-                      }}
-                    >
-                      {entry.templateName}
-                    </span>
-                    <span
-                      className="text-[10px] tracking-[0.05em]"
-                      style={{ color: "var(--muted-2)" }}
-                    >
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {entry.templateName && (
+                      <span
+                        className="text-[11px] px-2 py-0.5 rounded-md"
+                        style={{ color: "var(--muted)", background: "rgba(255, 255, 255, 0.04)" }}
+                      >
+                        {entry.templateName}
+                      </span>
+                    )}
+                    <span className="text-[12px]" style={{ color: "var(--muted-2)" }}>
                       {formatDate(entry.createdAt)}
                     </span>
                   </div>
@@ -290,17 +251,15 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
                 <button
                   type="button"
                   onClick={(e) => handleDelete(entry.id, entry.source, e)}
-                  className="opacity-0 group-hover:opacity-100 transition text-[14px]"
+                  className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                   style={{ color: "var(--muted)" }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "var(--magenta)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "var(--muted)";
-                  }}
-                  aria-label="Delete"
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--pink)"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+                  aria-label="Удалить"
                 >
-                  ✕
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
                 </button>
               </div>
             </button>
@@ -308,36 +267,12 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
         </div>
 
         {entries.length > 0 && source === "local" && (
-          <div
-            className="px-5 py-4"
-            style={{ borderTop: "1px solid var(--line)" }}
-          >
-            <p
-              className="text-[10px] tracking-[0.1em] uppercase text-center"
-              style={{ color: "var(--muted-2)" }}
-            >
-              Local browser only ·{" "}
-              <a
-                href="/register"
-                className="no-underline transition"
-                style={{ color: "var(--accent-glow)" }}
-              >
-                register →
+          <div className="px-5 py-3 shrink-0" style={{ borderTop: "1px solid var(--line)" }}>
+            <p className="text-[12px] text-center" style={{ color: "var(--muted-2)" }}>
+              Сохранено только в этом браузере ·{" "}
+              <a href="/register" className="transition-colors no-underline" style={{ color: "var(--cyan)" }}>
+                зарегистрироваться
               </a>
-            </p>
-          </div>
-        )}
-
-        {entries.length > 0 && source === "remote" && (
-          <div
-            className="px-5 py-4"
-            style={{ borderTop: "1px solid var(--line)" }}
-          >
-            <p
-              className="text-[10px] tracking-[0.1em] uppercase text-center"
-              style={{ color: "var(--muted-2)" }}
-            >
-              ✓ synced with your account
             </p>
           </div>
         )}

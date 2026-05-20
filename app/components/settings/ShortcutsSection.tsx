@@ -1,45 +1,43 @@
 /**
- * ShortcutsSection — таблица горячих клавиш.
- * Источник правды о shortcut'ах — useKeyboardShortcuts в home.tsx, здесь
- * только display. Если меняешь shortcut там — обнови SHORTCUTS массив тут.
+ * ShortcutsSection v2 — русский, без "// shortcuts" префикса.
  */
 
 const SHORTCUTS = [
   { keys: "⌘ + Enter", desc: "Создать сайт" },
-  { keys: "⌘ + H", desc: "История" },
-  { keys: "⌘ + D", desc: "Скачать HTML" },
+  { keys: "⌘ + H", desc: "История сайтов" },
+  { keys: "⌘ + D", desc: "Скачать сайт" },
   { keys: "⌘ + ,", desc: "Настройки" },
-  { keys: "Esc", desc: "Закрыть / Отмена" },
+  { keys: "⌘ + Z", desc: "Отменить изменение" },
+  { keys: "Esc", desc: "Закрыть / отменить" },
 ];
 
 export function ShortcutsSection() {
   return (
     <div>
-      <div
-        className="text-[10px] tracking-[0.2em] uppercase mb-3"
-        style={{ color: "var(--accent-glow)" }}
-      >
-        // shortcuts
+      <div className="text-[12px] font-semibold mb-3" style={{ color: "var(--ink-dim)" }}>
+        Горячие клавиши
       </div>
       <div
-        className="divide-y"
-        style={{ border: "1px solid var(--line)", background: "rgba(10,13,24,0.4)" }}
+        className="rounded-xl overflow-hidden"
+        style={{ border: "1px solid var(--line)", background: "rgba(255, 255, 255, 0.02)" }}
       >
-        {SHORTCUTS.map((sc) => (
+        {SHORTCUTS.map((sc, i) => (
           <div
             key={sc.keys}
             className="flex items-center justify-between px-4 py-2.5"
-            style={{ borderColor: "var(--line)" }}
+            style={{
+              borderTop: i === 0 ? undefined : "1px solid var(--line)",
+            }}
           >
-            <span className="text-[12px]" style={{ color: "var(--ink-dim)" }}>
+            <span className="text-[13px]" style={{ color: "var(--ink-dim)" }}>
               {sc.desc}
             </span>
             <kbd
-              className="px-2 py-1 text-[10px] tracking-[0.05em] font-mono"
+              className="px-2 py-1 text-[12px] font-mono rounded-md"
               style={{
                 border: "1px solid var(--line-strong)",
-                color: "var(--accent-glow)",
-                background: "rgba(0,212,255,0.04)",
+                color: "var(--ink-dim)",
+                background: "var(--bg)",
               }}
             >
               {sc.keys}

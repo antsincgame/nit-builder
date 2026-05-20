@@ -1,19 +1,13 @@
 /**
- * TunnelTokenSection — управление tunnel-токеном.
- *
- * Три состояния:
- *  1. idle      — показываем "Created: <date>" + кнопку "Regenerate"
- *  2. confirming — форма пароля + Cancel/Regenerate
- *  3. revealed  — новый токен показан один раз с COPY
- *
- * Виден только для authenticated юзеров.
+ * TunnelTokenSection v2 — русский. Это техническая секция (для тех кто хочет
+ * использовать CLI на своём GPU), оставлена «для разработчиков». Текст
+ * упрощён, плейсхолдеры и кнопки на русском.
  */
 
 import { useEffect, useState } from "react";
 import { useAuth } from "~/lib/contexts/AuthContext";
 
 type Props = {
-  /** Reset внутреннего стейта когда drawer закрылся. */
   resetSignal: boolean;
 };
 
@@ -26,7 +20,6 @@ export function TunnelTokenSection({ resetSignal }: Props) {
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
 
-  // Reset internal state когда drawer закрывается (resetSignal toggles).
   useEffect(() => {
     if (resetSignal) {
       setShowRegenerate(false);
@@ -49,7 +42,7 @@ export function TunnelTokenSection({ resetSignal }: Props) {
       });
       const data = (await res.json()) as { tunnelToken?: string; error?: string };
       if (!res.ok) {
-        setError(data.error ?? "Не удалось сгенерировать токен");
+        setError(data.error ?? "Не удалось создать новый ключ");
         setRegenerating(false);
         return;
       }
@@ -71,7 +64,7 @@ export function TunnelTokenSection({ resetSignal }: Props) {
         setTimeout(() => setCopied(false), 2000);
       })
       .catch(() => {
-        setError("Буфер обмена недоступен. Скопируй токен вручную.");
+        setError("Буфер обмена недоступен. Скопируйте ключ вручную.");
       });
   }
 
@@ -79,85 +72,85 @@ export function TunnelTokenSection({ resetSignal }: Props) {
 
   return (
     <div>
-      <div
-        className="text-[10px] tracking-[0.2em] uppercase mb-3"
-        style={{ color: "var(--accent-glow)" }}
-      >
-        // tunnel · token
+      <div className="text-[12px] font-semibold mb-3" style={{ color: "var(--ink-dim)" }}>
+        Ключ доступа (для разработчиков)
       </div>
 
       {newToken ? (
-        // ─── Token revealed ──────────────────────────
         <div className="space-y-3">
           <div
-            className="p-3 text-[11px]"
+            className="p-3 text-[13px] rounded-lg"
             style={{
-              border: "1px solid var(--magenta)",
-              background: "rgba(255,46,147,0.05)",
-              color: "var(--magenta-glow)",
+              border: "1px solid var(--amber)",
+              background: "rgba(251, 191, 36, 0.06)",
+              color: "var(--amber)",
             }}
           >
-            ⚠ Токен показан один раз. Скопируй сейчас.
+            Ключ показан один раз. Скопируйте его сейчас — потом восстановить нельзя.
           </div>
           <div className="relative">
             <input
               type="text"
               readOnly
               value={newToken}
-              className="w-full px-3 py-3 pr-24 text-[11px] font-mono outline-none"
+              className="w-full px-3 py-3 pr-24 text-[12px] font-mono outline-none rounded-lg"
               style={{
-                background: "rgba(0,212,255,0.04)",
-                border: "1px solid var(--accent)",
-                color: "var(--accent-glow)",
+                background: "var(--bg)",
+                border: "1px solid var(--line-strong)",
+                color: "var(--ink-dim)",
               }}
               onClick={(e) => (e.target as HTMLInputElement).select()}
             />
             <button
               type="button"
               onClick={copyToken}
-              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold tracking-[0.15em] uppercase transition text-black"
-              style={{ background: copied ? "var(--acid)" : "var(--accent)" }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[12px] font-semibold rounded-md transition"
+              style={{
+                background: copied ? "var(--green)" : "var(--ink)",
+                color: "var(--bg)",
+              }}
             >
-              {copied ? "✓ COPIED" : "COPY"}
+              {copied ? "✓" : "Копировать"}
             </button>
           </div>
         </div>
       ) : showRegenerate ? (
-        // ─── Confirm password ────────────────────────
         <div className="space-y-3">
-          <p className="text-[11px]" style={{ color: "var(--muted)" }}>
-            Введи свой пароль. Старый токен будет отозван, все активные
-            туннели отключатся немедленно.
+          <p className="text-[13px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+            Введите ваш пароль. Старый ключ перестанет работать сразу — все
+            активные подключения отключатся.
           </p>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Current password"
+            placeholder="Ваш пароль"
             autoComplete="current-password"
-            className="w-full px-3 py-3 text-[12px] font-mono outline-none transition"
+            className="w-full px-3 py-3 text-[14px] outline-none transition rounded-lg"
             style={{
-              background: "transparent",
+              background: "var(--bg)",
               border: "1px solid var(--line-strong)",
               color: "var(--ink)",
             }}
             onFocus={(e) => {
-              e.currentTarget.style.borderColor = "var(--magenta)";
+              e.currentTarget.style.borderColor = "var(--cyan)";
+              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.12)";
             }}
             onBlur={(e) => {
               e.currentTarget.style.borderColor = "var(--line-strong)";
+              e.currentTarget.style.boxShadow = "none";
             }}
           />
           {error && (
             <div
-              className="p-2 text-[11px]"
+              className="p-2.5 text-[13px] rounded-lg"
               style={{
-                border: "1px solid var(--magenta)",
-                background: "rgba(255,46,147,0.05)",
-                color: "var(--magenta-glow)",
+                border: "1px solid var(--pink)",
+                background: "rgba(244, 114, 182, 0.06)",
+                color: "var(--pink)",
               }}
             >
-              ⚠ {error}
+              {error}
             </div>
           )}
           <div className="flex gap-2">
@@ -168,50 +161,46 @@ export function TunnelTokenSection({ resetSignal }: Props) {
                 setPassword("");
                 setError(null);
               }}
-              className="flex-1 px-3 py-2.5 text-[10px] tracking-[0.15em] uppercase transition"
-              style={{ border: "1px solid var(--line-strong)", color: "var(--muted)" }}
+              className="flex-1 btn-ghost"
+              style={{ padding: "10px 16px", fontSize: 13 }}
             >
-              Cancel
+              Отмена
             </button>
             <button
               type="button"
               onClick={handleRegenerate}
               disabled={regenerating || password.length === 0}
-              className="flex-1 px-3 py-2.5 text-[10px] font-bold tracking-[0.15em] uppercase text-black transition disabled:opacity-30"
-              style={{ background: "var(--magenta)" }}
+              className="flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-lg transition disabled:opacity-40"
+              style={{ background: "var(--pink)", color: "white" }}
             >
-              {regenerating ? "..." : "Regenerate"}
+              {regenerating ? "…" : "Создать новый"}
             </button>
           </div>
         </div>
       ) : (
-        // ─── Idle state ─────────────────────────────
         <div
-          className="p-4"
+          className="p-4 rounded-xl"
           style={{
-            background: "rgba(10,13,24,0.6)",
+            background: "rgba(255, 255, 255, 0.02)",
             border: "1px solid var(--line)",
           }}
         >
-          <p className="text-[11px] mb-3" style={{ color: "var(--muted)" }}>
-            Токен виден только при регистрации. Если потерял —
-            перегенерируй (все активные туннели отключатся).
+          <p className="text-[13px] mb-3" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+            Нужен только если вы запускаете генерацию на своём компьютере
+            через консольный клиент. Большинству пользователей не нужен.
           </p>
           {auth.tunnelTokenCreatedAt && (
-            <p
-              className="text-[10px] tracking-[0.05em] mb-3"
-              style={{ color: "var(--muted-2)" }}
-            >
-              Created: {new Date(auth.tunnelTokenCreatedAt).toLocaleDateString("ru")}
+            <p className="text-[12px] mb-3" style={{ color: "var(--muted-2)" }}>
+              Создан: {new Date(auth.tunnelTokenCreatedAt).toLocaleDateString("ru")}
             </p>
           )}
           <button
             type="button"
             onClick={() => setShowRegenerate(true)}
-            className="text-[11px] tracking-[0.05em] transition"
-            style={{ color: "var(--magenta)" }}
+            className="text-[13px] transition"
+            style={{ color: "var(--pink)" }}
           >
-            → Regenerate token
+            Создать новый ключ →
           </button>
         </div>
       )}

@@ -3,7 +3,6 @@ import { toast } from "~/lib/stores/toastStore";
 
 type ShareDialogProps = {
   isOpen: boolean;
-  /** ID сайта в Appwrite — обязателен; если null, диалог покажет hint что сайт не сохранён. */
   siteId: string | null;
   onClose: () => void;
 };
@@ -15,17 +14,7 @@ type ShareState =
   | { kind: "error"; message: string };
 
 /**
- * Модалка для создания публичной ссылки на сгенерированный сайт.
- *
- * Flow: открывается → кнопка "Создать ссылку" → POST /api/share → отображает
- * полный URL с кнопкой copy. Не показывает истории share'ов (для этого
- * отдельный экран в Settings когда-нибудь, сейчас YAGNI).
- *
- * Поведение при отсутствии siteId (юзер только что сгенерировал сайт,
- * но сохранение в Appwrite ещё не успело): объясняем что нужно зайти
- * чуть позже. Это нормальный edge-case — saveRemoteSite в
- * useGenerationFlow fire-and-forget, между моментом готовности UI и
- * фактической записью в Appwrite может пройти секунда.
+ * ShareDialog v2 — русский, без "// generating link..." / "⏵ Ready" / Copy / Open.
  */
 export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
   const [state, setState] = useState<ShareState>({ kind: "idle" });
@@ -52,7 +41,7 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
       const fullUrl = `${window.location.origin}${data.url}`;
       setState({ kind: "ready", token: data.token, url: fullUrl, expiresAt: data.expiresAt });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "unknown";
+      const msg = err instanceof Error ? err.message : "неизвестная ошибка";
       setState({ kind: "error", message: msg });
     }
   }, [siteId]);
@@ -65,7 +54,6 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
   }, []);
 
   const handleClose = useCallback(() => {
-    // Reset state при закрытии — следующее открытие начнёт с idle
     setState({ kind: "idle" });
     onClose();
   }, [onClose]);
@@ -75,38 +63,40 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md p-6 relative"
-        style={{ background: "var(--bg)", border: "1px solid var(--line-strong)" }}
+        className="w-full max-w-md p-6 relative rounded-2xl"
+        style={{ background: "var(--bg-2)", border: "1px solid var(--line-strong)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-3 right-3 text-[14px] text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+          className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center transition"
+          style={{ color: "var(--muted)" }}
           aria-label="Закрыть"
         >
-          ✕
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+          </svg>
         </button>
 
-        <h3 className="nit-display text-[18px] mb-2 text-[color:var(--ink)]">
+        <h3 className="nit-display mb-2" style={{ fontSize: 20, color: "var(--ink)" }}>
           Поделиться сайтом
         </h3>
-        <p className="text-[12px] text-[color:var(--muted)] mb-5 leading-[1.6]">
-          Создай публичную read-only ссылку. Получатель увидит сайт без
-          необходимости логиниться. По умолчанию работает 30 дней.
+        <p className="text-[14px] mb-5" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+          Создайте публичную ссылку — её можно отправить кому угодно, входить
+          в аккаунт не нужно. Ссылка работает 30 дней.
         </p>
 
         {!siteId && (
           <div
-            className="p-3 mb-4 text-[12px]"
+            className="p-3 mb-4 text-[13px] rounded-lg"
             style={{ border: "1px solid var(--line)", color: "var(--muted)" }}
           >
-            Сайт ещё не сохранён в облако. Подожди пару секунд и попробуй
-            снова — сохранение идёт в фоне после генерации.
+            Сайт ещё сохраняется. Подождите пару секунд и попробуйте снова.
           </div>
         )}
 
@@ -114,36 +104,41 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
           <button
             type="button"
             onClick={createShare}
-            className="w-full px-4 py-3 text-[11px] font-bold tracking-[0.2em] uppercase text-black transition"
-            style={{ background: "var(--accent)" }}
+            className="btn-primary w-full"
+            style={{ padding: "12px 22px" }}
           >
-            ⏵ Создать ссылку
+            Создать ссылку
           </button>
         )}
 
         {state.kind === "loading" && (
-          <div className="text-[12px] tracking-[0.15em] uppercase text-[color:var(--muted)] py-3 text-center">
-            // generating link...
+          <div className="flex items-center justify-center gap-3 py-4" style={{ color: "var(--muted)" }}>
+            <div
+              className="w-4 h-4 rounded-full animate-spin"
+              style={{ border: "2px solid var(--line)", borderTopColor: "var(--cyan)" }}
+            />
+            <span className="text-[13px]">Создаём ссылку…</span>
           </div>
         )}
 
         {state.kind === "error" && (
-          <div className="p-3 text-[12px]" style={{ border: "1px solid var(--magenta)", color: "var(--magenta)" }}>
+          <div
+            className="p-3 text-[13px] rounded-lg"
+            style={{ border: "1px solid var(--pink)", color: "var(--pink)", background: "rgba(244, 114, 182, 0.06)" }}
+          >
             Ошибка: {state.message}
           </div>
         )}
 
         {state.kind === "ready" && (
           <div className="space-y-3">
-            <div className="text-[10px] tracking-[0.2em] uppercase text-[color:var(--accent-glow)]">
-              ⏵ Ready
-            </div>
             <div
-              className="p-3 font-mono text-[12px] break-all select-all"
+              className="p-3 text-[13px] break-all select-all rounded-lg"
               style={{
                 border: "1px solid var(--line-strong)",
-                background: "var(--bg-glass)",
+                background: "var(--bg)",
                 color: "var(--ink)",
+                fontFamily: "ui-monospace, monospace",
               }}
             >
               {state.url}
@@ -152,23 +147,23 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
               <button
                 type="button"
                 onClick={() => copyUrl(state.url)}
-                className="flex-1 px-3 py-2 text-[10px] tracking-[0.15em] uppercase transition"
-                style={{ border: "1px solid var(--accent)", color: "var(--accent-glow)" }}
+                className="btn-primary flex-1"
+                style={{ padding: "10px 16px", fontSize: 13 }}
               >
-                ⏷ Copy
+                Скопировать
               </button>
               <a
                 href={state.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 px-3 py-2 text-[10px] tracking-[0.15em] uppercase no-underline text-center transition text-[color:var(--muted)] hover:text-[color:var(--ink)]"
-                style={{ border: "1px solid var(--line)" }}
+                className="btn-ghost flex-1 text-center"
+                style={{ padding: "10px 16px", fontSize: 13 }}
               >
-                ↗ Open
+                Открыть
               </a>
             </div>
-            <div className="text-[10px] text-[color:var(--muted-2)] tracking-[0.1em]">
-              Истекает: {new Date(state.expiresAt).toLocaleDateString()}
+            <div className="text-[12px] text-center" style={{ color: "var(--muted-2)" }}>
+              Работает до {new Date(state.expiresAt).toLocaleDateString("ru")}
             </div>
           </div>
         )}

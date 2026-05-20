@@ -1,9 +1,7 @@
 /**
- * AccountSection — секция Account в SettingsDrawer.
- * Показывает:
- *  - email + tunnel-status pulse-dot для authenticated юзера
- *  - Login/Register CTA для unauthenticated
- *  - Log out + Log out everywhere actions
+ * AccountSection v2 — русский, без "// account" префикса. Tunnel-статус скрыт
+ * (юзер не должен видеть техно-индикатор; он есть в TunnelTokenSection для
+ * тех кому это важно).
  */
 
 import { useState } from "react";
@@ -25,10 +23,6 @@ export function AccountSection({ onClose }: Props) {
   }
 
   async function handleLogoutAll() {
-    // Необратимое действие — все сессии на всех устройствах закрываются.
-    // Юзер видит logged-out state на этой вкладке (cookie почищена в ответе),
-    // остальные вкладки/устройства при следующем запросе к API получат 401.
-    // Нативный confirm() уместен для destructive operation.
     // eslint-disable-next-line no-alert -- intentional destructive confirmation
     if (!confirm("Выйти со всех устройств? Все активные сессии будут закрыты.")) {
       return;
@@ -49,24 +43,21 @@ export function AccountSection({ onClose }: Props) {
   if (auth.status === "unauthenticated") {
     return (
       <div>
-        <SectionHeader>// account</SectionHeader>
+        <SectionHeader>Аккаунт</SectionHeader>
         <div className="flex gap-2">
           <a
             href="/login"
-            className="flex-1 text-center px-4 py-3 text-[11px] tracking-[0.15em] uppercase no-underline transition"
-            style={{
-              border: "1px solid var(--line-strong)",
-              color: "var(--ink)",
-            }}
+            className="flex-1 btn-ghost"
+            style={{ padding: "10px 16px", fontSize: 13 }}
           >
-            Login
+            Войти
           </a>
           <a
             href="/register"
-            className="flex-1 text-center px-4 py-3 text-[11px] font-bold tracking-[0.15em] uppercase no-underline text-black transition"
-            style={{ background: "var(--accent)" }}
+            className="flex-1 btn-primary"
+            style={{ padding: "10px 16px", fontSize: 13 }}
           >
-            Register
+            Регистрация
           </a>
         </div>
       </div>
@@ -75,77 +66,49 @@ export function AccountSection({ onClose }: Props) {
 
   if (auth.status !== "authenticated") return null;
 
-  const tunnelOnline = auth.tunnel.status === "online";
-
   return (
     <div>
-      <SectionHeader>// account</SectionHeader>
+      <SectionHeader>Аккаунт</SectionHeader>
       <div
-        className="p-4"
+        className="p-4 rounded-xl"
         style={{
-          background: "rgba(10,13,24,0.6)",
+          background: "rgba(255, 255, 255, 0.02)",
           border: "1px solid var(--line)",
         }}
       >
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[13px] font-mono" style={{ color: "var(--ink)" }}>
-              {auth.email}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[12px] mb-1" style={{ color: "var(--muted-2)" }}>
+              Email
             </div>
-            <div
-              className="text-[10px] tracking-[0.1em] uppercase mt-1.5 flex items-center gap-2"
-              style={{ color: "var(--muted)" }}
-            >
-              tunnel:
-              <span
-                className="flex items-center gap-1.5"
-                style={{ color: tunnelOnline ? "var(--acid)" : "var(--muted)" }}
-              >
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: tunnelOnline ? "var(--acid)" : "var(--muted)",
-                    boxShadow: tunnelOnline ? "0 0 8px var(--acid)" : undefined,
-                    animation: tunnelOnline ? "nit-pulse 2s infinite" : undefined,
-                  }}
-                />
-                {tunnelOnline
-                  ? `online · ${auth.tunnel.activeTunnels}`
-                  : "offline"}
-              </span>
+            <div className="text-[14px] truncate" style={{ color: "var(--ink)" }}>
+              {auth.email}
             </div>
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="px-3 py-2 text-[10px] tracking-[0.15em] uppercase transition"
-            style={{ border: "1px solid var(--line-strong)", color: "var(--magenta)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--magenta)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--line-strong)";
-            }}
+            className="px-3 py-2 text-[13px] rounded-lg transition shrink-0"
+            style={{ border: "1px solid var(--line-strong)", color: "var(--pink)" }}
           >
-            Log out
+            Выйти
           </button>
         </div>
-        {/* Logout-all — отдельная destructive ссылка под основным блоком */}
         <div
-          className="mt-3 pt-3 flex items-center justify-between"
+          className="mt-4 pt-3 flex items-center justify-between gap-3"
           style={{ borderTop: "1px solid var(--line)" }}
         >
-          <span className="text-[10px]" style={{ color: "var(--muted-2)" }}>
-            Если потерял устройство или думаешь, что cookie утекла
+          <span className="text-[12px]" style={{ color: "var(--muted-2)" }}>
+            Если вы потеряли устройство или подозреваете утечку
           </span>
           <button
             type="button"
             onClick={handleLogoutAll}
             disabled={loggingOutAll}
-            className="text-[10px] tracking-[0.1em] uppercase transition disabled:opacity-40"
-            style={{ color: "var(--magenta)" }}
+            className="text-[12px] transition disabled:opacity-40 shrink-0"
+            style={{ color: "var(--pink)" }}
           >
-            {loggingOutAll ? "..." : "→ Log out everywhere"}
+            {loggingOutAll ? "…" : "Выйти везде →"}
           </button>
         </div>
       </div>
@@ -156,8 +119,8 @@ export function AccountSection({ onClose }: Props) {
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="text-[10px] tracking-[0.2em] uppercase mb-3"
-      style={{ color: "var(--accent-glow)" }}
+      className="text-[12px] font-semibold mb-3"
+      style={{ color: "var(--ink-dim)" }}
     >
       {children}
     </div>

@@ -14,38 +14,20 @@ import { toast } from "~/lib/stores/toastStore";
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  /**
-   * Called when user clicks a template — receives full template (with html).
-   * Caller should switch app to editing-mode using template.html + template.prompt.
-   */
   onUse: (template: UserTemplateFull) => void;
 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 /**
- * Drawer со списком пользовательских шаблонов (v2.1 Save as Template
- * follow-up + v2.2 Phase 3 submit-for-review). Параллельный к HistoryPanel,
- * но для `nit_user_templates`:
- *   - listMyTemplates() при открытии
- *   - клик по карточке → getMyTemplate(id) → onUse(template)
- *   - кнопка ✕ на hover → deleteMyTemplate(id)
- *   - кнопка "submit ▲" на hover → submitTemplateForReview(id) (v2.2 Phase 3)
- *
- * Доступен только authenticated юзерам (template — это Appwrite-only фича).
- * Кнопка в home.tsx рендерится только при auth.status === "authenticated".
- *
- * Submit-state хранится в localStorage "nit-submitted-templates" — нужно
- * чтобы юзер видел "pending review" badge сразу после отправки, без
- * необходимости миграции Appwrite-схемы (отдельное поле submittedAt
- * в коллекции — backlog для v2.3+).
+ * MyTemplatesPanel v2 — русский, без "// templates" / "MY TEMPLATES" /
+ * "NO TEMPLATES" / "zones" / "submit ▲".
  */
 export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
   const [state, setState] = useState<LoadState>("idle");
   const [templates, setTemplates] = useState<UserTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
-  // Locally-submitted set (v2.2 Phase 3) — кэш из localStorage.
   const [submittedSet, setSubmittedSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -64,7 +46,6 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
       }
     })();
 
-    // Подтягиваем локально-отправленные шаблоны
     if (typeof window !== "undefined") {
       const initial = new Set<string>();
       try {
@@ -78,14 +59,14 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
           }
         }
       } catch {
-        // ignore
+        /* ignore */
       }
       setSubmittedSet(initial);
     }
   }, [isOpen]);
 
   async function handleUse(id: string) {
-    if (loadingId) return; // уже идёт загрузка другого
+    if (loadingId) return;
     setLoadingId(id);
     try {
       const full = await getMyTemplate(id);
@@ -141,64 +122,47 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end p-4"
+      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end"
       style={{ background: "rgba(0,0,0,0.7)" }}
       onClick={onClose}
     >
       <div
         className="w-full max-w-md h-full overflow-hidden flex flex-col"
         style={{
-          background: "var(--bg)",
-          border: "1px solid var(--line-strong)",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
+          background: "var(--bg-2)",
+          borderLeft: "1px solid var(--line-strong)",
+          boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="px-6 py-5 flex items-center justify-between"
+          className="px-5 py-4 flex items-center justify-between shrink-0"
           style={{ borderBottom: "1px solid var(--line)" }}
         >
           <div>
-            <div
-              className="text-[10px] tracking-[0.2em] uppercase mb-1"
-              style={{ color: "var(--accent-glow)" }}
-            >
-              // templates
-            </div>
-            <h3 className="nit-display text-[20px]" style={{ color: "var(--ink)" }}>
-              MY TEMPLATES
+            <h3 className="nit-display" style={{ fontSize: 18, color: "var(--ink)" }}>
+              Мои шаблоны
             </h3>
-            <p
-              className="text-[10px] tracking-[0.1em] uppercase mt-1"
-              style={{ color: "var(--muted-2)" }}
-            >
+            <p className="text-[12px] mt-1" style={{ color: "var(--muted-2)" }}>
               {state === "loading"
-                ? "loading..."
+                ? "Загружаем…"
                 : state === "error"
-                  ? "error"
+                  ? "Ошибка загрузки"
                   : templates.length === 0
-                    ? "empty"
-                    : `${templates.length} · saved`}
+                    ? "Пока пусто"
+                    : `Сохранено: ${templates.length} / 50`}
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-9 h-9 transition flex items-center justify-center"
-            style={{
-              border: "1px solid var(--line-strong)",
-              color: "var(--muted)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--magenta)";
-              e.currentTarget.style.color = "var(--magenta)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--line-strong)";
-              e.currentTarget.style.color = "var(--muted)";
-            }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center transition"
+            style={{ color: "var(--muted)" }}
+            aria-label="Закрыть"
           >
-            ✕
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
 
@@ -208,45 +172,24 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="p-4 animate-pulse"
-                  style={{
-                    background: "rgba(10,13,24,0.6)",
-                    border: "1px solid var(--line)",
-                  }}
+                  className="p-4 rounded-xl animate-pulse"
+                  style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--line)" }}
                 >
-                  <div
-                    className="h-3 w-2/3 mb-3"
-                    style={{ background: "var(--line-strong)" }}
-                  />
-                  <div
-                    className="h-2 w-1/2"
-                    style={{ background: "var(--line)" }}
-                  />
+                  <div className="h-3 w-2/3 mb-3 rounded" style={{ background: "var(--line-strong)" }} />
+                  <div className="h-2 w-1/2 rounded" style={{ background: "var(--line)" }} />
                 </div>
               ))}
             </div>
           )}
 
           {state === "ready" && templates.length === 0 && (
-            <div className="text-center py-20">
-              <div
-                className="text-[10px] tracking-[0.2em] uppercase mb-3"
-                style={{ color: "var(--muted-2)" }}
-              >
-                // null
-              </div>
-              <p
-                className="nit-display text-[24px] mb-3"
-                style={{ color: "var(--muted)" }}
-              >
-                NO TEMPLATES
-              </p>
-              <p
-                className="text-[11px] tracking-[0.05em] max-w-[280px] mx-auto"
-                style={{ color: "var(--muted-2)" }}
-              >
-                Сохрани удачный сайт как шаблон через ★ Save —
-                сможешь использовать его как стартовую точку
+            <div className="text-center py-16">
+              <div className="text-4xl mb-4 opacity-40">⭐</div>
+              <h4 className="nit-display mb-2" style={{ fontSize: 18, color: "var(--ink)" }}>
+                Шаблонов пока нет
+              </h4>
+              <p className="text-[13px] max-w-[280px] mx-auto" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+                Создайте сайт и нажмите «Сохранить» в редакторе — он появится здесь.
               </p>
             </div>
           )}
@@ -261,76 +204,49 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
                   type="button"
                   disabled={loadingId === t.id}
                   onClick={() => handleUse(t.id)}
-                  className="w-full text-left p-4 transition group disabled:opacity-50"
+                  className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50"
                   style={{
-                    background: "rgba(10,13,24,0.6)",
+                    background: "rgba(255, 255, 255, 0.02)",
                     border: "1px solid var(--line)",
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--accent)";
-                    e.currentTarget.style.background = "rgba(0,212,255,0.04)";
+                    e.currentTarget.style.borderColor = "var(--line-hover)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.borderColor = "var(--line)";
-                    e.currentTarget.style.background = "rgba(10,13,24,0.6)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
                   }}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p
-                        className="nit-display text-[14px] mb-1 truncate"
-                        style={{ color: "var(--ink)" }}
-                      >
+                      <p className="font-semibold text-[14px] mb-1 truncate" style={{ color: "var(--ink)" }}>
                         {t.name}
                       </p>
                       {t.prompt && (
-                        <p
-                          className="text-[11px] font-mono line-clamp-2 leading-snug"
-                          style={{ color: "var(--muted)" }}
-                        >
+                        <p className="text-[12px] line-clamp-2 leading-snug" style={{ color: "var(--muted)" }}>
                           {t.prompt}
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {t.hasZones && (
-                          <span
-                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                            style={{
-                              color: "var(--acid)",
-                              border: "1px solid var(--line-strong)",
-                            }}
-                          >
-                            zones
-                          </span>
-                        )}
                         {t.isPublic && (
                           <span
-                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                            style={{
-                              color: "var(--accent-glow)",
-                              border: "1px solid var(--accent-glow)",
-                            }}
-                            title="Опубликован в галерее"
+                            className="text-[11px] px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--green)", background: "rgba(34, 197, 94, 0.08)" }}
+                            title="Опубликован в галерее сообщества"
                           >
-                            public · ▲ {t.votes}
+                            В галерее · ▲ {t.votes}
                           </span>
                         )}
                         {!t.isPublic && submittedSet.has(t.id) && (
                           <span
-                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                            style={{
-                              color: "var(--muted)",
-                              border: "1px dashed var(--line-strong)",
-                            }}
-                            title="Ждёт модерации"
+                            className="text-[11px] px-2 py-0.5 rounded-md"
+                            style={{ color: "var(--muted)", border: "1px dashed var(--line-strong)" }}
                           >
-                            pending review
+                            На модерации
                           </span>
                         )}
-                        <span
-                          className="text-[10px] tracking-[0.05em]"
-                          style={{ color: "var(--muted-2)" }}
-                        >
+                        <span className="text-[12px]" style={{ color: "var(--muted-2)" }}>
                           {formatDate(t.createdAt)}
                         </span>
                       </div>
@@ -339,42 +255,29 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
                       <button
                         type="button"
                         onClick={(e) => handleDelete(t.id, e)}
-                        className="opacity-0 group-hover:opacity-100 transition text-[14px]"
+                        className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center"
                         style={{ color: "var(--muted)" }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = "var(--magenta)";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = "var(--muted)";
-                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--pink)"; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
                         aria-label="Удалить шаблон"
                       >
-                        ✕
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
                       </button>
                       {!isSubmitted && (
                         <button
                           type="button"
                           disabled={isSubmitting}
                           onClick={(e) => handleSubmit(t.id, e)}
-                          className="opacity-0 group-hover:opacity-100 transition text-[9px] tracking-[0.15em] uppercase px-2 py-1 disabled:opacity-30"
+                          className="opacity-0 group-hover:opacity-100 transition text-[11px] px-2 py-1 rounded-md disabled:opacity-30"
                           style={{
-                            color: "var(--accent-glow)",
+                            color: "var(--cyan)",
                             border: "1px solid var(--line-strong)",
                           }}
-                          onMouseEnter={(e) => {
-                            if (!isSubmitting) {
-                              e.currentTarget.style.borderColor = "var(--accent-glow)";
-                              e.currentTarget.style.background = "rgba(0,212,255,0.08)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = "var(--line-strong)";
-                            e.currentTarget.style.background = "transparent";
-                          }}
-                          title="Отправить в галерею на модерацию"
-                          aria-label="Submit for review"
+                          title="Отправить в общую галерею"
                         >
-                          {isSubmitting ? "…" : "submit ▲"}
+                          {isSubmitting ? "…" : "В галерею"}
                         </button>
                       )}
                     </div>
@@ -383,20 +286,6 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
               );
             })}
         </div>
-
-        {state === "ready" && templates.length > 0 && (
-          <div
-            className="px-5 py-4"
-            style={{ borderTop: "1px solid var(--line)" }}
-          >
-            <p
-              className="text-[10px] tracking-[0.1em] uppercase text-center"
-              style={{ color: "var(--muted-2)" }}
-            >
-              ✓ private library · {templates.length} / 50
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );
