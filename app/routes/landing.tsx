@@ -1,40 +1,30 @@
 /**
- * Landing page (/about). Композирует секции из app/components/landing/.
+ * Landing page (/about) — v3 minimal mono à la bolt.new.
  *
- * v2.2: убраны HorizontalParticles и сокращены вертикальные Particles
- * (с 35 до 14) — фидбек по визуальному шуму. Оставлены только
- * ConicRays + GridBg + Orbs + Beams — три слоя вместо пяти.
+ * Концепция: чёрный фон, белый текст, один акцент, без неона и глитча.
+ * Hero — промпт-инпут по образцу bolt.new. Режем с 11 секций до 5.
+ *
+ * Старые секции (ProblemSection, HardwareSection, TechStackSection, FaqSection,
+ * TimelineSection, FeaturesSection) остаются в файлах для возможного отката,
+ * но больше не импортируются.
  */
 
 import { useAuth } from "~/lib/contexts/AuthContext";
-import {
-  Beams,
-  ConicRays,
-  GridBg,
-  Marquee,
-  Orbs,
-  Particles,
-} from "~/components/nit";
 import { LandingNav } from "~/components/landing/LandingNav";
 import { HeroSection } from "~/components/landing/HeroSection";
-import { ProblemSection } from "~/components/landing/ProblemSection";
-import { ComparisonSection } from "~/components/landing/ComparisonSection";
+import { TemplatesSection } from "~/components/landing/TemplatesSection";
 import { HowItWorksSection } from "~/components/landing/HowItWorksSection";
-import { HardwareSection } from "~/components/landing/HardwareSection";
-import { FeaturesSection } from "~/components/landing/FeaturesSection";
-import { TechStackSection } from "~/components/landing/TechStackSection";
-import { FaqSection } from "~/components/landing/FaqSection";
-import { TimelineSection } from "~/components/landing/TimelineSection";
+import { ComparisonSection } from "~/components/landing/ComparisonSection";
 import { CtaSection } from "~/components/landing/CtaSection";
 import { LandingFooter } from "~/components/landing/LandingFooter";
 
 export function meta() {
   return [
-    { title: "NITGEN // AI sites on your own GPU" },
+    { title: "NITGEN — AI конструктор сайтов на твоём GPU" },
     {
       name: "description",
       content:
-        "AI-конструктор сайтов, работающий на твоём GPU через peer-to-peer туннель. Никакого облака, никаких подписок, только локальные LLM. Open source.",
+        "Опиши сайт — получи HTML из своего GPU. Без облака, без лимитов. Open source.",
     },
   ];
 }
@@ -44,41 +34,15 @@ export default function Landing() {
   const isAuthed = auth.status === "authenticated";
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)] nit-grain">
-      {/* Background-эффекты — fixed-positioned. Сокращено до 4 слоёв
-          (было 6): убраны HorizontalParticles, Particles 35→14. */}
-      <ConicRays />
-      <GridBg />
-      <Orbs />
-      <Beams />
-      <Particles count={14} />
-
+    <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)]">
       <LandingNav isAuthed={isAuthed} />
-      <HeroSection isAuthed={isAuthed} />
-
-      <Marquee
-        items={[
-          { text: "YOUR GPU" },
-          { text: "YOUR CODE", variant: "outline" },
-          { text: "✦", variant: "star" },
-          { text: "NO CLOUD" },
-          { text: "NO LIMITS", variant: "outline" },
-          { text: "✦", variant: "star" },
-          { text: "OPEN SOURCE" },
-          { text: "ZERO BULLSHIT", variant: "outline" },
-          { text: "✦", variant: "star" },
-        ]}
-      />
-
-      <ProblemSection />
-      <ComparisonSection />
-      <HowItWorksSection />
-      <HardwareSection />
-      <FeaturesSection />
-      <TechStackSection />
-      <FaqSection />
-      <TimelineSection />
-      <CtaSection isAuthed={isAuthed} />
+      <main className="relative z-10">
+        <HeroSection isAuthed={isAuthed} />
+        <TemplatesSection />
+        <HowItWorksSection />
+        <ComparisonSection />
+        <CtaSection isAuthed={isAuthed} />
+      </main>
       <LandingFooter />
     </div>
   );
