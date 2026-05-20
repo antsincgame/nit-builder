@@ -9,43 +9,29 @@ import {
 } from "~/lib/stores/userTemplatesStore";
 import { toast } from "~/lib/stores/toastStore";
 import { ToastContainer } from "~/components/simple/ToastContainer";
-import { GridBg, Orbs, Chip, Particles } from "~/components/nit";
 
 export function meta() {
   return [
-    { title: "NITGEN — Community templates" },
+    { title: "Шаблоны сообщества · NITGEN" },
     {
       name: "description",
       content:
-        "Публичная галерея шаблонов от других юзеров NITGEN. Возьми любой как стартовую точку.",
+        "Публичная галерея шаблонов от других пользователей. Возьмите любой как стартовую точку.",
     },
   ];
 }
 
 /**
- * /templates — публичная галерея community-шаблонов (v2.2 Phase 2/3).
- *
- * Загрузка через fetch /api/public-templates на клиенте (не SSR loader)
- * для согласованности с остальным flow (home.tsx тоже client-fetch).
- * Клик по карточке → fetch full → sessionStorage с pending-template
- * payload → переход на /. home.tsx при mount подберёт это и загрузит
- * шаблон как стартовую точку через handleUseTemplate.
- *
- * Phase 3: vote-кнопка ▲ на каждой карточке. localStorage дедуп через
- * "nit-voted-templates" ключ — если юзер уже голосовал за шаблон в этой
- * браузер-сессии, кнопка disabled. Server-side persistent vote registry
- * — backlog для v2.3+ (см. doc в voteForTemplate в appwrite.server.ts).
- *
- * Без auth — открыт guest'ам. Использовать шаблон могут только authed
- * юзеры (после редиректа на / увидят форму регистрации если не залогинены).
+ * /templates v2 — галерея сообщества, полностью переписана на русском и приведена
+ * к дизайн-токенам v3.2. Была мешанина: "COMMUNITY TEMPLATES", "GALLERY IS
+ * EMPTY", "use →", "zones", "loading...", "// error", "← Home", старые
+ * GridBg/Orbs/Particles/Chip.
  */
 export default function PublicTemplatesGallery() {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [templates, setTemplates] = useState<PublicTemplateSummary[]>([]);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [votingId, setVotingId] = useState<string | null>(null);
-  // Reactive snapshot localStorage'а — обновляем после каждого vote чтобы UI
-  // мгновенно показывал disabled-состояние ▲ кнопки.
   const [votedSet, setVotedSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -59,7 +45,6 @@ export default function PublicTemplatesGallery() {
         setState("error");
       }
     })();
-    // Подтягиваем locally-voted set из localStorage один раз при mount.
     if (typeof window !== "undefined") {
       const initial = new Set<string>();
       try {
@@ -73,7 +58,7 @@ export default function PublicTemplatesGallery() {
           }
         }
       } catch {
-        // ignore — пустой set ок
+        /* ignore */
       }
       setVotedSet(initial);
     }
@@ -86,12 +71,9 @@ export default function PublicTemplatesGallery() {
       const full = await getPublicTemplate(id);
       if (!full) {
         toast.error("Шаблон больше недоступен");
-        // Локально remove чтобы не висел в UI
         setTemplates((prev) => prev.filter((t) => t.id !== id));
         return;
       }
-      // sessionStorage: home.tsx при mount проверяет ключ и загружает
-      // template через handleUseTemplate. Ключ затрётся после consume.
       try {
         sessionStorage.setItem(
           "nit-pending-template",
@@ -104,7 +86,7 @@ export default function PublicTemplatesGallery() {
         );
       } catch (storageErr) {
         console.error("[/templates] sessionStorage failed:", storageErr);
-        toast.error("Не удалось передать шаблон — попробуй ещё раз");
+        toast.error("Не удалось загрузить шаблон. Попробуйте ещё раз.");
         return;
       }
       window.location.href = "/";
@@ -117,7 +99,7 @@ export default function PublicTemplatesGallery() {
     e.stopPropagation();
     if (votingId) return;
     if (hasVotedFor(id)) {
-      toast.info("Ты уже голосовал за этот шаблон");
+      toast.info("Вы уже голосовали за этот шаблон");
       return;
     }
     setVotingId(id);
@@ -133,7 +115,6 @@ export default function PublicTemplatesGallery() {
         next.add(id);
         return next;
       });
-      // Обновляем счётчик в локальном state без рефетча
       setTemplates((prev) =>
         prev.map((t) => (t.id === id ? { ...t, votes: newVotes } : t)),
       );
@@ -144,60 +125,69 @@ export default function PublicTemplatesGallery() {
   }
 
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] nit-grain overflow-x-hidden">
-      <GridBg />
-      <Orbs />
-      <Particles count={20} />
+    <div className="relative min-h-screen text-[color:var(--ink)] overflow-x-hidden">
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
       <ToastContainer />
 
-      <nav
-        className="relative z-10 px-8 py-5 flex justify-between items-center max-w-[1400px] mx-auto"
-        style={{ borderBottom: "1px solid var(--line)" }}
+      <header
+        className="relative z-10 sticky top-0 backdrop-blur-md"
+        style={{
+          background: "rgba(10, 11, 16, 0.7)",
+          borderBottom: "1px solid var(--line)",
+        }}
       >
-        <a href="/" className="flex items-center gap-3 no-underline">
-          <span
-            className="block w-7 h-7 relative"
-            style={{
-              background:
-                "conic-gradient(from 0deg, var(--accent), var(--magenta), var(--acid), var(--accent))",
-              animation: "nit-spin 8s linear infinite",
-            }}
-          >
-            <span
-              className="absolute inset-[3px]"
-              style={{ background: "var(--bg)" }}
-            />
-          </span>
-          <span className="nit-display text-lg text-[color:var(--ink)]">
-            NITGEN
-          </span>
-        </a>
-
-        <a
-          href="/"
-          className="px-4 py-2 text-[11px] tracking-[0.15em] uppercase no-underline transition text-[color:var(--muted)] hover:text-[color:var(--ink)]"
-          style={{ border: "1px solid var(--line)" }}
-        >
-          ← Home
-        </a>
-      </nav>
-
-      <main className="relative z-10 max-w-[1400px] mx-auto px-8 pt-12 md:pt-16 pb-20">
-        <div className="mb-10">
-          <Chip color="acid">⏵ Community gallery · public</Chip>
-          <h1
-            className="nit-display mt-6 mb-4"
-            style={{ fontSize: "clamp(40px, 6vw, 72px)" }}
-          >
-            COMMUNITY TEMPLATES
-          </h1>
-          <p
-            className="text-[14px] max-w-[640px] leading-[1.7]"
+        <div className="max-w-[1200px] mx-auto px-5 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2 no-underline">
+            <div
+              className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
+              style={{ background: "var(--ink)", color: "var(--bg)" }}
+            >
+              N
+            </div>
+            <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
+          </a>
+          <a
+            href="/"
+            className="text-[13px] transition-colors"
             style={{ color: "var(--muted)" }}
           >
-            Шаблоны от других юзеров NITGEN, одобренные модерацией. Возьми
-            любой как стартовую точку — система загрузит его в редактор,
-            и ты сможешь полировать дальше через AI.
+            ← На главную
+          </a>
+        </div>
+      </header>
+
+      <main className="relative z-10 max-w-[1200px] mx-auto px-5 sm:px-8 pt-10 sm:pt-16 pb-20">
+        <div className="section-tint section-tint-violet" aria-hidden />
+        <div className="relative mb-10 sm:mb-14 text-center">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 rounded-full text-[12px]"
+            style={{
+              border: "1px solid var(--line-strong)",
+              background: "rgba(19, 20, 27, 0.6)",
+              color: "var(--muted)",
+            }}
+          >
+            Галерея сообщества
+          </div>
+          <h1
+            className="nit-display mb-4"
+            style={{ fontSize: "clamp(32px, 5.5vw, 48px)", color: "var(--ink)" }}
+          >
+            Шаблоны
+            <br />
+            <span className="nit-text-gradient-cyan">от пользователей</span>
+          </h1>
+          <p
+            className="max-w-[560px] mx-auto"
+            style={{ fontSize: "clamp(14px, 2vw, 16px)", color: "var(--muted)", lineHeight: 1.6 }}
+          >
+            Готовые сайты, которые сделали другие люди в NITGEN. Возьмите любой за основу и
+            доработайте под свой бизнес.
           </p>
         </div>
 
@@ -206,22 +196,22 @@ export default function PublicTemplatesGallery() {
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="p-5 animate-pulse"
+                className="p-5 rounded-xl animate-pulse"
                 style={{
-                  background: "rgba(10,13,24,0.6)",
+                  background: "rgba(19, 20, 27, 0.6)",
                   border: "1px solid var(--line)",
                 }}
               >
                 <div
-                  className="h-4 w-3/4 mb-3"
+                  className="h-4 w-3/4 mb-3 rounded"
                   style={{ background: "var(--line-strong)" }}
                 />
                 <div
-                  className="h-3 w-1/2 mb-6"
+                  className="h-3 w-1/2 mb-6 rounded"
                   style={{ background: "var(--line)" }}
                 />
                 <div
-                  className="h-2 w-1/3"
+                  className="h-2 w-1/3 rounded"
                   style={{ background: "var(--line)" }}
                 />
               </div>
@@ -231,66 +221,52 @@ export default function PublicTemplatesGallery() {
 
         {state === "error" && (
           <div
-            className="p-6 text-center"
+            className="p-6 rounded-xl text-center"
             style={{
-              border: "1px solid var(--magenta)",
-              background: "rgba(255,46,147,0.05)",
+              border: "1px solid var(--pink)",
+              background: "rgba(244, 114, 182, 0.06)",
             }}
           >
-            <p
-              className="text-[12px] tracking-[0.2em] uppercase mb-2"
-              style={{ color: "var(--magenta)" }}
-            >
-              // error
-            </p>
-            <p className="text-[13px]" style={{ color: "var(--muted)" }}>
-              Не удалось загрузить шаблоны. Попробуй обновить страницу.
+            <p className="text-[14px]" style={{ color: "var(--ink-dim)" }}>
+              Не удалось загрузить шаблоны. Попробуйте обновить страницу.
             </p>
           </div>
         )}
 
         {state === "ready" && templates.length === 0 && (
-          <div className="text-center py-20">
-            <div
-              className="text-[10px] tracking-[0.2em] uppercase mb-3"
-              style={{ color: "var(--muted-2)" }}
+          <div className="text-center py-16">
+            <div className="text-5xl mb-5 opacity-40">💭</div>
+            <h2
+              className="nit-display mb-3"
+              style={{ fontSize: 24, color: "var(--ink)" }}
             >
-              // null
-            </div>
+              Пока пусто
+            </h2>
             <p
-              className="nit-display text-[32px] mb-3"
-              style={{ color: "var(--muted)" }}
+              className="max-w-[420px] mx-auto mb-7 text-[14px]"
+              style={{ color: "var(--muted)", lineHeight: 1.55 }}
             >
-              GALLERY IS EMPTY
+              Ребята ещё не поделились своими сайтами. Создайте свой первый
+              и сохраните как шаблон — будет виден в этой галерее.
             </p>
-            <p
-              className="text-[12px] tracking-[0.05em] max-w-[400px] mx-auto"
-              style={{ color: "var(--muted-2)" }}
-            >
-              Юзеры ещё не опубликовали шаблоны. Создай свой первый сайт и
-              сохрани его как шаблон — модерация рассмотрит и добавит в
-              галерею.
-            </p>
-            <a
-              href="/"
-              className="inline-block mt-6 px-5 py-3 text-[11px] font-bold tracking-[0.15em] uppercase text-black no-underline transition"
-              style={{ background: "var(--accent)" }}
-            >
-              Создать сайт →
+            <a href="/" className="btn-primary" style={{ padding: "12px 24px" }}>
+              Создать сайт
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+              </svg>
             </a>
           </div>
         )}
 
         {state === "ready" && templates.length > 0 && (
           <>
-            <div className="mb-6 flex items-center gap-3 text-[10px] tracking-[0.2em] uppercase">
-              <span
-                className="w-10 h-px"
-                style={{ background: "var(--accent-glow)" }}
-              />
-              <span style={{ color: "var(--accent-glow)" }}>
-                {templates.length} templates
-              </span>
+            <div className="mb-6 text-[13px]" style={{ color: "var(--muted)" }}>
+              {templates.length === 1
+                ? "1 шаблон"
+                : templates.length < 5
+                  ? `${templates.length} шаблона`
+                  : `${templates.length} шаблонов`}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -301,18 +277,10 @@ export default function PublicTemplatesGallery() {
                 return (
                   <div
                     key={t.id}
-                    className="p-5 transition group"
+                    className="nit-card-glow p-5 rounded-xl group"
                     style={{
-                      background: "rgba(10,13,24,0.6)",
+                      background: "rgba(19, 20, 27, 0.7)",
                       border: "1px solid var(--line)",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = "var(--accent)";
-                      e.currentTarget.style.background = "rgba(0,212,255,0.04)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = "var(--line)";
-                      e.currentTarget.style.background = "rgba(10,13,24,0.6)";
                     }}
                   >
                     <button
@@ -322,14 +290,14 @@ export default function PublicTemplatesGallery() {
                       className="w-full text-left disabled:opacity-50"
                     >
                       <h3
-                        className="nit-display text-[16px] mb-2 truncate"
+                        className="font-semibold text-[16px] sm:text-[17px] mb-2 truncate"
                         style={{ color: "var(--ink)" }}
                       >
                         {t.name}
                       </h3>
                       {t.prompt && (
                         <p
-                          className="text-[11px] font-mono line-clamp-3 leading-snug mb-4"
+                          className="text-[13px] line-clamp-3 leading-snug mb-4"
                           style={{ color: "var(--muted)" }}
                         >
                           {t.prompt}
@@ -337,51 +305,29 @@ export default function PublicTemplatesGallery() {
                       )}
                     </button>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          disabled={isVoting || isVoted}
-                          onClick={(e) => handleVote(t.id, e)}
-                          className="text-[10px] tracking-[0.15em] uppercase px-2 py-1 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{
-                            color: isVoted ? "var(--acid)" : "var(--accent-glow)",
-                            border: "1px solid var(--line-strong)",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isVoted && !isVoting) {
-                              e.currentTarget.style.borderColor = "var(--accent-glow)";
-                              e.currentTarget.style.background = "rgba(0,212,255,0.08)";
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.borderColor = "var(--line-strong)";
-                            e.currentTarget.style.background = "transparent";
-                          }}
-                          title={isVoted ? "Ты уже голосовал" : "Проголосовать"}
-                          aria-label="Vote for template"
-                        >
-                          {isVoting ? "…" : `▲ ${t.votes}`}
-                        </button>
-                        {t.hasZones && (
-                          <span
-                            className="text-[9px] tracking-[0.15em] uppercase px-1.5 py-0.5"
-                            style={{
-                              color: "var(--acid)",
-                              border: "1px solid var(--line-strong)",
-                            }}
-                          >
-                            zones
-                          </span>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        disabled={isVoting || isVoted}
+                        onClick={(e) => handleVote(t.id, e)}
+                        className="text-[12px] px-2.5 py-1 rounded-md transition disabled:cursor-not-allowed"
+                        style={{
+                          color: isVoted ? "var(--green)" : "var(--muted)",
+                          border: "1px solid var(--line-strong)",
+                          background: isVoted ? "rgba(34, 197, 94, 0.08)" : "transparent",
+                        }}
+                        title={isVoted ? "Вы уже голосовали" : "Проголосовать"}
+                        aria-label="Проголосовать за шаблон"
+                      >
+                        {isVoting ? "…" : `▲ ${t.votes}`}
+                      </button>
                       <button
                         type="button"
                         disabled={isLoading}
                         onClick={() => handleUse(t.id)}
-                        className="text-[10px] tracking-[0.15em] uppercase opacity-0 group-hover:opacity-100 transition disabled:opacity-50"
-                        style={{ color: "var(--accent-glow)" }}
+                        className="text-[12px] font-medium transition disabled:opacity-50"
+                        style={{ color: "var(--cyan)" }}
                       >
-                        {isLoading ? "loading..." : "use →"}
+                        {isLoading ? "Грузим…" : "Использовать →"}
                       </button>
                     </div>
                   </div>
@@ -393,23 +339,19 @@ export default function PublicTemplatesGallery() {
       </main>
 
       <footer
-        className="relative z-10 py-10 text-center text-[10px] tracking-[0.15em] uppercase"
+        className="relative z-10 px-5 sm:px-8 py-8 text-center text-[13px]"
         style={{
           borderTop: "1px solid var(--line)",
           color: "var(--muted-2)",
         }}
       >
-        <div className="max-w-6xl mx-auto px-8 flex flex-wrap justify-center items-center gap-6">
-          <span>NITGEN · COMMUNITY GALLERY</span>
-          <span className="hidden md:inline">·</span>
-          <a
-            href="/"
-            className="no-underline transition hover:text-[color:var(--accent-glow)]"
-            style={{ color: "inherit" }}
-          >
-            ← BACK TO HOME
-          </a>
-        </div>
+        <a
+          href="/"
+          className="transition-colors"
+          style={{ color: "var(--muted)" }}
+        >
+          ← На главную
+        </a>
       </footer>
     </div>
   );

@@ -21,22 +21,36 @@ export const links: LinksFunction = () => [
   },
 ];
 
+/**
+ * Root meta — fallback для всех страниц + og/twitter для соцсетей.
+ * Раньше было: "LLM", "GPU", "LM Studio", "peer-to-peer туннель", "inference",
+ * "Open source" — всё это отображалось при шаре ссылки в мессенджерах.
+ */
 export const meta = () => [
-  { title: "NITGEN — AI конструктор сайтов через локальную LLM" },
+  { title: "NITGEN — Создавайте сайты бесплатно" },
   {
     name: "description",
-    content: "Создавай сайты на своём GPU через LM Studio. Никакого облака, никаких подписок, только локальный inference. Open source.",
+    content:
+      "Расскажите, что вы делаете — приложение само соберёт сайт за минуту. Без программирования, без подписок, всё работает на вашем компьютере.",
   },
-  { property: "og:title", content: "NITGEN — Создай сайт за минуту" },
-  { property: "og:description", content: "AI-конструктор сайтов работающий на твоём GPU через peer-to-peer туннель. Только локальные LLM, никакого облака." },
+  { property: "og:title", content: "NITGEN — Сделайте сайт за минуту" },
+  {
+    property: "og:description",
+    content:
+      "Простое приложение для создания сайтов. Без программистов, без подписок — бесплатно навсегда.",
+  },
   { property: "og:type", content: "website" },
   { property: "og:image", content: "/og-image.svg" },
   { property: "og:image:width", content: "1200" },
   { property: "og:image:height", content: "630" },
   { property: "og:locale", content: "ru_RU" },
   { name: "twitter:card", content: "summary_large_image" },
-  { name: "twitter:title", content: "NITGEN — Создай сайт за минуту" },
-  { name: "twitter:description", content: "AI-конструктор сайтов для локальной LLM. Бесплатно, приватно, open source." },
+  { name: "twitter:title", content: "NITGEN — Сделайте сайт за минуту" },
+  {
+    name: "twitter:description",
+    content:
+      "Простое приложение для создания сайтов без программистов. Бесплатно, приватно.",
+  },
   { name: "twitter:image", content: "/og-image.svg" },
 ];
 
@@ -46,7 +60,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#05060a" />
+        <meta name="theme-color" content="#0a0b10" />
         <Meta />
         <Links />
       </head>
@@ -67,34 +81,56 @@ export default function App() {
   );
 }
 
+/**
+ * ErrorBoundary v2 — переведён на русский, приведён к токенам v3.2.
+ * Было: "// system error", "← Back to root", старые nit-orb классы.
+ */
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Неизвестная ошибка";
-  let details = "Что-то пошло не так. Попробуй обновить страницу.";
+  let message = "Ошибка";
+  let details = "Что-то пошло не так. Попробуйте обновить страницу.";
 
   if (isRouteErrorResponse(error)) {
     message = error.status === 404 ? "404" : `${error.status}`;
-    details = error.status === 404 ? "Страница не найдена" : error.statusText || details;
+    details = error.status === 404 ? "Страница не найдена" : "Что-то пошло не так";
   } else if (error instanceof Error) {
-    details = error.message;
+    // Не показываем технические сообщения обычным пользователям — только лог.
+    console.error("[ErrorBoundary]", error);
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-      <div className="nit-grid-bg" />
-      <div className="nit-orb nit-orb-1" />
-      <div className="nit-orb nit-orb-2" />
+    <div
+      className="relative min-h-screen flex flex-col items-center justify-center p-6 text-center overflow-hidden"
+      style={{ background: "var(--bg)", color: "var(--ink)" }}
+    >
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
+
       <div className="relative z-10">
-        <div className="nit-label mb-6">// system error</div>
-        <h1 className="nit-display text-8xl md:text-[10rem] mb-6 text-[color:var(--accent-glow)]">
-          {message}
-        </h1>
-        <p className="text-[color:var(--muted)] mb-10 max-w-md mx-auto">{details}</p>
-        <a
-          href="/"
-          className="inline-block px-8 py-4 bg-[color:var(--accent)] text-black font-bold text-xs tracking-[0.15em] uppercase hover:bg-[color:var(--accent-glow)] transition"
-          style={{ boxShadow: "var(--glow-cyan)" }}
+        <h1
+          className="nit-display mb-5 sm:mb-6"
+          style={{ fontSize: "clamp(72px, 14vw, 140px)", color: "var(--ink)" }}
         >
-          ← Back to root
+          <span className="nit-text-gradient-cyan">{message}</span>
+        </h1>
+        <p
+          className="mb-8 max-w-md mx-auto"
+          style={{
+            fontSize: "clamp(15px, 2vw, 17px)",
+            color: "var(--muted)",
+            lineHeight: 1.55,
+          }}
+        >
+          {details}
+        </p>
+        <a href="/" className="btn-primary" style={{ padding: "12px 24px" }}>
+          На главную
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M5 12h14" />
+            <path d="m12 5 7 7-7 7" />
+          </svg>
         </a>
       </div>
     </div>
