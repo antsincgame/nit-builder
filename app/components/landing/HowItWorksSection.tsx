@@ -1,26 +1,26 @@
 /**
- * HowItWorksSection v4 — упрощённый язык, без «Planner LLM»/«Coder LLM».
+ * HowItWorksSection v4.1 — убраны "HTML-файл» и "хостинг».
  */
 
 import { RevealOnScroll } from "~/components/landing/RevealOnScroll";
 
 const STEPS = [
   {
-    num: "01",
-    title: "Расскажите о бизнесе",
+    num: "1",
+    title: "Расскажите о себе",
     desc: "Одно предложение простыми словами — что вы делаете и для кого.",
     color: "var(--cyan)",
   },
   {
-    num: "02",
-    title: "Смотрите как рождается сайт",
-    desc: "Приложение подберёт дизайн и структуру. Прямо на экране — в прямом эфире.",
+    num: "2",
+    title: "Смотрите, как появляется сайт",
+    desc: "Приложение подберёт дизайн и всё напишет. Вы видите результат прямо на экране.",
     color: "var(--violet)",
   },
   {
-    num: "03",
-    title: "Скачайте файл",
-    desc: "Один HTML-файл. Открывается в любом браузере, поднимается на любом хостинге.",
+    num: "3",
+    title: "Сохраните и пользуйтесь",
+    desc: "Готовый сайт одним файлом. Открывается в любом браузере — можно выложить в интернет или показывать клиентам.",
     color: "var(--amber)",
   },
 ];
@@ -36,10 +36,10 @@ export function HowItWorksSection() {
               className="nit-display mb-3"
               style={{ fontSize: "clamp(26px, 4vw, 38px)", color: "var(--ink)" }}
             >
-              Три шага до вашего сайта
+              Как это работает
             </h2>
             <p className="text-[14px] sm:text-[16px]" style={{ color: "var(--muted)" }}>
-              Занимает около минуты.
+              Три шага — около одной минуты.
             </p>
           </div>
         </RevealOnScroll>
@@ -52,7 +52,7 @@ export function HowItWorksSection() {
                 style={{ border: "1px solid var(--line)" }}
               >
                 <div
-                  className="font-mono text-[22px] sm:text-[26px] font-bold mb-4"
+                  className="font-bold text-[28px] sm:text-[32px] mb-3 leading-none"
                   style={{ color: s.color, textShadow: `0 0 18px ${s.color}` }}
                 >
                   {s.num}

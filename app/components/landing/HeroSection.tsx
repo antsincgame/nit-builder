@@ -1,9 +1,5 @@
 /**
- * HeroSection v4 — без чата. Простой заголовок и 2 кнопки.
- *
- * Главная цель — сразу объяснить что это и дать выбор: скачать приложение
- * или открыть в браузере. Десктопный клиент ещё не сборкан — кнопка открывает
- * DownloadModal с подпиской на уведомление.
+ * HeroSection v4.1 — более человечный текст и CTA.
  */
 
 import { useState } from "react";
@@ -40,9 +36,9 @@ export function HeroSection({ isAuthed }: Props) {
             className="nit-display mb-5 sm:mb-7"
             style={{ fontSize: "clamp(34px, 6vw, 56px)", color: "var(--ink)" }}
           >
-            Сайты без
+            Сделайте сайт
             <br />
-            <span className="nit-text-gradient-cyan">программирования</span>
+            <span className="nit-text-gradient-cyan">за одну минуту</span>
           </h1>
         </RevealOnScroll>
 
@@ -55,8 +51,8 @@ export function HeroSection({ isAuthed }: Props) {
               lineHeight: 1.6,
             }}
           >
-            Опиши свой бизнес — приложение сделает сайт за минуту.
-            Никакого кода, никаких подписок, всё работает на вашем компьютере.
+            Расскажите, что вы делаете — приложение само соберёт сайт.
+            Никаких программистов, никаких подписок.
           </p>
         </RevealOnScroll>
 
@@ -73,21 +69,21 @@ export function HeroSection({ isAuthed }: Props) {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Скачать приложение
+              Скачать на компьютер
             </button>
             <a
               href={isAuthed ? "/app" : "/register"}
               className="btn-ghost w-full sm:w-auto"
               style={{ padding: "14px 28px", fontSize: 15 }}
             >
-              Попробовать в браузере
+              Попробовать сейчас
             </a>
           </div>
         </RevealOnScroll>
 
         <RevealOnScroll delay={320}>
           <div className="text-[12px] sm:text-[13px]" style={{ color: "var(--muted-2)" }}>
-            Windows · macOS · Linux
+            Для Windows, Mac и Linux
           </div>
         </RevealOnScroll>
       </div>

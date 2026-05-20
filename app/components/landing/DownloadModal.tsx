@@ -1,9 +1,5 @@
 /**
- * DownloadModal — модальное окно «Скоро» для десктопного клиента.
- *
- * Пока сборки для Win/Mac/Linux нет — собираем email для уведомления.
- * TODO: когда backend-эндпоинт будет готов, заменить POST URL.
- * Пока fallback: localStorage + alert-like сообщение.
+ * DownloadModal v2 — упрощённые формулировки без "настольное приложение».
  */
 
 import { useEffect, useState } from "react";
@@ -18,7 +14,6 @@ export function DownloadModal({ open, onClose }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Escape и блок body-scroll
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -33,7 +28,6 @@ export function DownloadModal({ open, onClose }: Props) {
     };
   }, [open, onClose]);
 
-  // Сброс при закрытии
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
@@ -51,16 +45,15 @@ export function DownloadModal({ open, onClose }: Props) {
     setError(null);
     const v = email.trim();
     if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
-      setError("Введите корректный email");
+      setError("Проверьте правильность email");
       return;
     }
-    // Сохраняем локально — backend-эндпоинт пока не сделан.
     try {
       const subs = JSON.parse(localStorage.getItem("desktop-waitlist") || "[]");
       if (!subs.includes(v)) subs.push(v);
       localStorage.setItem("desktop-waitlist", JSON.stringify(subs));
     } catch {
-      // игнорируем ошибки localStorage — не критично
+      /* ignore */
     }
     setSubmitted(true);
   };
@@ -98,7 +91,7 @@ export function DownloadModal({ open, onClose }: Props) {
         {!submitted ? (
           <>
             <div
-              className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 rounded-full text-[11px] font-semibold tracking-wide uppercase"
+              className="inline-flex items-center gap-2 px-3 py-1.5 mb-5 rounded-full text-[11px] font-semibold"
               style={{
                 background: "rgba(251, 191, 36, 0.1)",
                 border: "1px solid rgba(251, 191, 36, 0.35)",
@@ -108,10 +101,10 @@ export function DownloadModal({ open, onClose }: Props) {
               Скоро
             </div>
             <h3 className="nit-display mb-3" style={{ fontSize: 26, color: "var(--ink)" }}>
-              Настольное приложение
+              Приложение для компьютера
             </h3>
-            <p className="mb-6 text-[14px] sm:text-[15px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
-              Готовим версии для Windows, macOS и Linux. Оставьте email — пришлём ссылку, как только выпустим.
+            <p className="mb-6 text-[14px] sm:text-[15px]" style={{ color: "var(--muted)" }}>
+              Готовим версии для Windows, Mac и Linux. Оставьте email — пришлём ссылку, когда будет готово.
             </p>
             <form onSubmit={handleSubmit} className="space-y-3">
               <input
@@ -135,14 +128,14 @@ export function DownloadModal({ open, onClose }: Props) {
                 </div>
               )}
               <button type="submit" className="btn-primary w-full" style={{ padding: "12px 22px" }}>
-                Сообщить о выходе
+                Прислать ссылку
               </button>
               <a
                 href="/register"
-                className="block text-center text-[13px] py-2 transition"
+                className="block text-center text-[13px] py-2"
                 style={{ color: "var(--muted-2)" }}
               >
-                Или попробовать онлайн-версию →
+                Попробовать сейчас в браузере →
               </a>
             </form>
           </>
@@ -161,11 +154,10 @@ export function DownloadModal({ open, onClose }: Props) {
               </svg>
             </div>
             <h3 className="nit-display mb-3" style={{ fontSize: 24, color: "var(--ink)" }}>
-              Спасибо
+              Готово
             </h3>
             <p className="text-[14px] sm:text-[15px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
-              Пришлём письмо на <span style={{ color: "var(--ink)" }}>{email}</span> как только
-              приложение будет готово.
+              Пришлём ссылку на <span style={{ color: "var(--ink)" }}>{email}</span>, как только приложение будет готово.
             </p>
             <button
               type="button"
@@ -173,7 +165,7 @@ export function DownloadModal({ open, onClose }: Props) {
               className="btn-ghost w-full mt-6"
               style={{ padding: "12px 22px" }}
             >
-              Закрыть
+              Хорошо
             </button>
           </div>
         )}

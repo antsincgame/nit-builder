@@ -1,5 +1,5 @@
 /**
- * CtaSection v4 — финальный CTA с опциями Скачать / Открыть в браузере.
+ * CtaSection v4.1 — человечный призыв.
  */
 
 import { useState } from "react";
@@ -19,9 +19,9 @@ export function CtaSection({ isAuthed }: Props) {
             className="nit-display mb-5 sm:mb-6"
             style={{ fontSize: "clamp(28px, 5vw, 44px)", color: "var(--ink)" }}
           >
-            Готовы
+            Сделайте свой
             <br />
-            <span className="nit-text-gradient-cyan">попробовать?</span>
+            <span className="nit-text-gradient-cyan">первый сайт</span>
           </h2>
         </RevealOnScroll>
         <RevealOnScroll delay={100}>
@@ -29,7 +29,7 @@ export function CtaSection({ isAuthed }: Props) {
             className="mb-8 sm:mb-10 max-w-[440px] mx-auto text-[15px] sm:text-[17px]"
             style={{ color: "var(--muted)", lineHeight: 1.55 }}
           >
-            Бесплатно, без карты, без лимитов.
+            Бесплатно. Без карты. Без ограничений.
           </p>
         </RevealOnScroll>
         <RevealOnScroll delay={200}>
@@ -45,14 +45,14 @@ export function CtaSection({ isAuthed }: Props) {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Скачать приложение
+              Скачать на компьютер
             </button>
             <a
               href={isAuthed ? "/app" : "/register"}
               className="btn-ghost w-full sm:w-auto"
               style={{ padding: "14px 28px", fontSize: 15 }}
             >
-              Попробовать в браузере
+              Попробовать сейчас
             </a>
           </div>
         </RevealOnScroll>

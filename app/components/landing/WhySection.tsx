@@ -1,5 +1,5 @@
 /**
- * WhySection — 3 простых преимущества без технического жаргона.
+ * WhySection v4 — упрощённый язык, без Bolt.new/Tilda в подзаголовке.
  */
 
 import { RevealOnScroll } from "~/components/landing/RevealOnScroll";
@@ -8,7 +8,7 @@ const REASONS = [
   {
     icon: "💰",
     title: "Бесплатно навсегда",
-    desc: "Никаких подписок, лимитов и платных возможностей. Сколько хотите сайтов — столько и делаете.",
+    desc: "Никаких подписок и платных возможностей. Сколько хотите сайтов — столько и делаете.",
     color: "var(--green)",
   },
   {
@@ -19,8 +19,8 @@ const REASONS = [
   },
   {
     icon: "🔒",
-    title: "Ваши данные при вас",
-    desc: "Приложение работает на вашем компьютере. Мы не видим ваши идеи, и не храним их.",
+    title: "Ваши данные у вас",
+    desc: "Приложение работает на вашем компьютере. Мы не видим и не храним то, что вы создаёте.",
     color: "var(--violet)",
   },
 ];
@@ -36,10 +36,10 @@ export function WhySection() {
               className="nit-display mb-3"
               style={{ fontSize: "clamp(26px, 4vw, 38px)", color: "var(--ink)" }}
             >
-              Почему NITGEN
+              Почему люди выбирают нас
             </h2>
             <p className="text-[14px] sm:text-[16px] max-w-[480px] mx-auto" style={{ color: "var(--muted)" }}>
-              Три причины попробовать вместо Bolt.new, Tilda и прочих.
+              Три простых причины попробовать.
             </p>
           </div>
         </RevealOnScroll>

@@ -1,5 +1,5 @@
 /**
- * TemplatesSection v3.2 — violet tint + reveal + cursor glow + gradient borders on hover.
+ * TemplatesSection v4 — упрощённый язык, без "7B» и "SaaS".
  */
 
 import { useRef } from "react";
@@ -9,14 +9,14 @@ const TEMPLATES = [
   { emoji: "☕", name: "Кофейня", id: "coffee-shop" },
   { emoji: "💈", name: "Барбершоп", id: "barbershop" },
   { emoji: "📸", name: "Фотограф", id: "photographer" },
-  { emoji: "💻", name: "Портфолио", id: "portfolio-dev" },
+  { emoji: "👤", name: "Личная страница", id: "portfolio-dev" },
   { emoji: "💒", name: "Свадьба", id: "wedding" },
-  { emoji: "💪", name: "Фитнес", id: "fitness-trainer" },
+  { emoji: "💪", name: "Фитнес-тренер", id: "fitness-trainer" },
   { emoji: "🍽️", name: "Ресторан", id: "restaurant" },
-  { emoji: "💅", name: "Бьюти-мастер", id: "beauty-master" },
+  { emoji: "💅", name: "Мастер красоты", id: "beauty-master" },
   { emoji: "🖤", name: "Тату-студия", id: "tattoo-studio" },
-  { emoji: "🎧", name: "DJ / Музыкант", id: "dj-music" },
-  { emoji: "🚀", name: "SaaS / Продукт", id: "saas-landing" },
+  { emoji: "🎧", name: "Диджей / Музыкант", id: "dj-music" },
+  { emoji: "🚀", name: "Свой бизнес", id: "saas-landing" },
   { emoji: "🏠", name: "Недвижимость", id: "real-estate" },
 ];
 
@@ -53,19 +53,15 @@ export function TemplatesSection() {
       <div className="section-tint section-tint-violet" aria-hidden />
       <div className="relative max-w-[1100px] mx-auto">
         <RevealOnScroll>
-          <div className="mb-8 sm:mb-12">
-            <div className="text-[12px] tracking-[0.15em] uppercase mb-3" style={{ color: "var(--violet)" }}>
-              Готовые шаблоны
-            </div>
+          <div className="mb-8 sm:mb-12 text-center">
             <h2
               className="nit-display mb-3"
-              style={{ fontSize: "clamp(28px, 4.5vw, 44px)", color: "var(--ink)" }}
+              style={{ fontSize: "clamp(26px, 4vw, 38px)", color: "var(--ink)" }}
             >
-              23 готовых шаблона
+              Сайт для любого дела
             </h2>
-            <p className="text-[14px] sm:text-[16px] max-w-[560px]" style={{ color: "var(--muted)" }}>
-              АИ подбирает подходящий и адаптирует его под твой бизнес — стабильно работает
-              даже на 7B модели.
+            <p className="text-[14px] sm:text-[16px] max-w-[520px] mx-auto" style={{ color: "var(--muted)" }}>
+              Приложение само подберёт подходящий вариант и настроит его под вас.
             </p>
           </div>
         </RevealOnScroll>
@@ -81,7 +77,7 @@ export function TemplatesSection() {
         <RevealOnScroll delay={200}>
           <div className="mt-8 sm:mt-10 text-center">
             <a href="/register" className="btn-ghost">
-              Смотреть все 23 шаблона →
+              Посмотреть все варианты →
             </a>
           </div>
         </RevealOnScroll>
