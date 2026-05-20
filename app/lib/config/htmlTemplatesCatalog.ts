@@ -46,20 +46,20 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "portfolio-dev",
-    name: "Портфолио (IT/дизайнер)",
+    name: "Личная страница",
     category: "personal",
     description: "Личный сайт разработчика, дизайнера, фрилансера. Проекты, навыки, контакты.",
-    bestFor: ["разработчик", "дизайнер", "фрилансер", "портфолио", "резюме", "cv"],
+    bestFor: ["разработчик", "дизайнер", "фрилансер", "портфолио", "резюме"],
     sections: ["hero", "about", "projects", "skills", "contact"],
     style: "tech-minimal",
     colorMood: "cool-mono",
-    emoji: "💻",
+    emoji: "👤",
   },
   {
     id: "wedding",
-    name: "Свадебная страница",
+    name: "Свадьба",
     category: "event",
-    description: "Сайт-приглашение на свадьбу. История пары, программа, локация, RSVP.",
+    description: "Сайт-приглашение на свадьбу. История пары, программа, локация, форма ответа.",
     bestFor: ["свадьба", "приглашение", "молодожёны", "торжество"],
     sections: ["hero", "story", "schedule", "location", "rsvp"],
     style: "romantic",
@@ -90,7 +90,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "tutor",
-    name: "Репетитор / Преподаватель",
+    name: "Репетитор",
     category: "service",
     description: "Репетитор по языкам, математике, подготовка к экзаменам. Цены, отзывы, запись.",
     bestFor: ["репетитор", "преподаватель", "уроки", "обучение", "язык", "экзамен", "цт", "егэ"],
@@ -112,7 +112,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "car-service",
-    name: "Автосервис / СТО",
+    name: "Автосервис",
     category: "service",
     description: "Ремонт авто, шиномонтаж, диагностика. Услуги, цены, контакты.",
     bestFor: ["сто", "автосервис", "ремонт", "шиномонтаж", "диагностика", "авто"],
@@ -123,7 +123,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "handmade-shop",
-    name: "Хендмейд / Мастерская",
+    name: "Ручная работа",
     category: "creative",
     description: "Торты на заказ, свечи, керамика, украшения. Галерея работ и заказ.",
     bestFor: ["торты", "хендмейд", "украшения", "свечи", "керамика", "на заказ", "мастерская"],
@@ -134,7 +134,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "dj-music",
-    name: "DJ / Музыкант",
+    name: "Диджей / Музыкант",
     category: "creative",
     description: "Сайт диджея, музыканта, группы. Треки, ивенты, бронь на мероприятие.",
     bestFor: ["dj", "диджей", "музыкант", "группа", "ивент", "вечеринка"],
@@ -145,9 +145,9 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "saas-landing",
-    name: "SaaS / Продукт",
+    name: "Своё приложение",
     category: "business",
-    description: "Лендинг для digital-продукта, приложения, SaaS. Фичи, цены, CTA на регистрацию.",
+    description: "Лендинг для приложения, сервиса, своего стартапа. Возможности, цены, призыв к регистрации.",
     bestFor: ["saas", "приложение", "сервис", "стартап", "продукт", "b2b"],
     sections: ["hero", "features", "how-it-works", "pricing", "testimonials", "cta"],
     style: "tech-modern",
@@ -156,7 +156,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "medical-clinic",
-    name: "Медцентр / Клиника",
+    name: "Клиника",
     category: "service",
     description: "Стоматология, медцентр, клиника. Услуги, врачи, запись на приём.",
     bestFor: ["стоматология", "клиника", "медцентр", "врач", "приём", "лечение"],
@@ -167,10 +167,10 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "yoga-studio",
-    name: "Йога / Wellness",
+    name: "Йога",
     category: "service",
-    description: "Йога-студия, медитация, wellness. Расписание, инструкторы, запись.",
-    bestFor: ["йога", "медитация", "wellness", "студия", "практика"],
+    description: "Йога-студия, медитация, оздоровление. Расписание, инструкторы, запись.",
+    bestFor: ["йога", "медитация", "оздоровление", "студия", "практика"],
     sections: ["hero", "classes", "instructors", "schedule", "pricing", "contact"],
     style: "zen-soft",
     colorMood: "earth-natural",
@@ -189,7 +189,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "flower-shop",
-    name: "Цветочный магазин",
+    name: "Цветы",
     category: "service",
     description: "Нежный сайт цветочного магазина. Букеты, каталог, доставка по городу.",
     bestFor: ["цветы", "букеты", "флорист", "доставка цветов", "свадьба цветы"],
@@ -211,7 +211,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "legal-firm",
-    name: "Юридическая компания",
+    name: "Юристы",
     category: "business",
     description: "Строгий сайт юридической фирмы. Услуги, практики, команда, консультация.",
     bestFor: ["юрист", "адвокат", "юридические услуги", "суд", "консультация"],
@@ -222,10 +222,10 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "game-studio",
-    name: "Игровая студия",
+    name: "Игры",
     category: "creative",
-    description: "Сайт инди-геймстудии. Игры, команда, devlog, комьюнити.",
-    bestFor: ["игры", "game studio", "разработка игр", "indie", "гейминг"],
+    description: "Сайт инди-геймстудии. Игры, команда, дневник разработки, сообщество.",
+    bestFor: ["игры", "геймстудия", "разработка игр", "инди", "гейминг"],
     sections: ["hero", "games", "about", "team", "devlog", "contact"],
     style: "neon-gamer",
     colorMood: "vibrant-neon",
@@ -244,7 +244,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "blank-landing",
-    name: "Универсальный (fallback)",
+    name: "Универсальный",
     category: "generic",
     description: "Базовый каркас лендинга на случай если ничего не подходит. Hero, about, features, contact.",
     bestFor: ["любой бизнес", "общий", "универсальный"],
@@ -262,14 +262,6 @@ export function getFallbackTemplate(): TemplateMeta {
   return TEMPLATE_CATALOG.find((t) => t.id === "blank-landing")!;
 }
 
-/**
- * Построить текстовый каталог для Planner-промпта.
- *
- * @param filterIds — если передан, включает только эти id (+ всегда blank-landing).
- *   Используется для embedding-префильтрации — вместо всех 22 шаблонов
- *   кладём top-K наиболее релевантных, экономия ~70% токенов планировщика.
- *   Без аргумента (или с undefined) возвращает полный каталог (legacy поведение).
- */
 export function buildCatalogForPrompt(filterIds?: string[]): string {
   const list =
     filterIds && filterIds.length > 0
