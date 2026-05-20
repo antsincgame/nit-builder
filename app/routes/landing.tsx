@@ -1,27 +1,27 @@
 /**
- * Landing page (/about) — v3.2 alive-but-clear.
- * Добавлен global ambient layer: dotted grid + animated mesh gradient.
- * Каждая секция получает свой цветовой tint.
+ * Landing page — v4 «prostoy» версия.
+ *
+ * Переориентировано на нетехнических пользователей.
+ * Чат/инпут убран, технические секции (Tunnel, Comparison, FreeForever) убраны.
+ * Язык: никаких GPU/LLM/p2p/MIT — только «ваш компьютер», «приватно», «бесплатно».
  */
 
 import { useAuth } from "~/lib/contexts/AuthContext";
 import { LandingNav } from "~/components/landing/LandingNav";
 import { HeroSection } from "~/components/landing/HeroSection";
-import { TunnelSection } from "~/components/landing/TunnelSection";
+import { WhySection } from "~/components/landing/WhySection";
 import { TemplatesSection } from "~/components/landing/TemplatesSection";
 import { HowItWorksSection } from "~/components/landing/HowItWorksSection";
-import { FreeForeverSection } from "~/components/landing/FreeForeverSection";
-import { ComparisonSection } from "~/components/landing/ComparisonSection";
 import { CtaSection } from "~/components/landing/CtaSection";
 import { LandingFooter } from "~/components/landing/LandingFooter";
 
 export function meta() {
   return [
-    { title: "NITGEN — AI конструктор сайтов на твоём GPU · бесплатно навсегда" },
+    { title: "NITGEN — Создавай сайты бесплатно" },
     {
       name: "description",
       content:
-        "Опиши сайт — получи HTML из своего GPU через p2p-туннель. Никакого облака, никаких лимитов. Open source MIT.",
+        "Опиши свой сайт словами — получи готовый результат за минуту. Без программирования, без подписок.",
     },
   ];
 }
@@ -32,23 +32,20 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)]">
-      {/* Global ambient — mesh gradient + dotted grid */}
+      {/* Global ambient — мягкий mesh и сетка в фоне */}
       <div className="nit-bg-mesh" aria-hidden>
         <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
         <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
         <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
-        <div className="nit-bg-mesh-orb nit-bg-mesh-4" />
       </div>
       <div className="nit-bg-grid" aria-hidden />
 
       <LandingNav isAuthed={isAuthed} />
       <main className="relative z-10">
         <HeroSection isAuthed={isAuthed} />
-        <TunnelSection />
+        <WhySection />
         <TemplatesSection />
         <HowItWorksSection />
-        <FreeForeverSection isAuthed={isAuthed} />
-        <ComparisonSection />
         <CtaSection isAuthed={isAuthed} />
       </main>
       <LandingFooter />

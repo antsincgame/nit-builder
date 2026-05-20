@@ -1,12 +1,12 @@
 /**
- * LandingFooter — минималистичный футер.
+ * LandingFooter v4 — упрощён, без «MIT» и технических терминов.
  */
 
 export function LandingFooter() {
   const year = new Date().getFullYear();
   return (
     <footer
-      className="px-5 sm:px-8 py-10 sm:py-12"
+      className="relative px-5 sm:px-8 py-10 sm:py-12 z-10"
       style={{ borderTop: "1px solid var(--line)" }}
     >
       <div className="max-w-[1100px] mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
@@ -25,28 +25,26 @@ export function LandingFooter() {
 
         <div className="flex flex-wrap items-center gap-5 text-[13px]">
           <a
-            href="https://github.com/igor1000rr/nit-builder"
-            target="_blank"
-            rel="noopener"
-            className="text-[color:var(--muted)] hover:text-[color:var(--ink)] transition-colors"
+            href="/login"
+            className="transition-colors"
+            style={{ color: "var(--muted)" }}
           >
-            GitHub
+            Войти
           </a>
           <a
-            href="https://vibecoding.by"
-            target="_blank"
-            rel="noopener"
-            className="text-[color:var(--muted)] hover:text-[color:var(--ink)] transition-colors"
+            href="/register"
+            className="transition-colors"
+            style={{ color: "var(--muted)" }}
           >
-            VibeCoding
+            Регистрация
           </a>
           <a
-            href="/templates"
-            className="text-[color:var(--muted)] hover:text-[color:var(--ink)] transition-colors"
+            href="mailto:hello@nitgen.org"
+            className="transition-colors"
+            style={{ color: "var(--muted)" }}
           >
-            Шаблоны сообщества
+            Поддержка
           </a>
-          <span className="text-[color:var(--muted-2)]">MIT</span>
         </div>
       </div>
     </footer>

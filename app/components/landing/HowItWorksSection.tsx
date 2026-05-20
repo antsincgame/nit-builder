@@ -1,5 +1,5 @@
 /**
- * HowItWorksSection v3.2 — amber tint + reveal animations + colored step numbers.
+ * HowItWorksSection v4 — упрощённый язык, без «Planner LLM»/«Coder LLM».
  */
 
 import { RevealOnScroll } from "~/components/landing/RevealOnScroll";
@@ -7,20 +7,20 @@ import { RevealOnScroll } from "~/components/landing/RevealOnScroll";
 const STEPS = [
   {
     num: "01",
-    title: "Опиши сайт",
-    desc: "Одно предложение на русском. AI разбирается в типе бизнеса, тоне и секциях.",
+    title: "Расскажите о бизнесе",
+    desc: "Одно предложение простыми словами — что вы делаете и для кого.",
     color: "var(--cyan)",
   },
   {
     num: "02",
-    title: "Подбор шаблона",
-    desc: "Planner LLM выбирает подходящий из 23 и формирует JSON-план с цветами и структурой.",
+    title: "Смотрите как рождается сайт",
+    desc: "Приложение подберёт дизайн и структуру. Прямо на экране — в прямом эфире.",
     color: "var(--violet)",
   },
   {
     num: "03",
-    title: "Стриминг HTML",
-    desc: "Coder LLM адаптирует шаблон под твой план. HTML стримится в preview в реальном времени.",
+    title: "Скачайте файл",
+    desc: "Один HTML-файл. Открывается в любом браузере, поднимается на любом хостинге.",
     color: "var(--amber)",
   },
 ];
@@ -31,16 +31,16 @@ export function HowItWorksSection() {
       <div className="section-tint section-tint-amber" aria-hidden />
       <div className="relative max-w-[1100px] mx-auto">
         <RevealOnScroll>
-          <div className="mb-8 sm:mb-12">
-            <div className="text-[12px] tracking-[0.15em] uppercase mb-3" style={{ color: "var(--amber)" }}>
-              Как это работает
-            </div>
+          <div className="text-center mb-10 sm:mb-14">
             <h2
               className="nit-display mb-3"
-              style={{ fontSize: "clamp(28px, 4.5vw, 44px)", color: "var(--ink)" }}
+              style={{ fontSize: "clamp(26px, 4vw, 38px)", color: "var(--ink)" }}
             >
-              Три шага — <span style={{ color: "var(--amber)" }}>30 секунд</span>
+              Три шага до вашего сайта
             </h2>
+            <p className="text-[14px] sm:text-[16px]" style={{ color: "var(--muted)" }}>
+              Занимает около минуты.
+            </p>
           </div>
         </RevealOnScroll>
 
@@ -52,18 +52,18 @@ export function HowItWorksSection() {
                 style={{ border: "1px solid var(--line)" }}
               >
                 <div
-                  className="font-mono text-[24px] sm:text-[28px] font-bold mb-4"
-                  style={{ color: s.color, textShadow: `0 0 20px ${s.color}` }}
+                  className="font-mono text-[22px] sm:text-[26px] font-bold mb-4"
+                  style={{ color: s.color, textShadow: `0 0 18px ${s.color}` }}
                 >
                   {s.num}
                 </div>
                 <h3
-                  className="font-semibold mb-2 text-[18px] sm:text-[20px]"
+                  className="font-semibold mb-2 text-[17px] sm:text-[18px]"
                   style={{ color: "var(--ink)" }}
                 >
                   {s.title}
                 </h3>
-                <p className="text-[14px] leading-[1.55]" style={{ color: "var(--muted)" }}>
+                <p className="text-[14px] leading-[1.6]" style={{ color: "var(--muted)" }}>
                   {s.desc}
                 </p>
               </div>

@@ -1,39 +1,51 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { useAuth } from "~/lib/contexts/AuthContext";
-import { GridBg, Orbs, Chip, NitButton, Particles } from "~/components/nit";
 
 export const meta: MetaFunction = () => [
-  { title: "Register // NITGEN" },
+  { title: "Регистрация · NITGEN" },
   { name: "robots", content: "noindex" },
 ];
 
-type Step = "form" | "token";
-
+/**
+ * Register v2 — упрощённая версия для обычных пользователей.
+ *
+ * Изменения от предыдущей:
+ * - Убрано поле "Имя" (опциональное раньше, теперь вообще нет)
+ * - Добавлено подтверждение пароля
+ * - Нет больше шага "token" — пользователь сразу попадает в приложение
+ *   (токен сохраняется в cookie/sessionStorage, выдавать будем в настройках)
+ * - Язык простой: «Email» / «Пароль» / «Повторите пароль»
+ * - Никаких GridBg/Orbs/Particles/Chip — чистый дизайн v3.2
+ *
+ * Серверный endpoint тот же (POST /api/auth/register, он возвращает tunnelToken),
+ * просто мы теперь сохраняем токен локально и редиректим на "/".
+ */
 export default function Register() {
   const auth = useAuth();
-  const [step, setStep] = useState<Step>("form");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tunnelToken, setTunnelToken] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [tokenAcknowledged, setTokenAcknowledged] = useState(false);
 
   useEffect(() => {
-    if (step === "form" && auth.status === "authenticated") {
-      window.location.href = "/";
+    if (auth.status === "authenticated") {
+      window.location.href = "/app";
     }
-  }, [step, auth.status]);
+  }, [auth.status]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (password.length < 8) {
-      setError("Пароль должен быть минимум 8 символов");
+      setError("Пароль должен быть не меньше 8 символов");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Пароли не совпадают");
       return;
     }
 
@@ -44,7 +56,7 @@ export default function Register() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name: name || undefined }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = (await res.json()) as {
@@ -57,7 +69,7 @@ export default function Register() {
       if (!res.ok) {
         if (data.issues) {
           const firstIssue = Object.values(data.issues).flat()[0];
-          setError(firstIssue ?? data.error ?? "Ошибка валидации");
+          setError(firstIssue ?? data.error ?? "Ошибка регистрации");
         } else {
           setError(data.error ?? "Не удалось зарегистрироваться");
         }
@@ -65,274 +77,124 @@ export default function Register() {
         return;
       }
 
-      if (!data.tunnelToken) {
-        setError("Сервер не вернул токен. Напиши в поддержку.");
-        setLoading(false);
-        return;
+      // Сохраняем tunnelToken в sessionStorage — пользователь сможет
+      // скопировать его в настройках когда понадобится для десктопного клиента.
+      if (data.tunnelToken) {
+        try {
+          sessionStorage.setItem("tunnelToken", data.tunnelToken);
+        } catch {
+          /* ignore quota errors */
+        }
       }
 
-      setTunnelToken(data.tunnelToken);
-      setStep("token");
+      window.location.href = "/app";
     } catch {
-      setError("Ошибка сети. Попробуй ещё раз.");
+      setError("Ошибка сети. Попробуйте ещё раз.");
       setLoading(false);
     }
   }
 
-  function copyToken() {
-    if (!tunnelToken) return;
-    navigator.clipboard
-      .writeText(tunnelToken)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(() => {
-        // Fallback для HTTP / старых браузеров где Clipboard API недоступен:
-        // выделяем текст в инпуте — юзер копирует вручную через Ctrl+C.
-        const input = document.querySelector<HTMLInputElement>(
-          'input[value][readonly]',
-        );
-        if (input) {
-          input.focus();
-          input.select();
-        }
-        setError("Скопируй вручную (Ctrl+C) — буфер обмена недоступен");
-      });
-  }
-
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] nit-grain overflow-hidden">
-      <GridBg />
-      <Orbs />
-      <Particles count={25} />
+    <div className="relative min-h-screen text-[color:var(--ink)] overflow-hidden">
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
 
-      <nav className="relative z-10 px-8 py-6 max-w-[1400px] mx-auto">
-        <a href="/" className="flex items-center gap-3 no-underline w-fit">
-          <span
-            className="block w-7 h-7 relative"
-            style={{
-              background:
-                "conic-gradient(from 0deg, var(--accent), var(--magenta), var(--acid), var(--accent))",
-              animation: "nit-spin 8s linear infinite",
-            }}
+      <nav className="relative z-10 px-5 sm:px-8 py-5">
+        <a href="/" className="inline-flex items-center gap-2 no-underline">
+          <div
+            className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
+            style={{ background: "var(--ink)", color: "var(--bg)" }}
           >
-            <span className="absolute inset-[3px]" style={{ background: "var(--bg)" }} />
-          </span>
-          <span className="nit-display text-lg text-[color:var(--ink)]">NITGEN</span>
+            N
+          </div>
+          <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
         </a>
       </nav>
 
-      <main className="relative z-10 max-w-[1400px] mx-auto px-8 grid lg:grid-cols-[1.2fr_0.8fr] gap-16 items-center min-h-[calc(100vh-100px)]">
-        {/* Manifest */}
-        <div className="hidden lg:block">
-          <Chip color="acid">⏵ Join the tunnel</Chip>
-          <h1 className="nit-display text-[clamp(48px,7vw,96px)] mt-8 mb-8 leading-[0.9]">
-            Один email.<br />
-            <span style={{ color: "transparent", WebkitTextStroke: "2px var(--accent-glow)" }}>
-              Один токен.
-            </span>
-            <br />
-            Свой <span style={{ color: "transparent", WebkitTextStroke: "2px var(--magenta)" }}>GPU.</span>
-          </h1>
-          <p className="text-[15px] text-[color:var(--muted)] leading-[1.7] max-w-[480px]">
-            Регистрация даёт тебе персональный tunnel-token. Этим токеном CLI на
-            твоей машине авторизуется в сервере и держит WebSocket-сессию.
-            Пароль хранится через argon2id, токен — через HMAC + argon2 хеш.
-            Ничего лишнего.
-          </p>
-        </div>
-
-        {/* Form / Token panel */}
-        <div className="w-full">
+      <main className="relative z-10 flex items-center justify-center px-5 sm:px-8 pb-12" style={{ minHeight: "calc(100vh - 80px)" }}>
+        <div className="w-full max-w-[420px]">
           <div
-            className="relative p-10 backdrop-blur-[10px]"
+            className="rounded-2xl p-6 sm:p-8"
             style={{
+              background: "rgba(19, 20, 27, 0.85)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               border: "1px solid var(--line-strong)",
-              background: "rgba(10,13,24,0.7)",
-              boxShadow: "0 30px 80px rgba(0,212,255,0.15)",
             }}
           >
-            {step === "form" ? (
-              <>
-                <div className="text-[11px] tracking-[0.2em] uppercase mb-2" style={{ color: "var(--accent-glow)" }}>
-                  // auth · register
-                </div>
-                <h2 className="nit-display text-[36px] mb-2">Sign up</h2>
-                <p className="text-[12px] text-[color:var(--muted)] mb-8">
-                  Уже есть аккаунт?{" "}
-                  <a
-                    href="/login"
-                    className="no-underline transition"
-                    style={{ color: "var(--accent-glow)" }}
-                  >
-                    Войти →
-                  </a>
-                </p>
+            <h1 className="nit-display mb-2" style={{ fontSize: 28, color: "var(--ink)" }}>
+              Создать аккаунт
+            </h1>
+            <p className="text-[14px] mb-6" style={{ color: "var(--muted)" }}>
+              Уже есть аккаунт?{" "}
+              <a href="/login" className="transition-colors" style={{ color: "var(--cyan)" }}>
+                Войти
+              </a>
+            </p>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
-                  <Field
-                    label="Email"
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={setEmail}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                  />
-                  <Field
-                    label="Name (optional)"
-                    id="name"
-                    type="text"
-                    value={name}
-                    onChange={setName}
-                    placeholder="Igor"
-                    autoComplete="name"
-                  />
-                  <Field
-                    label="Password (min 8)"
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={setPassword}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    minLength={8}
-                  />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <Field
+                label="Email"
+                id="email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="vasha@pochta.ru"
+                autoComplete="email"
+                required
+              />
+              <Field
+                label="Пароль"
+                id="password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="Не меньше 8 символов"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
+              <Field
+                label="Повторите пароль"
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                placeholder="Тот же пароль ещё раз"
+                autoComplete="new-password"
+                minLength={8}
+                required
+              />
 
-                  {error && (
-                    <div
-                      className="p-3 text-[12px] tracking-wide"
-                      style={{
-                        border: "1px solid var(--magenta)",
-                        background: "rgba(255,46,147,0.08)",
-                        color: "var(--magenta-glow)",
-                      }}
-                    >
-                      ⚠ {error}
-                    </div>
-                  )}
-
-                  <NitButton
-                    type="submit"
-                    variant="primary"
-                    disabled={loading}
-                    className="w-full"
-                  >
-                    {loading ? "Creating account..." : "Create account →"}
-                  </NitButton>
-                </form>
-              </>
-            ) : (
-              <>
-                <Chip color="acid">⏵ Account ready</Chip>
-                <h2 className="nit-display text-[36px] mt-4 mb-2">Save your token</h2>
-                <p className="text-[12px] text-[color:var(--muted)] mb-6">
-                  Этот токен показывается{" "}
-                  <span style={{ color: "var(--magenta)" }}>один раз</span>.
-                  Если потеряешь — перегенерируешь в настройках, но старый
-                  немедленно перестанет работать.
-                </p>
-
-                <div className="mb-6">
-                  <div
-                    className="text-[10px] tracking-[0.2em] uppercase mb-2"
-                    style={{ color: "var(--muted)" }}
-                  >
-                    // tunnel · token
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      readOnly
-                      value={tunnelToken ?? ""}
-                      className="w-full px-4 py-3.5 pr-28 text-[11px] font-mono outline-none"
-                      style={{
-                        background: "rgba(0,212,255,0.04)",
-                        border: "1px solid var(--accent)",
-                        color: "var(--accent-glow)",
-                      }}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                    />
-                    <button
-                      type="button"
-                      onClick={copyToken}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold tracking-[0.15em] uppercase transition"
-                      style={{
-                        background: copied ? "var(--acid)" : "var(--accent)",
-                        color: "#000",
-                      }}
-                    >
-                      {copied ? "✓ COPIED" : "COPY"}
-                    </button>
-                  </div>
-                </div>
-
+              {error && (
                 <div
-                  className="p-5 mb-6 text-[12px]"
+                  className="p-3 text-[13px] rounded-lg"
                   style={{
-                    border: "1px solid var(--line-strong)",
-                    background: "rgba(0,212,255,0.03)",
+                    border: "1px solid var(--pink)",
+                    background: "rgba(244, 114, 182, 0.08)",
+                    color: "var(--pink)",
                   }}
                 >
-                  <div
-                    className="text-[10px] tracking-[0.2em] uppercase mb-3"
-                    style={{ color: "var(--accent-glow)" }}
-                  >
-                    // next steps
-                  </div>
-                  <ol className="space-y-2 list-none counter-reset-[step] text-[color:var(--muted)]">
-                    <li className="flex gap-3">
-                      <span style={{ color: "var(--accent-glow)" }}>01 →</span>
-                      <a
-                        href="/download"
-                        className="no-underline transition hover:text-[color:var(--ink)]"
-                        style={{ color: "var(--ink)" }}
-                      >
-                        Скачай tunnel CLI
-                      </a>
-                    </li>
-                    <li className="flex gap-3">
-                      <span style={{ color: "var(--accent-glow)" }}>02 →</span>
-                      <span>Запусти CLI с этим токеном</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span style={{ color: "var(--accent-glow)" }}>03 →</span>
-                      <span>Открой editor и генери</span>
-                    </li>
-                  </ol>
+                  {error}
                 </div>
+              )}
 
-                {copied || tokenAcknowledged ? (
-                  <NitButton href="/" variant="acid" className="w-full">
-                    ✓ Token saved · Go to editor →
-                  </NitButton>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      type="button"
-                      disabled
-                      className="block w-full text-center px-8 py-4 text-[13px] font-bold tracking-[0.15em] uppercase border cursor-not-allowed"
-                      style={{
-                        borderColor: "var(--line)",
-                        color: "var(--muted-2)",
-                        background: "transparent",
-                      }}
-                    >
-                      Copy token first ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTokenAcknowledged(true)}
-                      className="block w-full text-center px-6 py-2 text-[10px] tracking-[0.1em] uppercase transition"
-                      style={{ color: "var(--muted-2)" }}
-                    >
-                      I already saved it, skip →
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full"
+                style={{ padding: "12px 22px", opacity: loading ? 0.6 : 1, cursor: loading ? "wait" : "pointer" }}
+              >
+                {loading ? "Создаём аккаунт…" : "Зарегистрироваться"}
+              </button>
+            </form>
+
+            <p className="mt-6 text-center text-[12px]" style={{ color: "var(--muted-2)" }}>
+              Нажимая «Зарегистрироваться», вы соглашаетесь с условиями использования.
+            </p>
           </div>
         </div>
       </main>
@@ -349,6 +211,7 @@ function Field({
   placeholder,
   autoComplete,
   minLength,
+  required,
 }: {
   label: string;
   id: string;
@@ -358,34 +221,35 @@ function Field({
   placeholder?: string;
   autoComplete?: string;
   minLength?: number;
+  required?: boolean;
 }) {
   return (
     <div>
       <label
         htmlFor={id}
-        className="block text-[10px] tracking-[0.2em] uppercase mb-2"
-        style={{ color: "var(--muted)" }}
+        className="block text-[13px] font-medium mb-1.5"
+        style={{ color: "var(--ink-dim)" }}
       >
-        // {label}
+        {label}
       </label>
       <input
         id={id}
         type={type}
-        required={type !== "text"}
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         minLength={minLength}
         placeholder={placeholder}
-        className="w-full px-4 py-3.5 text-[14px] font-mono outline-none transition-all"
+        className="w-full px-4 py-3 text-[15px] rounded-lg outline-none transition"
         style={{
-          background: "transparent",
+          background: "var(--bg)",
           border: "1px solid var(--line-strong)",
           color: "var(--ink)",
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--acid)";
-          e.currentTarget.style.boxShadow = "0 0 20px rgba(212,255,0,0.2)";
+          e.currentTarget.style.borderColor = "var(--cyan)";
+          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.15)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = "var(--line-strong)";
