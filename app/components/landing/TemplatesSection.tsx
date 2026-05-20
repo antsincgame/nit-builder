@@ -1,7 +1,8 @@
 /**
- * TemplatesSection — карточки готовых шаблонов.
- * Показываем топ-12 из каталога. На мобиле — grid 2 колонки, на десктопе — 4.
+ * TemplatesSection — карточки с hover-эффектом (cursor-tracking glow + lift).
  */
+
+import { useRef } from "react";
 
 const TEMPLATES = [
   { emoji: "☕", name: "Кофейня", id: "coffee-shop" },
@@ -17,6 +18,36 @@ const TEMPLATES = [
   { emoji: "🚀", name: "SaaS / Продукт", id: "saas-landing" },
   { emoji: "🏠", name: "Недвижимость", id: "real-estate" },
 ];
+
+function TemplateCard({ t }: { t: (typeof TEMPLATES)[number] }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--mx", `${e.clientX - rect.left}px`);
+    el.style.setProperty("--my", `${e.clientY - rect.top}px`);
+  };
+
+  return (
+    <a
+      ref={ref}
+      href={`/register?template=${t.id}`}
+      className="nit-card-glow p-5 sm:p-6 rounded-xl no-underline flex flex-col gap-3"
+      style={{
+        background: "var(--bg-2)",
+        border: "1px solid var(--line)",
+      }}
+      onMouseMove={onMouseMove}
+    >
+      <div className="text-2xl sm:text-3xl">{t.emoji}</div>
+      <div className="text-[14px] sm:text-[15px] font-semibold text-[color:var(--ink)]">
+        {t.name}
+      </div>
+    </a>
+  );
+}
 
 export function TemplatesSection() {
   return (
@@ -40,20 +71,7 @@ export function TemplatesSection() {
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
           {TEMPLATES.map((t) => (
-            <a
-              key={t.id}
-              href={`/register?template=${t.id}`}
-              className="nit-card-glow p-5 sm:p-6 rounded-xl no-underline flex flex-col gap-3"
-              style={{
-                background: "var(--bg-2)",
-                border: "1px solid var(--line)",
-              }}
-            >
-              <div className="text-2xl sm:text-3xl">{t.emoji}</div>
-              <div className="text-[14px] sm:text-[15px] font-semibold text-[color:var(--ink)]">
-                {t.name}
-              </div>
-            </a>
+            <TemplateCard key={t.id} t={t} />
           ))}
         </div>
 
