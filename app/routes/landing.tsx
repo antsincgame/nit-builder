@@ -1,7 +1,7 @@
 /**
- * Landing page (/about) — v3.1.
- * Новые секции: TunnelSection + FreeForeverSection (фокус на USP).
- * Порядок: Nav → Hero → Tunnel → Templates → How → FreeForever → Comparison → CTA → Footer.
+ * Landing page (/about) — v3.2 alive-but-clear.
+ * Добавлен global ambient layer: dotted grid + animated mesh gradient.
+ * Каждая секция получает свой цветовой tint.
  */
 
 import { useAuth } from "~/lib/contexts/AuthContext";
@@ -32,6 +32,15 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)]">
+      {/* Global ambient — mesh gradient + dotted grid */}
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-4" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
+
       <LandingNav isAuthed={isAuthed} />
       <main className="relative z-10">
         <HeroSection isAuthed={isAuthed} />
