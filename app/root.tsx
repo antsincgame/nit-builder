@@ -17,7 +17,7 @@ export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Unbounded:wght@300;400;700;900&family=JetBrains+Mono:wght@300;400;500;700&display=swap",
   },
 ];
 
@@ -50,7 +50,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="bg-nit-bg text-nit-ink antialiased font-mono">
+      <body className="bg-nit-bg text-nit-ink antialiased font-sans">
         {children}
         <ScrollRestoration />
         <Scripts />

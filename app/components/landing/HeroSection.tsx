@@ -3,9 +3,10 @@
  *
  * Большой glitch-заголовок "Опиши. Сгенерь. ВЛАДЕЙ." (синхронизирован с
  * editor home.tsx — единый бренд), value-prop с подчёркиванием отличия от
- * cloud-AI, две CTA-кнопки, live status-line с "tunnel · LM Studio · GPU",
- * статистика (22 templates · ~30s · 0$ · 923 tests),
+ * cloud-AI, две CTA-кнопки, статистика (22 templates · ~30s · 0$ · 923 tests),
  * справа на десктопе — animated TerminalCodeCard.
+ *
+ * v2.2: убран шумный второй чип и второй параграф — фидбек по читаемости.
  */
 
 import { Chip, GlitchHeading, NitButton, RevealOnScroll } from "~/components/nit";
@@ -22,23 +23,6 @@ export function HeroSection({ isAuthed }: Props) {
         <RevealOnScroll>
           <div className="flex flex-wrap items-center gap-3 mb-8">
             <Chip color="acid">⏵ AI editor · powered by YOUR GPU</Chip>
-            <span
-              className="inline-flex items-center gap-2 text-[10px] tracking-[0.2em] uppercase px-3 py-1.5"
-              style={{
-                border: "1px solid var(--magenta)",
-                color: "var(--magenta)",
-              }}
-            >
-              <span
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  background: "var(--magenta)",
-                  boxShadow: "0 0 6px var(--magenta)",
-                  animation: "nit-pulse 1.5s infinite",
-                }}
-              />
-              v2.1 · undo · share · mobile
-            </span>
           </div>
         </RevealOnScroll>
 
@@ -47,20 +31,11 @@ export function HeroSection({ isAuthed }: Props) {
         </RevealOnScroll>
 
         <RevealOnScroll delay={200}>
-          <p className="text-[16px] leading-[1.7] text-[color:var(--muted)] max-w-[560px] mt-8 mb-4">
+          <p className="text-[17px] leading-[1.65] text-[color:var(--ink-dim)] max-w-[560px] mt-8 mb-10">
             AI-конструктор сайтов где код стримится из{" "}
             <span className="nit-mark">твоего GPU</span> через
             peer-to-peer туннель. Сервер только маршрутизирует — модель крутится
             на твоей машине. Сайт — твой файл, твоё железо, твои данные.
-          </p>
-        </RevealOnScroll>
-
-        <RevealOnScroll delay={250}>
-          <p className="text-[13px] text-[color:var(--muted-2)] max-w-[560px] mb-10 leading-[1.7]">
-            Vercel v0, Bolt, Lovable жгут твои токены и читают твои промпты
-            в своих облаках. Мы — нет.{" "}
-            <span style={{ color: "var(--acid)" }}>Никаких подписок.
-            Никаких лимитов. Никакой телеметрии.</span>
           </p>
         </RevealOnScroll>
 
@@ -107,7 +82,7 @@ function Stat({ n, l }: { n: string; l: string }) {
       >
         {n}
       </span>
-      <span className="text-[10px] tracking-[0.15em] uppercase text-[color:var(--muted)] mt-1 block">
+      <span className="text-[11px] tracking-[0.15em] uppercase text-[color:var(--ink-dim)] mt-1 block font-mono">
         {l}
       </span>
     </div>

@@ -1,12 +1,9 @@
 /**
  * Landing page (/about). Композирует секции из app/components/landing/.
  *
- * Раньше всё это (~700 LOC: 9 секций + 6 sub-components + 4 data-таблицы
- * inline) было в одном файле. Декомпозиция P3:
- *  - Каждая секция → отдельный компонент в app/components/landing/
- *  - landing.tsx остаётся тонким composer-ом + meta + background-эффекты
- *
- * Никаких функциональных изменений vs пред. версии — pure structural refactor.
+ * v2.2: убраны HorizontalParticles и сокращены вертикальные Particles
+ * (с 35 до 14) — фидбек по визуальному шуму. Оставлены только
+ * ConicRays + GridBg + Orbs + Beams — три слоя вместо пяти.
  */
 
 import { useAuth } from "~/lib/contexts/AuthContext";
@@ -14,7 +11,6 @@ import {
   Beams,
   ConicRays,
   GridBg,
-  HorizontalParticles,
   Marquee,
   Orbs,
   Particles,
@@ -49,19 +45,17 @@ export default function Landing() {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)] nit-grain">
-      {/* Background-эффекты — fixed-positioned, не зависят от секций */}
+      {/* Background-эффекты — fixed-positioned. Сокращено до 4 слоёв
+          (было 6): убраны HorizontalParticles, Particles 35→14. */}
       <ConicRays />
       <GridBg />
       <Orbs />
       <Beams />
-      <Particles count={35} />
-      <HorizontalParticles count={18} />
+      <Particles count={14} />
 
       <LandingNav isAuthed={isAuthed} />
       <HeroSection isAuthed={isAuthed} />
 
-      {/* Marquee — единственный inline-блок т.к. данные тривиальны и нужны
-          ровно один раз. Выделение в компонент только бы добавило шума. */}
       <Marquee
         items={[
           { text: "YOUR GPU" },
