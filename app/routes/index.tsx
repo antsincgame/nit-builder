@@ -1,15 +1,12 @@
 /**
  * Root index route (/) — auth-aware splitter.
  *
- * - guest → лендинг (NITGEN презентация, 11 секций)
- * - authenticated → приложение-генератор (бывший Home)
- * - loading → короткий spinner (обычно <100ms благодаря localStorage-кэшу
- *   в AuthContext, так что реального flash нет при повторных визитах)
+ * Обновлены meta-теги — было "Опиши сайт — получи HTML из своего GPU
+ * через p2p tunnel", видимо в SEO Google и при шаре ссылки.
  *
- * Почему клиентский, а не серверный redirect: auth-сессия живёт в
- * httpOnly-cookie + проверяется через Appwrite API. Серверный loader
- * потребовал бы ext fetch на каждый визит / — лишняя зависимость и latency.
- * AuthContext уже решает flash-проблему через localStorage TTL=5min.
+ * - guest → лендинг
+ * - authenticated → приложение-генератор (бывший Home)
+ * - loading → короткий spinner
  */
 
 import HomeApp from "./home";
@@ -18,11 +15,17 @@ import { useAuth } from "~/lib/contexts/AuthContext";
 
 export function meta() {
   return [
-    { title: "NITGEN — AI конструктор сайтов на твоём GPU" },
+    { title: "NITGEN — Создавай сайты бесплатно" },
     {
       name: "description",
       content:
-        "Опиши сайт — получи HTML из своего GPU через p2p tunnel. Никакого облака, никаких лимитов. Open source.",
+        "Расскажите, что вы делаете — приложение само соберёт сайт за минуту. Без программирования, без подписок, всё работает на вашем компьютере.",
+    },
+    { property: "og:title", content: "NITGEN — Создавай сайты бесплатно" },
+    {
+      property: "og:description",
+      content:
+        "Простые сайты за минуту — без программистов, без подписок. Работает на вашем компьютере.",
     },
   ];
 }
@@ -37,10 +40,10 @@ export default function Index() {
         style={{ background: "var(--bg)" }}
       >
         <div
-          className="w-12 h-12 rounded-full animate-spin"
+          className="w-10 h-10 rounded-full animate-spin"
           style={{
             border: "3px solid var(--line)",
-            borderTopColor: "var(--accent-glow)",
+            borderTopColor: "var(--ink)",
           }}
         />
       </div>

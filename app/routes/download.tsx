@@ -1,24 +1,28 @@
 import { useState } from "react";
 import type { MetaFunction } from "react-router";
 import { useAuth } from "~/lib/contexts/AuthContext";
-import { AuthBadge } from "~/components/simple/AuthBadge";
-import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
-import { GridBg, Orbs, Chip, NitButton, Particles } from "~/components/nit";
 
 export const meta: MetaFunction = () => [
-  { title: "Download tunnel CLI // NITGEN" },
+  { title: "Скачать · NITGEN" },
   {
     name: "description",
-    content:
-      "NIT Tunnel CLI — клиент который проксирует твою LM Studio к серверу NITGEN через WebSocket.",
+    content: "Приложение для Windows, Mac и Linux — скоро выйдет.",
   },
+  { name: "robots", content: "noindex" },
 ];
 
-// На HTTPS-странице браузер блокирует ws:// (mixed content). Раньше
-// захардкоженный ws:// ломал инструкцию в production — генерировался URL
-// который не сработает. Берём protocol от текущей страницы как в
-// useControlSocket.ts. SSR-fallback тоже на wss:// — production deployment
-// всегда HTTPS.
+/**
+ * Download v2 — человекоориентированная страница «Скачать».
+ *
+ * Раньше была инструкция для разработчиков: git clone, npm install,
+ * LM Studio Server, --token YOUR_TOKEN, GPU 6+ GB VRAM и т.д. Обычный
+ * человек это не выполнит.
+ *
+ * Теперь: вверху — заглушка «Скоро · введите email» (как в DownloadModal),
+ * внизу — раскрывающийся блок «Для разработчиков» с оригинальной инструкцией
+ * по CLI — кто ищет локальный запуск, найдёт за один клик.
+ */
+
 const SERVER_URL =
   typeof window !== "undefined"
     ? `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/api/tunnel`
@@ -26,10 +30,31 @@ const SERVER_URL =
 
 export default function Download() {
   const auth = useAuth();
+  const [email, setEmail] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [devOpen, setDevOpen] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  function copy(text: string, key: string) {
+  const submitWaitlist = (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError(null);
+    const v = email.trim();
+    if (!v || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+      setEmailError("Проверьте правильность email");
+      return;
+    }
+    try {
+      const subs = JSON.parse(localStorage.getItem("desktop-waitlist") || "[]");
+      if (!subs.includes(v)) subs.push(v);
+      localStorage.setItem("desktop-waitlist", JSON.stringify(subs));
+    } catch {
+      /* ignore */
+    }
+    setSubmitted(true);
+  };
+
+  const copy = (text: string, key: string) => {
     navigator.clipboard
       .writeText(text)
       .then(() => {
@@ -37,371 +62,282 @@ export default function Download() {
         setTimeout(() => setCopied(null), 2000);
       })
       .catch(() => {
-        // Clipboard API требует secure context (HTTPS) — если не сработал,
-        // просто меняем метку на ошибочную, юзер копирует вручную.
         setCopied(`${key}-failed`);
         setTimeout(() => setCopied(null), 2000);
       });
-  }
+  };
 
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] nit-grain overflow-x-hidden">
-      <GridBg />
-      <Orbs />
-      <Particles count={25} />
-      <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    <div className="relative min-h-screen text-[color:var(--ink)] overflow-hidden">
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
 
-      {/* Nav */}
-      <nav
-        className="relative z-10 px-8 py-5 max-w-[1400px] mx-auto flex justify-between items-center"
-        style={{ borderBottom: "1px solid var(--line)" }}
+      <header
+        className="relative z-10 px-5 sm:px-8 py-5 max-w-[1200px] mx-auto flex items-center justify-between"
       >
-        <a href="/" className="flex items-center gap-3 no-underline">
-          <span
-            className="block w-7 h-7 relative"
+        <a href="/" className="flex items-center gap-2 no-underline">
+          <div
+            className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
+            style={{ background: "var(--ink)", color: "var(--bg)" }}
+          >
+            N
+          </div>
+          <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
+        </a>
+        <a href="/" className="text-[13px] transition-colors" style={{ color: "var(--muted)" }}>
+          ← Назад
+        </a>
+      </header>
+
+      <main className="relative z-10 max-w-[640px] mx-auto px-5 sm:px-8 pt-8 sm:pt-16 pb-20">
+        <div className="text-center mb-10">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full text-[11px] font-semibold"
             style={{
-              background:
-                "conic-gradient(from 0deg, var(--accent), var(--magenta), var(--acid), var(--accent))",
-              animation: "nit-spin 8s linear infinite",
+              background: "rgba(251, 191, 36, 0.1)",
+              border: "1px solid rgba(251, 191, 36, 0.35)",
+              color: "var(--amber)",
             }}
           >
-            <span className="absolute inset-[3px]" style={{ background: "var(--bg)" }} />
-          </span>
-          <span className="nit-display text-lg text-[color:var(--ink)]">NITGEN</span>
-        </a>
-        <div className="flex gap-2 items-center">
-          <AuthBadge auth={auth} onOpenSettings={() => setSettingsOpen(true)} />
-        </div>
-      </nav>
-
-      <main className="relative z-10 max-w-3xl mx-auto px-8 pt-16 pb-20">
-        {/* Hero */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <Chip color="accent">⏵ NIT Tunnel CLI · v0.1.0-alpha</Chip>
+            Скоро
           </div>
-          <h1 className="nit-display text-[clamp(40px,7vw,80px)] mb-6 leading-[0.9]">
-            Connect<br />
-            your <span style={{ color: "transparent", WebkitTextStroke: "2px var(--accent-glow)" }}>GPU.</span>
+          <h1
+            className="nit-display mb-4"
+            style={{ fontSize: "clamp(32px, 5.5vw, 48px)", color: "var(--ink)" }}
+          >
+            Приложение
+            <br />
+            <span className="nit-text-gradient-cyan">для компьютера</span>
           </h1>
           <p
-            className="text-[15px] max-w-[560px] mx-auto leading-[1.7]"
-            style={{ color: "var(--muted)" }}
+            className="max-w-[460px] mx-auto"
+            style={{ fontSize: "clamp(15px, 2vw, 16px)", color: "var(--muted)", lineHeight: 1.6 }}
           >
-            CLI-клиент проксирует твою локальную LM Studio к серверу NITGEN
-            через WebSocket. Никакого облака, никаких лимитов, полная приватность.
+            Готовим версии для Windows, Mac и Linux. Оставьте email — пришлём ссылку, как только будет готово.
           </p>
         </div>
 
-        {/* Prerequisites */}
-        <Section label="// requirements" title="What you need">
-          <ul className="space-y-3 font-mono text-[13px]">
-            <Req
-              k="Node.js 20+"
-              link={{ href: "https://nodejs.org", text: "nodejs.org" }}
-              extra="или nvm"
-            />
-            <Req
-              k="LM Studio 0.3+"
-              link={{ href: "https://lmstudio.ai", text: "lmstudio.ai" }}
-              extra="+ модель Qwen2.5-Coder-7B-Q4"
-            />
-            <Req
-              k="Tunnel token"
-              link={{ href: "/register", text: "register →" }}
-              extra="получишь при регистрации"
-            />
-          </ul>
-        </Section>
-
-        {/* Step 1 */}
-        <Step n="01" title="Start LM Studio">
-          <p className="text-[12px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-            Открой LM Studio → загрузи модель → во вкладке{" "}
-            <Mono>Server</Mono> нажми <Mono>Start Server</Mono>. По умолчанию слушает на{" "}
-            <Mono>localhost:1234</Mono>.
-          </p>
-        </Step>
-
-        {/* Step 2 */}
-        <Step n="02" title="Clone & install">
-          <CodeBlock
-            code={`git clone https://github.com/igor1000rr/nit-builder.git
-cd nit-builder
-npm install`}
-            copyKey="clone"
-            copied={copied}
-            onCopy={copy}
-          />
-        </Step>
-
-        {/* Step 3 */}
-        <Step n="03" title="Run tunnel with your token">
-          <p className="text-[12px] mb-4" style={{ color: "var(--muted)" }}>
-            Замени <Mono color="acid">YOUR_TOKEN</Mono> на свой из{" "}
-            <a
-              href="/register"
-              className="no-underline transition"
-              style={{ color: "var(--accent-glow)" }}
-            >
-              регистрации
-            </a>
-            .
-          </p>
-          <CodeBlock
-            code={`cd tunnel
-npm run dev -- \\
-  --token YOUR_TOKEN \\
-  --server ${SERVER_URL} \\
-  --lm-studio http://localhost:1234/v1`}
-            copyKey="run"
-            copied={copied}
-            onCopy={copy}
-          />
-        </Step>
-
-        {/* Verify */}
         <div
-          className="mb-10 p-6"
+          className="rounded-2xl p-5 sm:p-7 mb-8"
           style={{
-            border: "1px solid var(--acid)",
-            background: "rgba(212,255,0,0.04)",
+            background: "rgba(19, 20, 27, 0.85)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            border: "1px solid var(--line-strong)",
           }}
         >
-          <div className="flex items-start gap-4">
-            <div
-              className="shrink-0 w-10 h-10 flex items-center justify-center text-[16px] font-bold text-black nit-display"
-              style={{ background: "var(--acid)" }}
-            >
-              ✓
-            </div>
-            <div>
-              <div
-                className="text-[10px] tracking-[0.2em] uppercase mb-2"
-                style={{ color: "var(--acid)" }}
+          {!submitted ? (
+            <form onSubmit={submitWaitlist} className="space-y-3">
+              <label
+                htmlFor="download-email"
+                className="block text-[13px] font-medium mb-1.5"
+                style={{ color: "var(--ink-dim)" }}
               >
-                // success
+                Ваш email
+              </label>
+              <input
+                id="download-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="vasha@pochta.ru"
+                autoComplete="email"
+                required
+                className="w-full px-4 py-3 text-[15px] outline-none rounded-lg transition"
+                style={{
+                  background: "var(--bg)",
+                  border: "1px solid var(--line-strong)",
+                  color: "var(--ink)",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = "var(--cyan)";
+                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.15)";
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = "var(--line-strong)";
+                  e.currentTarget.style.boxShadow = "none";
+                }}
+              />
+              {emailError && (
+                <div className="text-[13px]" style={{ color: "var(--pink)" }}>
+                  {emailError}
+                </div>
+              )}
+              <button type="submit" className="btn-primary w-full" style={{ padding: "12px 22px" }}>
+                Прислать ссылку
+              </button>
+              <a
+                href={auth.status === "authenticated" ? "/app" : "/register"}
+                className="block text-center text-[13px] py-2 transition"
+                style={{ color: "var(--muted-2)" }}
+              >
+                Попробовать сейчас в браузере →
+              </a>
+            </form>
+          ) : (
+            <div className="text-center py-2">
+              <div
+                className="inline-flex items-center justify-center w-14 h-14 rounded-full mb-5"
+                style={{
+                  background: "rgba(34, 197, 94, 0.15)",
+                  border: "1px solid var(--green)",
+                  color: "var(--green)",
+                }}
+              >
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
               </div>
-              <h3 className="nit-display text-[20px] mb-2">Tunnel online</h3>
-              <p className="text-[12px] leading-[1.7]" style={{ color: "var(--muted)" }}>
-                Если в терминале появилось <Mono color="acid">✓ Authenticated as user...</Mono>{" "}
-                — туннель подключён. Возвращайся в{" "}
-                <a
-                  href="/"
-                  className="no-underline transition"
-                  style={{ color: "var(--accent-glow)" }}
-                >
-                  editor
-                </a>
-                {" "}— в навбаре загорится зелёный StatusDot.
+              <h2 className="nit-display mb-3" style={{ fontSize: 22, color: "var(--ink)" }}>
+                Готово
+              </h2>
+              <p className="text-[14px]" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+                Пришлём ссылку на <span style={{ color: "var(--ink)" }}>{email}</span>, как только
+                приложение будет готово.
               </p>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Native apps */}
-        <Section label="// roadmap" title="Native apps · soon">
-          <p className="text-[12px] mb-5 leading-[1.7]" style={{ color: "var(--muted)" }}>
-            Tauri-клиент с GUI для macOS, Windows, Linux. Не нужен Node.js —
-            просто .dmg / .exe / .AppImage и токен.
-          </p>
+        {/* Platforms preview */}
+        <div className="grid grid-cols-3 gap-3 mb-10">
+          {[
+            { name: "Windows", icon: "⊞" },
+            { name: "Mac", icon: "⌘" },
+            { name: "Linux", icon: "⏻" },
+          ].map((p) => (
+            <div
+              key={p.name}
+              className="rounded-xl p-4 text-center"
+              style={{
+                background: "rgba(19, 20, 27, 0.6)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <div className="text-2xl mb-2" style={{ color: "var(--muted)" }}>
+                {p.icon}
+              </div>
+              <div className="text-[12px] font-medium" style={{ color: "var(--ink-dim)" }}>
+                {p.name}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Developer collapse — спрятано под expander, обычные юзеры не видят */}
+        <button
+          type="button"
+          onClick={() => setDevOpen((v) => !v)}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition"
+          style={{
+            background: "transparent",
+            border: "1px solid var(--line)",
+            color: "var(--muted)",
+          }}
+        >
+          <span className="text-[13px] flex items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="16 18 22 12 16 6" />
+              <polyline points="8 6 2 12 8 18" />
+            </svg>
+            Для разработчиков
+          </span>
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ transform: devOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {devOpen && (
           <div
-            className="grid grid-cols-3 gap-px"
+            className="mt-3 rounded-lg p-5 space-y-5 text-[13px]"
             style={{
-              background: "var(--line-strong)",
-              border: "1px solid var(--line-strong)",
+              background: "rgba(0, 0, 0, 0.3)",
+              border: "1px solid var(--line)",
+              color: "var(--muted)",
+              lineHeight: 1.6,
             }}
           >
-            {[
-              { os: "macOS", icon: "⌘" },
-              { os: "Windows", icon: "⊞" },
-              { os: "Linux", icon: "⏻" },
-            ].map((p) => (
+            <p>
+              До релиза десктопного клиента можно запустить CLI вручную. Нужны: Node.js 20+,
+              LM Studio (лучше Qwen2.5-Coder-7B-Q4), GPU с 6+ GB VRAM и tunnel-токениз{" "}
+              <a href="/register" style={{ color: "var(--cyan)" }} className="transition-colors">
+                регистрации
+              </a>
+              .
+            </p>
+
+            <div>
               <div
-                key={p.os}
-                className="p-6 text-center opacity-50"
-                style={{ background: "var(--bg)" }}
+                className="text-[11px] tracking-[0.15em] uppercase mb-2 font-mono"
+                style={{ color: "var(--cyan)" }}
               >
-                <div
-                  className="nit-display text-[28px] mb-2"
-                  style={{ color: "var(--muted)" }}
-                >
-                  {p.icon}
-                </div>
-                <div className="text-[10px] tracking-[0.15em] uppercase" style={{ color: "var(--muted)" }}>
-                  {p.os}
-                </div>
-                <div
-                  className="text-[9px] tracking-[0.1em] mt-1"
-                  style={{ color: "var(--muted-2)" }}
-                >
-                  // soon
-                </div>
+                1. Clone &amp; install
               </div>
-            ))}
+              <CodeBlock
+                code={`git clone https://github.com/igor1000rr/nit-builder.git\ncd nit-builder\nnpm install`}
+                copyKey="clone"
+                copied={copied}
+                onCopy={copy}
+              />
+            </div>
+
+            <div>
+              <div
+                className="text-[11px] tracking-[0.15em] uppercase mb-2 font-mono"
+                style={{ color: "var(--cyan)" }}
+              >
+                2. Start LM Studio Server (localhost:1234)
+              </div>
+              <p className="text-[12px]" style={{ color: "var(--muted-2)" }}>
+                Открой LM Studio → загрузи модель → во вкладке Server нажми Start Server.
+              </p>
+            </div>
+
+            <div>
+              <div
+                className="text-[11px] tracking-[0.15em] uppercase mb-2 font-mono"
+                style={{ color: "var(--cyan)" }}
+              >
+                3. Run tunnel
+              </div>
+              <CodeBlock
+                code={`cd tunnel\nnpm run dev -- \\\n  --token YOUR_TOKEN \\\n  --server ${SERVER_URL} \\\n  --lm-studio http://localhost:1234/v1`}
+                copyKey="run"
+                copied={copied}
+                onCopy={copy}
+              />
+            </div>
+
+            <p className="text-[12px]" style={{ color: "var(--muted-2)" }}>
+              Исходники:{" "}
+              <a
+                href="https://github.com/igor1000rr/nit-builder"
+                target="_blank"
+                rel="noopener"
+                style={{ color: "var(--cyan)" }}
+                className="transition-colors"
+              >
+                github.com/igor1000rr/nit-builder
+              </a>
+            </p>
           </div>
-        </Section>
-
-        {/* System requirements */}
-        <Section label="// system requirements" title="Hardware">
-          <ul className="space-y-2.5 text-[12px] font-mono" style={{ color: "var(--muted)" }}>
-            <li>
-              <Mono color="accent">GPU:</Mono> 6+ GB VRAM для 7B модели,
-              4 GB для 3B. CPU fallback работает но медленно.
-            </li>
-            <li>
-              <Mono color="accent">Disk:</Mono> 5–15 GB на модель + 200 MB на CLI.
-            </li>
-            <li>
-              <Mono color="accent">Network:</Mono> стабильный канал для
-              WebSocket (туннель — persistent connection).
-            </li>
-            <li>
-              <Mono color="accent">OS:</Mono> macOS 11+, Windows 10+, любой
-              современный Linux.
-            </li>
-          </ul>
-        </Section>
-
-        <div className="text-center mt-16">
-          <NitButton href="/" variant="ghost">
-            ← Back to editor
-          </NitButton>
-        </div>
+        )}
       </main>
-
-      <footer
-        className="relative z-10 py-10 text-center text-[10px] tracking-[0.15em] uppercase"
-        style={{ borderTop: "1px solid var(--line)", color: "var(--muted-2)" }}
-      >
-        NITGEN · MIT · OPEN SOURCE ·{" "}
-        <a
-          href="https://github.com/igor1000rr/nit-builder"
-          target="_blank"
-          rel="noopener"
-          className="no-underline transition hover:text-[color:var(--accent-glow)]"
-          style={{ color: "var(--muted)" }}
-        >
-          GITHUB
-        </a>
-      </footer>
     </div>
-  );
-}
-
-/* ─── Helper sub-components ───────────────────────────── */
-
-function Section({
-  label,
-  title,
-  children,
-}: {
-  label: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-12">
-      <div
-        className="text-[10px] tracking-[0.2em] uppercase mb-3 flex items-center gap-3"
-        style={{ color: "var(--accent-glow)" }}
-      >
-        <span className="w-10 h-px" style={{ background: "var(--accent-glow)" }} />
-        {label}
-      </div>
-      <h2 className="nit-display text-[28px] mb-5">{title}</h2>
-      <div
-        className="p-6"
-        style={{
-          background: "rgba(10,13,24,0.6)",
-          border: "1px solid var(--line)",
-        }}
-      >
-        {children}
-      </div>
-    </div>
-  );
-}
-
-function Step({
-  n,
-  title,
-  children,
-}: {
-  n: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="mb-8">
-      <div className="flex items-start gap-5 mb-4">
-        <div
-          className="shrink-0 nit-display text-[36px] leading-none"
-          style={{ color: "var(--accent-glow)" }}
-        >
-          {n}
-        </div>
-        <div className="flex-1 min-w-0 pt-1">
-          <h3 className="nit-display text-[20px] mb-3">{title}</h3>
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Req({
-  k,
-  link,
-  extra,
-}: {
-  k: string;
-  link: { href: string; text: string };
-  extra?: string;
-}) {
-  return (
-    <li className="flex items-start gap-3" style={{ color: "var(--muted)" }}>
-      <span style={{ color: "var(--accent-glow)" }}>→</span>
-      <span>
-        <span style={{ color: "var(--ink)" }}>{k}</span> ·{" "}
-        <a
-          href={link.href}
-          target={link.href.startsWith("http") ? "_blank" : undefined}
-          rel="noopener"
-          className="no-underline transition"
-          style={{ color: "var(--accent-glow)" }}
-        >
-          {link.text}
-        </a>
-        {extra && <span> · {extra}</span>}
-      </span>
-    </li>
-  );
-}
-
-function Mono({
-  children,
-  color = "ink",
-}: {
-  children: React.ReactNode;
-  color?: "ink" | "accent" | "acid";
-}) {
-  const c = {
-    ink: "var(--ink)",
-    accent: "var(--accent-glow)",
-    acid: "var(--acid)",
-  }[color];
-  return (
-    <span
-      className="font-mono px-1.5 py-0.5 text-[11px]"
-      style={{
-        color: c,
-        background: "rgba(0,212,255,0.06)",
-        border: "1px solid var(--line)",
-      }}
-    >
-      {children}
-    </span>
   );
 }
 
@@ -419,9 +355,9 @@ function CodeBlock({
   return (
     <div className="relative">
       <pre
-        className="p-5 text-[11px] font-mono overflow-x-auto leading-[1.7]"
+        className="p-4 text-[11px] font-mono overflow-x-auto leading-[1.65] rounded-lg"
         style={{
-          background: "rgba(0,0,0,0.4)",
+          background: "rgba(0,0,0,0.5)",
           border: "1px solid var(--line-strong)",
           color: "var(--ink-dim)",
         }}
@@ -431,12 +367,14 @@ function CodeBlock({
       <button
         type="button"
         onClick={() => onCopy(code, copyKey)}
-        className="absolute top-3 right-3 px-3 py-1.5 text-[10px] font-bold tracking-[0.15em] uppercase text-black transition"
+        className="absolute top-2 right-2 px-2.5 py-1 text-[10px] font-semibold rounded transition"
         style={{
-          background: copied === copyKey ? "var(--acid)" : "var(--accent)",
+          background: copied === copyKey ? "var(--green)" : "var(--bg-elev)",
+          color: copied === copyKey ? "var(--bg)" : "var(--ink-dim)",
+          border: "1px solid var(--line-strong)",
         }}
       >
-        {copied === copyKey ? "✓ COPIED" : "COPY"}
+        {copied === copyKey ? "✓" : "Copy"}
       </button>
     </div>
   );
