@@ -1,10 +1,6 @@
 /**
- * AuthBadge — auth state indicator for the nav bar.
- *
- * Three states:
- * - loading: skeleton placeholder while /api/auth/me resolves
- * - unauthenticated: "Login" + "Register" buttons
- * - authenticated: email + dropdown
+ * AuthBadge v2 — русский, без // префиксов, без "Download CLI".
+ * Ссылка "Скачать" в dropdown ведёт на /download (человекоориентированную версию).
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -52,11 +48,11 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
   if (auth.status === "loading") {
     return (
       <div
-        className="hidden sm:flex items-center px-3 py-2"
+        className="hidden sm:flex items-center px-3 py-2 rounded-md"
         style={{ border: "1px solid var(--line)" }}
       >
         <div
-          className="w-16 h-3 animate-pulse"
+          className="w-16 h-3 animate-pulse rounded"
           style={{ background: "var(--line-strong)" }}
         />
       </div>
@@ -68,25 +64,22 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
       <div className="flex gap-1.5 items-center">
         <a
           href="/login"
-          className="px-4 py-2 text-[10px] font-bold tracking-[0.15em] uppercase transition no-underline text-[color:var(--muted)] hover:text-[color:var(--ink)]"
+          className="hidden sm:inline-block px-3 py-2 text-[13px] no-underline transition-colors"
+          style={{ color: "var(--muted)" }}
         >
-          Login
+          Войти
         </a>
         <a
           href="/register"
-          className="px-4 py-2 text-[10px] font-bold tracking-[0.15em] uppercase no-underline transition text-black"
-          style={{
-            background: "var(--accent)",
-            boxShadow: "var(--glow-cyan-sm)",
-          }}
+          className="btn-primary"
+          style={{ padding: "8px 16px", fontSize: 13 }}
         >
-          Register →
+          Регистрация
         </a>
       </div>
     );
   }
 
-  // authenticated
   const initial = auth.email[0]?.toUpperCase() ?? "?";
 
   return (
@@ -94,21 +87,21 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
       <button
         type="button"
         onClick={() => setMenuOpen(!menuOpen)}
-        className="flex items-center gap-2.5 pl-1 pr-3 py-1 transition"
+        className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-md transition"
         style={{
           border: "1px solid var(--line-strong)",
-          background: "rgba(10,13,24,0.6)",
+          background: "rgba(19, 20, 27, 0.6)",
         }}
-        title={`Logged in as ${auth.email}`}
+        title={`Вы вошли как ${auth.email}`}
       >
         <span
-          className="w-7 h-7 flex items-center justify-center text-[11px] font-bold text-black nit-display"
-          style={{ background: "var(--accent)" }}
+          className="w-7 h-7 rounded-md flex items-center justify-center text-[12px] font-bold"
+          style={{ background: "var(--ink)", color: "var(--bg)" }}
         >
           {initial}
         </span>
         <span
-          className="hidden md:inline text-[11px] tracking-[0.05em] max-w-[140px] truncate font-mono"
+          className="hidden md:inline text-[13px] max-w-[140px] truncate"
           style={{ color: "var(--ink-dim)" }}
         >
           {auth.email}
@@ -120,38 +113,26 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path
-            strokeLinecap="square"
-            strokeLinejoin="miter"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {menuOpen && (
         <div
-          className="absolute right-0 mt-2 w-72 z-50 backdrop-blur-[10px]"
+          className="absolute right-0 mt-2 w-64 z-50 rounded-xl overflow-hidden"
           style={{
-            background: "rgba(10,13,24,0.95)",
+            background: "rgba(19, 20, 27, 0.95)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
             border: "1px solid var(--line-strong)",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px var(--line)",
+            boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
           }}
         >
-          <div
-            className="p-4"
-            style={{ borderBottom: "1px solid var(--line)" }}
-          >
-            <div
-              className="text-[10px] tracking-[0.2em] uppercase mb-1"
-              style={{ color: "var(--accent-glow)" }}
-            >
-              // signed in as
+          <div className="p-4" style={{ borderBottom: "1px solid var(--line)" }}>
+            <div className="text-[12px] mb-1" style={{ color: "var(--muted-2)" }}>
+              Вы вошли как
             </div>
-            <div
-              className="text-[12px] font-mono truncate"
-              style={{ color: "var(--ink)" }}
-            >
+            <div className="text-[14px] truncate" style={{ color: "var(--ink)" }}>
               {auth.email}
             </div>
           </div>
@@ -161,54 +142,65 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
               setMenuOpen(false);
               onOpenSettings();
             }}
-            className="w-full text-left px-4 py-3 text-[11px] tracking-[0.1em] uppercase transition flex items-center gap-3"
+            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3"
             style={{ color: "var(--ink-dim)" }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(0,212,255,0.05)";
-              e.currentTarget.style.color = "var(--accent-glow)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+              e.currentTarget.style.color = "var(--ink)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
               e.currentTarget.style.color = "var(--ink-dim)";
             }}
           >
-            <span style={{ color: "var(--accent-glow)" }}>⚙</span>
-            <span>Settings · token</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+            <span>Настройки</span>
           </button>
           <a
             href="/download"
-            className="w-full text-left px-4 py-3 text-[11px] tracking-[0.1em] uppercase no-underline transition flex items-center gap-3"
+            className="w-full text-left px-4 py-3 text-[14px] no-underline transition flex items-center gap-3"
             style={{ color: "var(--ink-dim)" }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(0,212,255,0.05)";
-              e.currentTarget.style.color = "var(--accent-glow)";
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+              e.currentTarget.style.color = "var(--ink)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
               e.currentTarget.style.color = "var(--ink-dim)";
             }}
           >
-            <span style={{ color: "var(--accent-glow)" }}>↓</span>
-            <span>Download tunnel CLI</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Скачать на компьютер</span>
           </a>
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-full text-left px-4 py-3 text-[11px] tracking-[0.1em] uppercase transition flex items-center gap-3 disabled:opacity-50"
+            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3 disabled:opacity-50"
             style={{
               borderTop: "1px solid var(--line)",
-              color: "var(--magenta)",
+              color: "var(--pink)",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255,46,147,0.05)";
+              e.currentTarget.style.background = "rgba(244, 114, 182, 0.06)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";
             }}
           >
-            <span>⏻</span>
-            <span>{loggingOut ? "Logging out..." : "Log out"}</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span>{loggingOut ? "Выходим…" : "Выйти"}</span>
           </button>
         </div>
       )}

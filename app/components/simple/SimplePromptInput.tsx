@@ -1,3 +1,8 @@
+/**
+ * SimplePromptInput v2 — русский, без "// prompt input" префикса,
+ * без "Generating..." и "Generate" английских лейблов.
+ */
+
 import { useState } from "react";
 
 type Props = {
@@ -8,9 +13,9 @@ type Props = {
 
 const EXAMPLES = [
   "Сайт для кофейни в центре Минска",
-  "Портфолио фотографа-путешественника",
-  "Лендинг курса по английскому для детей",
-  "Страница для свадьбы в стиле минимализм",
+  "Свадебный сайт в стиле минимализм",
+  "Личная страница фотографа-путешественника",
+  "Сайт репетитора по английскому для детей",
 ];
 
 export function SimplePromptInput({ onSubmit, loading, initialValue = "" }: Props) {
@@ -25,14 +30,6 @@ export function SimplePromptInput({ onSubmit, loading, initialValue = "" }: Prop
 
   return (
     <div className="w-full max-w-3xl mx-auto">
-      <div
-        className="text-[10px] tracking-[0.2em] uppercase mb-3 flex items-center gap-3"
-        style={{ color: "var(--accent-glow)" }}
-      >
-        <span className="w-10 h-px" style={{ background: "var(--accent-glow)" }} />
-        // prompt input
-      </div>
-
       <div className="relative">
         <textarea
           value={value}
@@ -45,71 +42,60 @@ export function SimplePromptInput({ onSubmit, loading, initialValue = "" }: Prop
               submit();
             }
           }}
-          placeholder="Опиши свой сайт одним-двумя предложениями..."
-          rows={5}
+          placeholder="Опишите в 1-2 предложениях какой сайт вы хотите…"
+          rows={4}
           disabled={loading}
-          className="w-full px-6 py-5 pr-6 pb-20 text-[16px] font-mono resize-none outline-none disabled:opacity-50 transition-all"
+          className="w-full px-5 py-4 pr-5 pb-16 text-[15px] sm:text-[16px] resize-none outline-none disabled:opacity-50 transition-all rounded-xl"
           style={{
-            background: "rgba(10,13,24,0.6)",
-            border: focused ? "1px solid var(--accent)" : "1px solid var(--line-strong)",
+            background: "rgba(19, 20, 27, 0.7)",
+            border: focused ? "1px solid var(--cyan)" : "1px solid var(--line-strong)",
             color: "var(--ink)",
-            boxShadow: focused
-              ? "0 0 40px rgba(0,212,255,0.15), inset 0 0 0 1px var(--accent)"
-              : "none",
+            boxShadow: focused ? "0 0 0 3px rgba(56, 189, 248, 0.12)" : "none",
             backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
           }}
         />
         <button
           type="button"
           onClick={submit}
           disabled={loading || !value.trim()}
-          className="absolute bottom-5 right-5 px-6 py-3 text-[12px] font-bold tracking-[0.15em] uppercase text-black transition flex items-center gap-2 disabled:opacity-30"
-          style={{
-            background: "var(--accent)",
-            boxShadow: "var(--glow-cyan-sm)",
-          }}
+          className="absolute bottom-4 right-4 disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          {loading ? (
-            <>
-              <span
-                className="w-3 h-3 rounded-full animate-spin"
-                style={{
-                  border: "2px solid rgba(0,0,0,0.3)",
-                  borderTopColor: "#000",
-                }}
-              />
-              Generating...
-            </>
-          ) : (
-            <>
-              Generate <span className="text-[14px]">⌘↵</span>
-            </>
-          )}
+          <span className="btn-primary inline-flex" style={{ padding: "10px 18px", fontSize: 14 }}>
+            {loading ? (
+              <>
+                <span
+                  className="w-3 h-3 rounded-full animate-spin"
+                  style={{
+                    border: "2px solid rgba(0,0,0,0.3)",
+                    borderTopColor: "#000",
+                  }}
+                />
+                Создаём…
+              </>
+            ) : (
+              <>
+                Создать
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </>
+            )}
+          </span>
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mt-5">
+      <div className="flex flex-wrap gap-2 mt-4 justify-center">
         {EXAMPLES.map((ex) => (
           <button
             key={ex}
             type="button"
             onClick={() => setValue(ex)}
-            className="px-4 py-2 text-[11px] font-mono transition"
-            style={{
-              background: "transparent",
-              border: "1px solid var(--line)",
-              color: "var(--muted)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--acid)";
-              e.currentTarget.style.color = "var(--acid)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--line)";
-              e.currentTarget.style.color = "var(--muted)";
-            }}
+            className="nit-quick-chip"
+            type="button"
           >
-            → {ex}
+            {ex}
           </button>
         ))}
       </div>
