@@ -1,6 +1,6 @@
 /**
- * SimplePromptInput v2 — русский, без "// prompt input" префикса,
- * без "Generating..." и "Generate" английских лейблов.
+ * SimplePromptInput v2.1 — фикс дубля type="button" + .nit-quick-chip
+ * (класс уже определён в app.css, использует pill-стиль).
  */
 
 import { useState } from "react";
@@ -93,7 +93,6 @@ export function SimplePromptInput({ onSubmit, loading, initialValue = "" }: Prop
             type="button"
             onClick={() => setValue(ex)}
             className="nit-quick-chip"
-            type="button"
           >
             {ex}
           </button>
