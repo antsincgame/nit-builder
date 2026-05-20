@@ -1,13 +1,19 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { useAuth } from "~/lib/contexts/AuthContext";
-import { GridBg, Orbs, Chip, NitButton, Particles } from "~/components/nit";
 
 export const meta: MetaFunction = () => [
-  { title: "Login // NITGEN" },
+  { title: "Вход · NITGEN" },
   { name: "robots", content: "noindex" },
 ];
 
+/**
+ * Login v2 — упрощённая версия для обычных пользователей.
+ *
+ * Раньше была полная техническая верстка с тоннелями, GPU, "Sign in",
+ * "// auth» и английскими лейбалами. Привожу к виду register.tsx —
+ * одинаковый дизайн, язык обычных людей.
+ */
 export default function Login() {
   const auth = useAuth();
   const [email, setEmail] = useState("");
@@ -17,7 +23,7 @@ export default function Login() {
 
   useEffect(() => {
     if (auth.status === "authenticated") {
-      window.location.href = "/";
+      window.location.href = "/app";
     }
   }, [auth.status]);
 
@@ -37,158 +43,111 @@ export default function Login() {
       const data = (await res.json()) as { error?: string; userId?: string };
 
       if (!res.ok) {
-        setError(data.error ?? "Не удалось войти");
+        setError(data.error ?? "Неверный email или пароль");
         setLoading(false);
         return;
       }
 
-      window.location.href = "/";
+      window.location.href = "/app";
     } catch {
-      setError("Ошибка сети. Попробуй ещё раз.");
+      setError("Ошибка сети. Попробуйте ещё раз.");
       setLoading(false);
     }
   }
 
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] nit-grain overflow-hidden">
-      <GridBg />
-      <Orbs />
-      <Particles count={25} />
+    <div className="relative min-h-screen text-[color:var(--ink)] overflow-hidden">
+      <div className="nit-bg-mesh" aria-hidden>
+        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
+        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
+      </div>
+      <div className="nit-bg-grid" aria-hidden />
 
-      <nav className="relative z-10 px-8 py-6 max-w-[1400px] mx-auto">
-        <a href="/" className="flex items-center gap-3 no-underline w-fit">
-          <span
-            className="block w-7 h-7 relative"
-            style={{
-              background:
-                "conic-gradient(from 0deg, var(--accent), var(--magenta), var(--acid), var(--accent))",
-              animation: "nit-spin 8s linear infinite",
-            }}
+      <nav className="relative z-10 px-5 sm:px-8 py-5">
+        <a href="/" className="inline-flex items-center gap-2 no-underline">
+          <div
+            className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
+            style={{ background: "var(--ink)", color: "var(--bg)" }}
           >
-            <span className="absolute inset-[3px]" style={{ background: "var(--bg)" }} />
-          </span>
-          <span className="nit-display text-lg text-[color:var(--ink)]">NITGEN</span>
+            N
+          </div>
+          <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
         </a>
       </nav>
 
-      <main className="relative z-10 max-w-[1400px] mx-auto px-8 grid lg:grid-cols-[1.2fr_0.8fr] gap-16 items-center min-h-[calc(100vh-100px)]">
-        {/* Manifest left */}
-        <div className="hidden lg:block">
-          <Chip color="acid">⏵ Welcome back</Chip>
-          <h1 className="nit-display text-[clamp(48px,7vw,96px)] mt-8 mb-8 leading-[0.9]">
-            Запусти<br />
-            свой <span className="block" style={{ color: "transparent", WebkitTextStroke: "2px var(--accent-glow)" }}>тоннель.</span>
-          </h1>
-          <p className="text-[15px] text-[color:var(--muted)] leading-[1.7] max-w-[480px]">
-            Никто не читает твои промпты. Никто не считает токены. Твой GPU
-            генерит код у тебя дома, а наш сервер только маршрутизирует
-            байты — как почтальон, не вскрывающий конверты.
-          </p>
-
+      <main
+        className="relative z-10 flex items-center justify-center px-5 sm:px-8 pb-12"
+        style={{ minHeight: "calc(100vh - 80px)" }}
+      >
+        <div className="w-full max-w-[420px]">
           <div
-            className="flex gap-8 mt-12 pt-8"
-            style={{ borderTop: "1px solid var(--line)" }}
-          >
-            <div>
-              <div className="nit-display text-[24px]" style={{ color: "var(--accent-glow)" }}>
-                0₽
-              </div>
-              <div className="text-[10px] tracking-[0.15em] uppercase text-[color:var(--muted)]">
-                forever
-              </div>
-            </div>
-            <div>
-              <div className="nit-display text-[24px]" style={{ color: "var(--accent-glow)" }}>
-                ∞
-              </div>
-              <div className="text-[10px] tracking-[0.15em] uppercase text-[color:var(--muted)]">
-                generations
-              </div>
-            </div>
-            <div>
-              <div className="nit-display text-[24px]" style={{ color: "var(--accent-glow)" }}>
-                LOCAL
-              </div>
-              <div className="text-[10px] tracking-[0.15em] uppercase text-[color:var(--muted)]">
-                your gpu
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Form right */}
-        <div className="w-full">
-          <div
-            className="relative p-10 backdrop-blur-[10px]"
+            className="rounded-2xl p-6 sm:p-8"
             style={{
+              background: "rgba(19, 20, 27, 0.85)",
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
               border: "1px solid var(--line-strong)",
-              background: "rgba(10,13,24,0.7)",
-              boxShadow: "0 30px 80px rgba(0,212,255,0.15)",
             }}
           >
-            <div className="text-[11px] tracking-[0.2em] uppercase mb-2" style={{ color: "var(--accent-glow)" }}>
-              // auth · login
-            </div>
-            <h2 className="nit-display text-[36px] mb-2">Sign in</h2>
-            <p className="text-[12px] text-[color:var(--muted)] mb-8">
-              Нет аккаунта?{" "}
-              <a
-                href="/register"
-                className="no-underline transition"
-                style={{ color: "var(--accent-glow)" }}
-              >
-                Регистрация →
+            <h1 className="nit-display mb-2" style={{ fontSize: 28, color: "var(--ink)" }}>
+              Вход
+            </h1>
+            <p className="text-[14px] mb-6" style={{ color: "var(--muted)" }}>
+              Ещё нет аккаунта?{" "}
+              <a href="/register" className="transition-colors" style={{ color: "var(--cyan)" }}>
+                Создать
               </a>
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <Field
                 label="Email"
                 id="email"
                 type="email"
                 value={email}
                 onChange={setEmail}
-                placeholder="you@example.com"
+                placeholder="vasha@pochta.ru"
                 autoComplete="email"
+                required
               />
               <Field
-                label="Password"
+                label="Пароль"
                 id="password"
                 type="password"
                 value={password}
                 onChange={setPassword}
-                placeholder="••••••••"
+                placeholder="Введите пароль"
                 autoComplete="current-password"
                 minLength={8}
+                required
               />
 
               {error && (
                 <div
-                  className="p-3 text-[12px] tracking-wide"
+                  className="p-3 text-[13px] rounded-lg"
                   style={{
-                    border: "1px solid var(--magenta)",
-                    background: "rgba(255,46,147,0.08)",
-                    color: "var(--magenta-glow)",
+                    border: "1px solid var(--pink)",
+                    background: "rgba(244, 114, 182, 0.08)",
+                    color: "var(--pink)",
                   }}
                 >
-                  ⚠ {error}
+                  {error}
                 </div>
               )}
 
-              <NitButton
+              <button
                 type="submit"
-                variant="primary"
                 disabled={loading}
-                className="w-full"
+                className="btn-primary w-full"
+                style={{
+                  padding: "12px 22px",
+                  opacity: loading ? 0.6 : 1,
+                  cursor: loading ? "wait" : "pointer",
+                }}
               >
-                {loading ? "Authenticating..." : "Enter →"}
-              </NitButton>
+                {loading ? "Входим…" : "Войти"}
+              </button>
             </form>
-
-            <p className="mt-8 text-[10px] text-[color:var(--muted-2)] tracking-[0.05em] leading-[1.6]">
-              Используя NITGEN, ты соглашаешься генерировать сайты через
-              свой GPU и не эксплуатировать туннель для автоматических атак.
-            </p>
           </div>
         </div>
       </main>
@@ -205,6 +164,7 @@ function Field({
   placeholder,
   autoComplete,
   minLength,
+  required,
 }: {
   label: string;
   id: string;
@@ -214,34 +174,35 @@ function Field({
   placeholder?: string;
   autoComplete?: string;
   minLength?: number;
+  required?: boolean;
 }) {
   return (
     <div>
       <label
         htmlFor={id}
-        className="block text-[10px] tracking-[0.2em] uppercase mb-2"
-        style={{ color: "var(--muted)" }}
+        className="block text-[13px] font-medium mb-1.5"
+        style={{ color: "var(--ink-dim)" }}
       >
-        // {label}
+        {label}
       </label>
       <input
         id={id}
         type={type}
-        required
+        required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         minLength={minLength}
         placeholder={placeholder}
-        className="w-full px-4 py-3.5 text-[14px] font-mono outline-none transition-all"
+        className="w-full px-4 py-3 text-[15px] rounded-lg outline-none transition"
         style={{
-          background: "transparent",
+          background: "var(--bg)",
           border: "1px solid var(--line-strong)",
           color: "var(--ink)",
         }}
         onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--acid)";
-          e.currentTarget.style.boxShadow = "0 0 20px rgba(212,255,0,0.2)";
+          e.currentTarget.style.borderColor = "var(--cyan)";
+          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.15)";
         }}
         onBlur={(e) => {
           e.currentTarget.style.borderColor = "var(--line-strong)";

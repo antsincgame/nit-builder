@@ -1,5 +1,5 @@
 /**
- * LandingNav v4 — упрощённый язык, с кнопкой "Скачать" вместо GitHub на мобиле.
+ * LandingNav v4.1 — "Войти" видна и на мобиле.
  */
 
 import { useState } from "react";
@@ -32,16 +32,20 @@ export function LandingNav({ isAuthed }: Props) {
             </span>
           </a>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             {isAuthed ? (
-              <a href="/app" className="btn-primary" style={{ padding: "8px 16px", fontSize: 13 }}>
+              <a
+                href="/app"
+                className="btn-primary"
+                style={{ padding: "8px 16px", fontSize: 13 }}
+              >
                 Открыть приложение →
               </a>
             ) : (
               <>
                 <a
                   href="/login"
-                  className="text-[13px] hidden sm:inline-block px-3 py-2 transition-colors"
+                  className="text-[13px] px-3 py-2 transition-colors"
                   style={{ color: "var(--muted)" }}
                 >
                   Войти
