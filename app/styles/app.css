@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
-   NITGEN — DESIGN TOKENS v2
+   NITGEN — DESIGN TOKENS v2.2
    Brutalist / cyberpunk. ЯРКИЕ неоны, видимые орбы, живая динамика.
+   v2.2: Inter для body, моно только для лейблов/кода. Поднят контраст
+   muted-тонов. Глитч-анимация реже срабатывает (5s → 14s).
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
@@ -12,11 +14,11 @@
   --bg-elev:   #0d1424;
   --bg-glass:  rgba(13, 20, 36, 0.7);
 
-  /* ─── Ink ─── */
+  /* ─── Ink (поднят контраст muted/muted-2) ─── */
   --ink:       #e8ecff;
-  --ink-dim:   #b8c0e0;
-  --muted:     #8b94c4;
-  --muted-2:   #5c6595;
+  --ink-dim:   #c8d0ee;
+  --muted:     #a8b1de;
+  --muted-2:   #8b94c4;
 
   /* ─── Accents — БОЛЬШЕ НАСЫЩЕННОСТИ ─── */
   --accent:       #00d4ff;
@@ -42,20 +44,22 @@
   --glow-violet:  0 0 60px rgba(157, 77, 255, 0.55);
 
   /* ─── Type ─── */
+  --sans:    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --display: "Unbounded", ui-sans-serif, system-ui, sans-serif;
   --mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --font-sans: var(--mono);
+  --font-sans: var(--sans);
 }
 
 @theme {
-  --font-sans: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Unbounded", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   --color-nit-bg: #05060a;
   --color-nit-bg-2: #0a0d18;
   --color-nit-ink: #e8ecff;
-  --color-nit-muted: #8b94c4;
+  --color-nit-ink-dim: #c8d0ee;
+  --color-nit-muted: #a8b1de;
   --color-nit-accent: #00d4ff;
   --color-nit-magenta: #ff2e93;
   --color-nit-acid: #d4ff00;
@@ -78,8 +82,10 @@ html, body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--mono);
+  font-family: var(--sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection { background: var(--magenta); color: #000; }
@@ -128,14 +134,14 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
   background-size: 12px 12px;
 }
 
-/* Grain — заметнее */
+/* Grain — мягче (0.12 → 0.07) */
 .nit-grain::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 1000;
-  opacity: 0.12;
+  opacity: 0.07;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
@@ -182,7 +188,7 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
   100% { top: 100vh; opacity: 0; }
 }
 
-/* ─── ORBS — ЯРКИЕ! ─── */
+/* ─── ORBS — снижены opacity для меньшего визуального шума ─── */
 .nit-orb {
   position: fixed;
   border-radius: 50%;
@@ -193,21 +199,21 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
 .nit-orb-1 {
   width: 700px; height: 700px;
   background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
-  opacity: 0.7;
+  opacity: 0.5;
   top: -150px; left: -200px;
   animation: nit-float 14s ease-in-out infinite;
 }
 .nit-orb-2 {
   width: 600px; height: 600px;
   background: radial-gradient(circle, var(--magenta) 0%, transparent 70%);
-  opacity: 0.55;
+  opacity: 0.4;
   top: 30%; right: -200px;
   animation: nit-float 18s ease-in-out infinite reverse;
 }
 .nit-orb-3 {
   width: 550px; height: 550px;
   background: radial-gradient(circle, var(--violet) 0%, transparent 70%);
-  opacity: 0.6;
+  opacity: 0.45;
   bottom: -150px; left: 30%;
   animation: nit-float 20s ease-in-out infinite;
 }
@@ -216,7 +222,7 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
 .nit-orb-4 {
   width: 400px; height: 400px;
   background: radial-gradient(circle, var(--acid) 0%, transparent 70%);
-  opacity: 0.25;
+  opacity: 0.18;
   top: 60%; left: 10%;
   animation: nit-float 22s ease-in-out infinite reverse;
 }
@@ -304,35 +310,35 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
   to { transform: translateX(-50%); }
 }
 
-/* GLITCH — теперь правильный, на ОСНОВНОМ элементе */
+/* GLITCH — реже срабатывает (5s → 14s цикл, активная фаза 96-100%) */
 @keyframes nit-glitch-main {
-  0%, 88%, 100% {
+  0%, 96%, 100% {
     transform: translate(0);
     text-shadow:
       2px 0 var(--magenta),
       -2px 0 var(--accent-glow);
   }
-  90% {
+  96.5% {
     transform: translate(-3px, 1px);
     text-shadow:
       4px 0 var(--magenta),
       -4px 0 var(--accent-glow),
       0 0 20px var(--acid);
   }
-  92% {
+  97.5% {
     transform: translate(3px, -1px);
     text-shadow:
       -3px 0 var(--magenta),
       3px 0 var(--accent-glow);
   }
-  94% {
+  98.5% {
     transform: translate(-2px, 2px);
     text-shadow:
       5px 0 var(--magenta),
       -5px 0 var(--accent-glow),
       0 0 30px var(--accent);
   }
-  96% {
+  99.5% {
     transform: translate(0);
     text-shadow:
       2px 0 var(--magenta),
@@ -341,16 +347,16 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
 }
 
 @keyframes nit-glitch-1 {
-  0%, 90%, 100% { transform: translate(0); clip-path: inset(0 0 60% 0); }
-  92% { transform: translate(-4px, 2px); clip-path: inset(20% 0 60% 0); }
-  94% { transform: translate(3px, -2px); clip-path: inset(0 0 80% 0); }
-  96% { transform: translate(-2px, -1px); clip-path: inset(0 0 50% 0); }
+  0%, 96%, 100% { transform: translate(0); clip-path: inset(0 0 60% 0); }
+  97% { transform: translate(-4px, 2px); clip-path: inset(20% 0 60% 0); }
+  98% { transform: translate(3px, -2px); clip-path: inset(0 0 80% 0); }
+  99% { transform: translate(-2px, -1px); clip-path: inset(0 0 50% 0); }
 }
 @keyframes nit-glitch-2 {
-  0%, 90%, 100% { transform: translate(0); clip-path: inset(60% 0 0 0); }
-  92% { transform: translate(3px, -2px); clip-path: inset(70% 0 0 0); }
-  94% { transform: translate(-3px, 2px); clip-path: inset(50% 0 20% 0); }
-  96% { transform: translate(2px, 1px); clip-path: inset(60% 0 0 0); }
+  0%, 96%, 100% { transform: translate(0); clip-path: inset(60% 0 0 0); }
+  97% { transform: translate(3px, -2px); clip-path: inset(70% 0 0 0); }
+  98% { transform: translate(-3px, 2px); clip-path: inset(50% 0 20% 0); }
+  99% { transform: translate(2px, 1px); clip-path: inset(60% 0 0 0); }
 }
 
 @keyframes nit-tilt {
@@ -430,7 +436,7 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
   animation: nit-gradient-shift 8s ease-in-out infinite;
 }
 
-/* GLITCH HEADING — единый правильный layered glitch */
+/* GLITCH HEADING — единый правильный layered glitch (14s цикл) */
 .nit-glitch-text {
   position: relative;
   display: block;
@@ -440,7 +446,7 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
     3px 0 var(--magenta),
     -3px 0 var(--accent-glow),
     0 0 20px rgba(0, 212, 255, 0.4);
-  animation: nit-glitch-main 5s infinite;
+  animation: nit-glitch-main 14s infinite;
 }
 
 .nit-glitch-text::before,
@@ -456,14 +462,14 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
 
 .nit-glitch-text::before {
   color: var(--magenta);
-  animation: nit-glitch-1 5s infinite;
+  animation: nit-glitch-1 14s infinite;
   mix-blend-mode: screen;
   opacity: 0.8;
 }
 
 .nit-glitch-text::after {
   color: var(--accent-glow);
-  animation: nit-glitch-2 5s infinite;
+  animation: nit-glitch-2 14s infinite;
   mix-blend-mode: screen;
   opacity: 0.8;
 }
@@ -666,4 +672,24 @@ iframe.nit-preview::-webkit-scrollbar-thumb {
     0 20px 60px rgba(0, 212, 255, 0.25),
     0 0 0 1px var(--accent),
     0 0 30px rgba(0, 212, 255, 0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY — prefers-reduced-motion
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .nit-glitch-text,
+  .nit-glitch-text::before,
+  .nit-glitch-text::after {
+    animation: none;
+    text-shadow: none;
+  }
+  .nit-orb,
+  .nit-beam,
+  .nit-conic-rays,
+  .nit-particle,
+  .nit-h-particle {
+    animation: none;
+  }
 }
