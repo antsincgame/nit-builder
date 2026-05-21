@@ -17,7 +17,7 @@
  */
 
 import { createRequestListener } from "@react-router/node";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createServer, request as httpRequest, type IncomingMessage, type ServerResponse } from "node:http";
 import { createReadStream, statSync, existsSync } from "node:fs";
 import { extname, join, normalize, sep, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,101 @@ const requestListener = createRequestListener({
   build: build as never,
   mode: NODE_ENV,
 });
+
+// ─── Prerender middleware для SEO-ботов ────────────────────────────────
+//
+// React Router SSR у нас работает, но реальный контент (loaders, async)
+// не успевает дорендериться к моменту flush'а — боты видят пустой shell
+// со спиннером. Решение: для бот-UA проксируем запрос в self-hosted
+// prerender (Puppeteer + headless Chromium), который ждёт пока DOM
+// действительно стабилизируется и возвращает готовый HTML.
+//
+// prerender живёт в Coolify, в сети 'coolify', доступен по DNS-алиасу
+// 'prerender' на порту 3000. API: GET /render?url=https://example.com
+//
+// Включается флагом PRERENDER_ENABLED=1 (по умолчанию вкл в продакшене).
+// Тайм-аут 60 сек — prerender сам по себе медленный (~9 сек на холодный
+// рендер, мгновенно из кэша).
+
+const PRERENDER_ENABLED =
+  (process.env.PRERENDER_ENABLED ?? (NODE_ENV === "production" ? "1" : "0")) === "1";
+const PRERENDER_HOST = process.env.PRERENDER_HOST ?? "prerender";
+const PRERENDER_PORT = parseInt(process.env.PRERENDER_PORT ?? "3000", 10);
+const PRERENDER_TIMEOUT_MS = parseInt(process.env.PRERENDER_TIMEOUT_MS ?? "60000", 10);
+
+// Регексп ботов. Покрывает поисковики, AI-краулеры, краулеры соцсетей.
+// Сознательно не пытаемся ловить все возможные UA — лучше пропустить
+// бота, чем сломать рендер для обычного пользователя.
+const BOT_UA_RE =
+  /googlebot|google-inspectiontool|bingbot|yandex|baiduspider|duckduckbot|applebot|twitterbot|facebookexternalhit|linkedinbot|whatsapp|telegrambot|slackbot|vkshare|pinterest|embedly|quora link preview|w3c_validator|perplexitybot|perplexity-user|chatgpt-user|gptbot|oai-searchbot|claudebot|claude-web|anthropic-ai|ccbot|bytespider|amazonbot|mojeekbot|youbot/i;
+
+// Расширения, для которых не нужен prerender (статика всегда напрямую).
+const STATIC_EXT_RE =
+  /\.(js|mjs|css|json|xml|txt|map|png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|eot|otf|mp4|webm|mp3|wav|pdf|zip)$/i;
+
+function shouldPrerender(req: IncomingMessage, pathname: string): boolean {
+  if (!PRERENDER_ENABLED) return false;
+  if (req.method !== "GET") return false;
+  if (pathname.startsWith("/api/")) return false;
+  if (pathname.startsWith("/assets/")) return false;
+  if (STATIC_EXT_RE.test(pathname)) return false;
+
+  const ua = req.headers["user-agent"];
+  if (!ua) return false;
+  return BOT_UA_RE.test(ua);
+}
+
+function proxyToPrerender(req: IncomingMessage, res: ServerResponse): void {
+  const host = req.headers.host ?? "nitgen.org";
+  // Защищаемся от спуфинга x-forwarded-proto: если непонятно — берём https
+  // (продакшен всегда за TLS-прокси, http бывает только в dev).
+  const proto =
+    (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim() ??
+    "https";
+  const targetUrl = `${proto}://${host}${req.url ?? "/"}`;
+
+  const prerenderPath = `/render?url=${encodeURIComponent(targetUrl)}`;
+
+  const upstream = httpRequest(
+    {
+      host: PRERENDER_HOST,
+      port: PRERENDER_PORT,
+      path: prerenderPath,
+      method: "GET",
+      timeout: PRERENDER_TIMEOUT_MS,
+      headers: {
+        // Передаём UA — на случай если prerender захочет логировать
+        "user-agent": String(req.headers["user-agent"] ?? "prerender-client"),
+      },
+    },
+    (upstreamRes) => {
+      // Стримим статус + заголовки + тело без буферизации
+      res.statusCode = upstreamRes.statusCode ?? 502;
+      for (const [k, v] of Object.entries(upstreamRes.headers)) {
+        if (v !== undefined) res.setHeader(k, v as string | string[]);
+      }
+      upstreamRes.pipe(res);
+    },
+  );
+
+  upstream.on("error", (err) => {
+    console.error("[prerender] upstream error:", err.message);
+    // Падаем на обычный SSR — лучше отдать пустой shell чем 502 боту.
+    // Но только если ответ ещё не начали писать.
+    if (!res.headersSent) {
+      requestListener(req, res);
+    } else {
+      res.end();
+    }
+  });
+
+  upstream.on("timeout", () => {
+    console.error("[prerender] upstream timeout for", targetUrl);
+    upstream.destroy();
+  });
+
+  upstream.end();
+}
 
 // ─── Static file middleware ─────────────────────────────────────────────
 //
@@ -157,7 +252,16 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     if (tryServeFile(PUBLIC_DIR, pathname, res, false)) return;
   }
 
-  // 3. Прокидываем remote IP socket'а в заголовок чтобы rateLimit мог
+  // 3. SEO-боты идут через prerender (см. PRERENDER_ENABLED). Это ДОЛЖНО
+  //    быть после статики (нет смысла рендерить favicon в Chrome) и
+  //    ДО проксирования remote IP — пререндер не нуждается в этом
+  //    заголовке, он не дёргает наш rate limiter.
+  if (shouldPrerender(req, pathname)) {
+    proxyToPrerender(req, res);
+    return;
+  }
+
+  // 4. Прокидываем remote IP socket'а в заголовок чтобы rateLimit мог
   //    делать trust-proxy whitelist. Web Request API не даёт доступ к
   //    socket.remoteAddress, так что пихаем через служебный заголовок.
   //    Клиент этот заголовок подделать не может — мы его всегда
@@ -169,7 +273,7 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
     delete req.headers["x-request-remote-ip"];
   }
 
-  // 4. Fallback — React Router SSR
+  // 5. Fallback — React Router SSR
   requestListener(req, res);
 }
 
@@ -208,6 +312,7 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`│  HTTP:       http://${HOST}:${PORT}`);
   console.log(`│  WS tunnel:  ws://${HOST}:${PORT}/api/tunnel`);
   console.log(`│  WS control: ws://${HOST}:${PORT}/api/control`);
+  console.log(`│  Prerender:  ${PRERENDER_ENABLED ? `${PRERENDER_HOST}:${PRERENDER_PORT}` : "disabled"}`);
   console.log("└─────────────────────────────────────────────────┘");
 });
 
