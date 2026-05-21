@@ -1,5 +1,4 @@
 import { TEMPLATE_CATALOG } from "~/lib/config/htmlTemplatesCatalog";
-import { TemplateIcon } from "~/components/nit/TemplateIcon";
 
 type Props = {
   onSelect: (prompt: string) => void;
@@ -7,7 +6,7 @@ type Props = {
 
 /**
  * TemplateGrid v2 — без uppercase/font-mono на русских именах.
- * Номера слева видимы на hover вместо постоянных /01, /02.
+ * Используется t.emoji вместо SVG TemplateIcon (был сложный технический вид).
  */
 const QUICK_PROMPTS: Record<string, string> = {
   "coffee-shop": "Сайт для уютной кофейни в центре города. Меню, часы работы, адрес, контакты.",
