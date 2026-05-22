@@ -1,17 +1,19 @@
-name: Tunnel Desktop Release
+name: Tunnel CLI Release
 
-# Builds NIT Tunnel Desktop for macOS (Apple Silicon + Intel), Windows, Linux
-# on tag push matching tunnel-v*, attaches artifacts to a GitHub Release.
+# Кросс-платформенная сборка tunnel CLI через Bun.
 #
-# Requires secrets (configure in repo settings → Secrets → Actions):
-#   - TAURI_SIGNING_PRIVATE_KEY       — Tauri updater signing key (optional)
-#   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-#   - APPLE_CERTIFICATE               — base64 p12 (optional, for signed .dmg)
-#   - APPLE_CERTIFICATE_PASSWORD
-#   - APPLE_SIGNING_IDENTITY
-#   - APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
+# Билдит 4 бинарника на одном ubuntu-runner (Bun умеет cross-compile
+# для всех платформ из любого хоста):
+#   - nit-tunnel-linux-x64        Linux x64 (Intel/AMD)
+#   - nit-tunnel-macos-arm64      macOS Apple Silicon (M1/M2/M3/M4)
+#   - nit-tunnel-macos-x64        macOS Intel
+#   - nit-tunnel-windows-x64.exe  Windows x64
 #
-# Without signing secrets, unsigned builds will still be produced.
+# Триггер:
+#   - push тега вида `tunnel-v*` (например `tunnel-v0.1.0`)
+#   - ручной запуск через GitHub UI (Actions → Tunnel CLI Release → Run workflow)
+#
+# Артефакты автоматически прикрепляются к GitHub Release.
 
 on:
   push:
@@ -19,84 +21,138 @@ on:
       - "tunnel-v*"
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+
 jobs:
-  build-tauri:
+  build:
+    name: Build ${{ matrix.output }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest"
-            args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest"
-            args: "--target x86_64-apple-darwin"
-          - platform: "ubuntu-22.04"
-            args: ""
-          - platform: "windows-latest"
-            args: ""
+          - target: bun-linux-x64
+            output: nit-tunnel-linux-x64
+          - target: bun-darwin-arm64
+            output: nit-tunnel-macos-arm64
+          - target: bun-darwin-x64
+            output: nit-tunnel-macos-x64
+          - target: bun-windows-x64
+            output: nit-tunnel-windows-x64.exe
 
-    runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Install Node.js
-        uses: actions/setup-node@v5
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          node-version: "20"
+          bun-version: latest
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+      - name: Install dependencies
+        run: bun install --frozen-lockfile || bun install
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "./tunnel/desktop/src-tauri -> target"
-
-      - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Compile ${{ matrix.output }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            pkg-config
+          bun build \
+            --compile \
+            --minify \
+            --sourcemap \
+            --target=${{ matrix.target }} \
+            --outfile=${{ matrix.output }} \
+            ./tunnel/src/cli.ts
 
-      - name: Install UI dependencies
+      - name: Verify binary
         run: |
-          cd tunnel/desktop/ui
-          npm install
+          ls -lh ${{ matrix.output }}
+          file ${{ matrix.output }} || true
 
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: ./tunnel/desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: "NIT Tunnel ${{ github.ref_name }}"
-          releaseBody: |
-            Cross-platform tunnel client for NIT Builder.
-            
-            Download the appropriate installer for your platform:
-            - **macOS Apple Silicon:** `.dmg` aarch64
-            - **macOS Intel:** `.dmg` x86_64
-            - **Windows:** `-setup.exe` NSIS installer
-            - **Linux:** `.AppImage` or `.deb`
-            
-            See https://github.com/igor1000rr/nit-builder for documentation.
-          releaseDraft: true
-          prerelease: true
-          args: ${{ matrix.args }}
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
+          retention-days: 7
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/tunnel-v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lah artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          tag_name: ${{ github.ref_name }}
+          name: NIT Tunnel ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## NIT Tunnel — клиент для подключения LM Studio к NIT Builder
+
+            Кросс-платформенный CLI — один исполняемый файл, ничего устанавливать не нужно.
+
+            ### Скачать
+
+            | Платформа | Файл |
+            |---|---|
+            | 🦋 Windows | `nit-tunnel-windows-x64.exe` |
+            | 🍎 macOS (M1/M2/M3/M4) | `nit-tunnel-macos-arm64` |
+            | 💻 macOS (Intel) | `nit-tunnel-macos-x64` |
+            | 🐧 Linux | `nit-tunnel-linux-x64` |
+
+            ### Как использовать
+
+            **1.** Запусти LM Studio, загрузи модель (рекомендуем `Qwen2.5-Coder-7B-Instruct`), включи Server (порт 1234).
+
+            **2.** Получи tunnel-токен в [nit.vibecoding.by](https://nit.vibecoding.by) → войди в аккаунт → Settings → «Ключ доступа» →  Создать новый.
+
+            **3.** Скачай бинарник под твою ОС.
+
+            **4.** На macOS/Linux дай право на выполнение:
+            ```bash
+            chmod +x nit-tunnel-macos-arm64
+            ```
+
+            **5.** Запусти:
+
+            **Windows (PowerShell):**
+            ```powershell
+            .\nit-tunnel-windows-x64.exe `
+              --token ТВОЙ_ТОКЕН `
+              --server wss://nit.vibecoding.by/api/tunnel `
+              --lm-studio http://localhost:1234/v1
+            ```
+
+            **macOS / Linux:**
+            ```bash
+            ./nit-tunnel-macos-arm64 \
+              --token ТВОЙ_ТОКЕН \
+              --server wss://nit.vibecoding.by/api/tunnel \
+              --lm-studio http://localhost:1234/v1
+            ```
+
+            Когда CLI подключится — в nit.vibecoding.by/app в навбаре загорится зелёный индикатор «Туннель онлайн», генерация пойдёт через твой GPU.
+
+            ### Note for macOS users
+
+            macOS может заблокировать бинарник (Gatekeeper) — бинары не подписаны сертификатом Apple. Как обойти:
+            ```bash
+            xattr -d com.apple.quarantine nit-tunnel-macos-arm64
+            ```
+            Или через System Settings → Privacy → Security → «Allow Anyway» после первого запуска.
