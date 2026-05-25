@@ -19,8 +19,8 @@ import {
   APPWRITE_CONFIG,
   getAdminDatabases,
   getAdminUsers,
-  type NitUser,
 } from "./appwrite.server";
+import type { NitUserWithOAuth } from "./appwrite-types-ext";
 
 export type OAuthProviderId = "google" | "github";
 
@@ -44,7 +44,7 @@ export async function findUserByOAuthId(
   const db = getAdminDatabases();
   const field = PROVIDER_FIELD[provider];
   try {
-    const result = await db.listDocuments<NitUser>(
+    const result = await db.listDocuments<NitUserWithOAuth>(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.users,
       [Query.equal(field, externalId), Query.limit(1)],
@@ -71,7 +71,7 @@ export async function findUserByEmail(
 ): Promise<{ userId: string; email: string } | null> {
   const db = getAdminDatabases();
   try {
-    const result = await db.listDocuments<NitUser>(
+    const result = await db.listDocuments<NitUserWithOAuth>(
       APPWRITE_CONFIG.databaseId,
       APPWRITE_CONFIG.collections.users,
       [Query.equal("email", email), Query.limit(1)],
