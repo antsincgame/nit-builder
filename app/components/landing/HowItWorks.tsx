@@ -902,6 +902,7 @@ export default function HowItWorks() {
       clearTimeout(timerRef.current);
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isVisible, scheduleNext]);
 
   const goToPhase = (i: number) => {
