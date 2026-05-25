@@ -83,6 +83,7 @@ export default function NeuralBackground() {
         p.y += p.vy;
       }
 
+      // Соединения (треугольники)
       const connectionDist = 120;
       ctx.lineWidth = 0.5;
 
@@ -111,6 +112,7 @@ export default function NeuralBackground() {
         }
       }
 
+      // Точки
       for (const p of points) {
         const mDist = Math.sqrt((mouse.x - p.x) ** 2 + (mouse.y - p.y) ** 2);
         if (mDist < maxDist) {
