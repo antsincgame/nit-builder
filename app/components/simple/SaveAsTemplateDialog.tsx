@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { X, Check } from "lucide-react";
 import { saveMyTemplate } from "~/lib/stores/userTemplatesStore";
 import { toast } from "~/lib/stores/toastStore";
 
@@ -16,7 +17,7 @@ type DialogState =
   | { kind: "error"; message: string; isLimit: boolean };
 
 /**
- * SaveAsTemplateDialog v2 — русский, на «вы», без техно-префиксов.
+ * SaveAsTemplateDialog v3 — эстетика лендинга: чёрный модал, emerald-CTA.
  */
 export function SaveAsTemplateDialog({
   isOpen,
@@ -65,62 +66,48 @@ export function SaveAsTemplateDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md p-6 relative rounded-2xl"
-        style={{ background: "var(--bg-2)", border: "1px solid var(--line-strong)" }}
+        className="w-full max-w-md p-6 relative rounded-2xl bg-[#0A0A0A] border border-white/[0.08] shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center transition"
-          style={{ color: "var(--muted)" }}
+          className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/[0.04] transition"
           aria-label="Закрыть"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-          </svg>
+          <X size={16} />
         </button>
 
-        <h3 className="nit-display mb-2" style={{ fontSize: 20, color: "var(--ink)" }}>
+        <h3 className="text-xl font-semibold tracking-tight text-white mb-2">
           Сохранить как шаблон
         </h3>
-        <p className="text-[14px] mb-5" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+        <p className="text-sm mb-5 text-[#A1A1AA] leading-relaxed">
           Сохраните этот сайт в свою библиотеку — потом сможете использовать
           его как основу для новых проектов. Видите только вы.
         </p>
 
         {state.kind === "saved" ? (
           <div className="space-y-3">
-            <div
-              className="p-3 text-[14px] rounded-lg flex items-center gap-3"
-              style={{
-                border: "1px solid var(--green)",
-                background: "rgba(34, 197, 94, 0.06)",
-                color: "var(--ink)",
-              }}
-            >
-              <span style={{ color: "var(--green)" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 6 9 17l-5-5" />
-                </svg>
-              </span>
+            <div className="p-3 text-sm rounded-lg flex items-center gap-3 border border-emerald-500/30 bg-emerald-500/[0.06] text-white">
+              <Check size={18} className="text-emerald-400 shrink-0" strokeWidth={2.5} />
               «{name.trim()}» добавлен в вашу библиотеку.
             </div>
-            <button type="button" onClick={handleClose} className="btn-ghost w-full" style={{ padding: "12px 22px" }}>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-full h-12 rounded-xl border border-white/[0.08] bg-white/[0.02] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] text-sm transition"
+            >
               Закрыть
             </button>
           </div>
         ) : (
           <>
             <label className="block mb-4">
-              <span className="block text-[13px] mb-2" style={{ color: "var(--ink-dim)" }}>
-                Название
-              </span>
+              <span className="block text-[13px] mb-2 text-[#A1A1AA]">Название</span>
               <input
                 type="text"
                 value={name}
@@ -128,12 +115,7 @@ export function SaveAsTemplateDialog({
                 maxLength={128}
                 disabled={state.kind === "saving"}
                 placeholder="Например: лендинг кофейни"
-                className="w-full px-3 py-2.5 text-[14px] outline-none rounded-lg"
-                style={{
-                  background: "var(--bg)",
-                  border: "1px solid var(--line-strong)",
-                  color: "var(--ink)",
-                }}
+                className="w-full h-11 px-3 text-sm outline-none rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/25 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -141,29 +123,14 @@ export function SaveAsTemplateDialog({
                     void handleSubmit();
                   }
                 }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "var(--cyan)";
-                  e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.12)";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "var(--line-strong)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
               />
-              <span className="block text-[12px] mt-1" style={{ color: "var(--muted-2)" }}>
+              <span className="block text-[12px] mt-1 text-[#71717A]/70">
                 {name.length} / 128
               </span>
             </label>
 
             {state.kind === "error" && (
-              <div
-                className="p-3 mb-4 text-[13px] rounded-lg"
-                style={{
-                  border: "1px solid var(--pink)",
-                  background: "rgba(244, 114, 182, 0.06)",
-                  color: "var(--pink)",
-                }}
-              >
+              <div className="p-3 mb-4 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.06] text-rose-300">
                 {state.isLimit
                   ? "Достигнут лимит 50 шаблонов. Удалите неиспользуемые."
                   : `Ошибка: ${state.message}`}
@@ -174,8 +141,7 @@ export function SaveAsTemplateDialog({
               type="button"
               onClick={handleSubmit}
               disabled={state.kind === "saving" || name.trim().length === 0}
-              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ padding: "12px 22px" }}
+              className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
             >
               {state.kind === "saving" ? "Сохраняем…" : "Сохранить"}
             </button>

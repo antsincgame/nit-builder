@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { X, Loader2, Copy, ExternalLink } from "lucide-react";
 import { toast } from "~/lib/stores/toastStore";
 
 type ShareDialogProps = {
@@ -14,7 +15,8 @@ type ShareState =
   | { kind: "error"; message: string };
 
 /**
- * ShareDialog v2 — русский, без "// generating link..." / "⏵ Ready" / Copy / Open.
+ * ShareDialog v3 — эстетика лендинга: чёрный модал, emerald-CTA,
+ * lucide иконки (X, Loader2, Copy, ExternalLink).
  */
 export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
   const [state, setState] = useState<ShareState>({ kind: "idle" });
@@ -62,40 +64,32 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm"
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md p-6 relative rounded-2xl"
-        style={{ background: "var(--bg-2)", border: "1px solid var(--line-strong)" }}
+        className="w-full max-w-md p-6 relative rounded-2xl bg-[#0A0A0A] border border-white/[0.08] shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={handleClose}
-          className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center transition"
-          style={{ color: "var(--muted)" }}
+          className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/[0.04] transition"
           aria-label="Закрыть"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-          </svg>
+          <X size={16} />
         </button>
 
-        <h3 className="nit-display mb-2" style={{ fontSize: 20, color: "var(--ink)" }}>
+        <h3 className="text-xl font-semibold tracking-tight text-white mb-2">
           Поделиться сайтом
         </h3>
-        <p className="text-[14px] mb-5" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+        <p className="text-sm mb-5 text-[#A1A1AA] leading-relaxed">
           Создайте публичную ссылку — её можно отправить кому угодно, входить
           в аккаунт не нужно. Ссылка работает 30 дней.
         </p>
 
         {!siteId && (
-          <div
-            className="p-3 mb-4 text-[13px] rounded-lg"
-            style={{ border: "1px solid var(--line)", color: "var(--muted)" }}
-          >
+          <div className="p-3 mb-4 text-[13px] rounded-lg border border-white/[0.06] bg-white/[0.02] text-[#A1A1AA]">
             Сайт ещё сохраняется. Подождите пару секунд и попробуйте снова.
           </div>
         )}
@@ -104,65 +98,50 @@ export function ShareDialog({ isOpen, siteId, onClose }: ShareDialogProps) {
           <button
             type="button"
             onClick={createShare}
-            className="btn-primary w-full"
-            style={{ padding: "12px 22px" }}
+            className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold text-sm transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
           >
             Создать ссылку
           </button>
         )}
 
         {state.kind === "loading" && (
-          <div className="flex items-center justify-center gap-3 py-4" style={{ color: "var(--muted)" }}>
-            <div
-              className="w-4 h-4 rounded-full animate-spin"
-              style={{ border: "2px solid var(--line)", borderTopColor: "var(--cyan)" }}
-            />
-            <span className="text-[13px]">Создаём ссылку…</span>
+          <div className="flex items-center justify-center gap-3 py-4 text-[#A1A1AA]">
+            <Loader2 size={16} className="text-emerald-400 animate-spin" />
+            <span className="text-sm">Создаём ссылку…</span>
           </div>
         )}
 
         {state.kind === "error" && (
-          <div
-            className="p-3 text-[13px] rounded-lg"
-            style={{ border: "1px solid var(--pink)", color: "var(--pink)", background: "rgba(244, 114, 182, 0.06)" }}
-          >
+          <div className="p-3 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.06] text-rose-300">
             Ошибка: {state.message}
           </div>
         )}
 
         {state.kind === "ready" && (
           <div className="space-y-3">
-            <div
-              className="p-3 text-[13px] break-all select-all rounded-lg"
-              style={{
-                border: "1px solid var(--line-strong)",
-                background: "var(--bg)",
-                color: "var(--ink)",
-                fontFamily: "ui-monospace, monospace",
-              }}
-            >
+            <div className="p-3 text-[13px] break-all select-all rounded-lg bg-white/[0.04] border border-white/[0.08] text-white font-mono">
               {state.url}
             </div>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => copyUrl(state.url)}
-                className="btn-primary flex-1"
-                style={{ padding: "10px 16px", fontSize: 13 }}
+                className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold text-sm transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
               >
+                <Copy size={13} />
                 Скопировать
               </button>
               <a
                 href={state.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-ghost flex-1 text-center"
-                style={{ padding: "10px 16px", fontSize: 13 }}
+                className="flex-1 inline-flex items-center justify-center gap-2 h-11 rounded-xl border border-white/[0.08] bg-white/[0.02] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] text-sm transition"
               >
+                <ExternalLink size={13} />
                 Открыть
               </a>
             </div>
-            <div className="text-[12px] text-center" style={{ color: "var(--muted-2)" }}>
+            <div className="text-[12px] text-center text-[#71717A]/80">
               Работает до {new Date(state.expiresAt).toLocaleDateString("ru")}
             </div>
           </div>
