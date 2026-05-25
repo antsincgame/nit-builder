@@ -1,25 +1,20 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
+import { Link } from "react-router";
+import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
+import NeuralBackground from "~/components/landing/NeuralBackground";
+import Logo from "~/components/landing/Logo";
 
 export const meta: MetaFunction = () => [
-  { title: "Регистрация · NITGEN" },
+  { title: "Регистрация · nitgen" },
   { name: "robots", content: "noindex" },
 ];
 
 /**
- * Register v2 — упрощённая версия для обычных пользователей.
- *
- * Изменения от предыдущей:
- * - Убрано поле "Имя" (опциональное раньше, теперь вообще нет)
- * - Добавлено подтверждение пароля
- * - Нет больше шага "token" — пользователь сразу попадает в приложение
- *   (токен сохраняется в cookie/sessionStorage, выдавать будем в настройках)
- * - Язык простой: «Email» / «Пароль» / «Повторите пароль»
- * - Никаких GridBg/Orbs/Particles/Chip — чистый дизайн v3.2
- *
- * Серверный endpoint тот же (POST /api/auth/register, он возвращает tunnelToken),
- * просто мы теперь сохраняем токен локально и редиректим на "/".
+ * Register v3 — выровнян под эстетику лендинга nitgen-gront.
+ * Логика (email + password + confirmPassword → POST → sessionStorage → /app)
+ * не тронута. Меняется только визуал.
  */
 export default function Register() {
   const auth = useAuth();
@@ -43,7 +38,6 @@ export default function Register() {
       setError("Пароль должен быть не меньше 8 символов");
       return;
     }
-
     if (password !== confirmPassword) {
       setError("Пароли не совпадают");
       return;
@@ -77,8 +71,6 @@ export default function Register() {
         return;
       }
 
-      // Сохраняем tunnelToken в sessionStorage — пользователь сможет
-      // скопировать его в настройках когда понадобится для десктопного клиента.
       if (data.tunnelToken) {
         try {
           sessionStorage.setItem("tunnelToken", data.tunnelToken);
@@ -95,44 +87,30 @@ export default function Register() {
   }
 
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] overflow-hidden">
-      <div className="nit-bg-mesh" aria-hidden>
-        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
-        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
-      </div>
-      <div className="nit-bg-grid" aria-hidden />
+    <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-hidden">
+      <NeuralBackground />
 
       <nav className="relative z-10 px-5 sm:px-8 py-5">
-        <a href="/" className="inline-flex items-center gap-2 no-underline">
-          <div
-            className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
-            style={{ background: "var(--ink)", color: "var(--bg)" }}
-          >
-            N
-          </div>
-          <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
-        </a>
+        <Link to="/" className="inline-flex items-center gap-2.5 no-underline">
+          <Logo size={32} />
+          <span className="font-semibold text-[15px] text-white tracking-tight">nitgen</span>
+        </Link>
       </nav>
 
-      <main className="relative z-10 flex items-center justify-center px-5 sm:px-8 pb-12" style={{ minHeight: "calc(100vh - 80px)" }}>
-        <div className="w-full max-w-[420px]">
-          <div
-            className="rounded-2xl p-6 sm:p-8"
-            style={{
-              background: "rgba(19, 20, 27, 0.85)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid var(--line-strong)",
-            }}
-          >
-            <h1 className="nit-display mb-2" style={{ fontSize: 28, color: "var(--ink)" }}>
+      <main
+        className="relative z-10 flex items-center justify-center px-5 sm:px-8 pb-12"
+        style={{ minHeight: "calc(100vh - 80px)" }}
+      >
+        <div className="w-full max-w-[440px]">
+          <div className="rounded-2xl border border-emerald-500/20 bg-[#0f1a14] p-7 sm:p-8 shadow-[0_0_40px_rgba(16,185,129,0.06)]">
+            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white mb-2">
               Создать аккаунт
             </h1>
-            <p className="text-[14px] mb-6" style={{ color: "var(--muted)" }}>
+            <p className="text-sm text-[#71717A] mb-7">
               Уже есть аккаунт?{" "}
-              <a href="/login" className="transition-colors" style={{ color: "var(--cyan)" }}>
+              <Link to="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Войти
-              </a>
+              </Link>
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -170,14 +148,7 @@ export default function Register() {
               />
 
               {error && (
-                <div
-                  className="p-3 text-[13px] rounded-lg"
-                  style={{
-                    border: "1px solid var(--pink)",
-                    background: "rgba(244, 114, 182, 0.08)",
-                    color: "var(--pink)",
-                  }}
-                >
+                <div className="p-3 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.08] text-rose-300">
                   {error}
                 </div>
               )}
@@ -185,15 +156,26 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full"
-                style={{ padding: "12px 22px", opacity: loading ? 0.6 : 1, cursor: loading ? "wait" : "pointer" }}
+                className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:border disabled:border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
               >
-                {loading ? "Создаём аккаунт…" : "Зарегистрироваться"}
+                {loading ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Создаём аккаунт…
+                  </>
+                ) : (
+                  <>
+                    Зарегистрироваться
+                    <ArrowRight size={14} />
+                  </>
+                )}
               </button>
             </form>
 
-            <p className="mt-6 text-center text-[12px]" style={{ color: "var(--muted-2)" }}>
-              Нажимая «Зарегистрироваться», вы соглашаетесь с условиями использования.
+            <p className="mt-6 text-center text-[12px] text-[#71717A]/60 leading-relaxed">
+              Нажимая «Зарегистрироваться», вы соглашаетесь с{" "}
+              <Link to="/terms" className="text-[#A1A1AA] underline hover:text-white transition-colors">условиями</Link>{" "}и{" "}
+              <Link to="/privacy" className="text-[#A1A1AA] underline hover:text-white transition-colors">политикой конфиденциальности</Link>.
             </p>
           </div>
         </div>
@@ -227,8 +209,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="block text-[13px] font-medium mb-1.5"
-        style={{ color: "var(--ink-dim)" }}
+        className="block text-[13px] font-medium mb-1.5 text-[#A1A1AA]"
       >
         {label}
       </label>
@@ -241,20 +222,7 @@ function Field({
         autoComplete={autoComplete}
         minLength={minLength}
         placeholder={placeholder}
-        className="w-full px-4 py-3 text-[15px] rounded-lg outline-none transition"
-        style={{
-          background: "var(--bg)",
-          border: "1px solid var(--line-strong)",
-          color: "var(--ink)",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--cyan)";
-          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.15)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--line-strong)";
-          e.currentTarget.style.boxShadow = "none";
-        }}
+        className="w-full h-11 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all"
       />
     </div>
   );
