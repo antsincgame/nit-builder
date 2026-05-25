@@ -25,6 +25,9 @@ export default [
   route("api/auth/logout-all", "routes/api.auth.logout-all.ts"),
   route("api/auth/me", "routes/api.auth.me.ts"),
   route("api/auth/regenerate-tunnel-token", "routes/api.auth.regenerate-tunnel-token.ts"),
+  // OAuth (Google + GitHub)
+  route("api/auth/oauth/:provider/start", "routes/api.auth.oauth.$provider.start.ts"),
+  route("api/auth/oauth/:provider/callback", "routes/api.auth.oauth.$provider.callback.ts"),
   // Sites CRUD (Phase B.6)
   route("api/sites", "routes/api.sites.ts"),
   route("api/sites/:id", "routes/api.sites.$id.ts"),
