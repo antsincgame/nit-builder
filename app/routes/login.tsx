@@ -4,6 +4,7 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
+import { OAuthButtons } from "~/components/auth/OAuthButtons";
 
 export const meta: MetaFunction = () => [
   { title: "Вход · nitgen" },
@@ -11,10 +12,8 @@ export const meta: MetaFunction = () => [
 ];
 
 /**
- * Login v3 — выровнян под эстетику лендинга nitgen-gront:
- * чёрный #0A0A0A фон, NeuralBackground canvas, emerald-акценты.
- * Навигация — обычные <a href>, так как auth-flow всё равно
- * дёргает window.location.href и режим SPA-перехода здесь ненужен.
+ * Login v4 — добавлены OAuth-кнопки (Google + GitHub) сверху формы.
+ * Email+password как fallback для тех у кого нет аккаунтов у провайдеров.
  */
 export default function Login() {
   const auth = useAuth();
@@ -77,14 +76,16 @@ export default function Login() {
             <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white mb-2">
               Вход
             </h1>
-            <p className="text-sm text-[#71717A] mb-7">
+            <p className="text-sm text-[#71717A] mb-6">
               Ещё нет аккаунта?{" "}
               <a href="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Создать
               </a>
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <OAuthButtons intent="login" />
+
+            <form onSubmit={handleSubmit} className="space-y-4 mt-5">
               <Field
                 label="Email"
                 id="email"
