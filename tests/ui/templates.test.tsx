@@ -3,20 +3,23 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 /**
- * /templates — публичная галерея community-шаблонов (v2.2 Phase 2).
+ * /templates — публичная галерея community-шаблонов.
  *
- * Тесты покрывают:
- *   - loading skeleton при mount
- *   - render списка после fetch
- *   - empty state когда галерея пуста
- *   - error state при throw из listPublicTemplates
- *   - клик по карточке → getPublicTemplate → sessionStorage + redirect
- *   - клик на удалённый шаблон → toast.error + локальное удаление
+ * Тесты обновлены под русифицированный PublicTemplatesGallery v2:
+ *   "GALLERY IS EMPTY" → "Пока пусто",
+ *   "// error" → "Не удалось загрузить шаблоны",
+ *   "N templates" → "N шаблона/-ов" (плюраль),
+ *   убран badge "zones" (в компоненте его нет).
+ *
+ * Моки NIT декоративных компонентов больше не нужны — v2 не импортирует ~/components/nit.
  */
 
 vi.mock("~/lib/stores/userTemplatesStore", () => ({
   listPublicTemplates: vi.fn(),
   getPublicTemplate: vi.fn(),
+  voteTemplate: vi.fn(),
+  hasVotedFor: vi.fn(() => false),
+  markVotedFor: vi.fn(),
 }));
 
 vi.mock("~/lib/stores/toastStore", () => ({
@@ -26,15 +29,6 @@ vi.mock("~/lib/stores/toastStore", () => ({
     info: vi.fn(),
     warning: vi.fn(),
   },
-}));
-
-// Мокаем NIT декоративные компоненты — они тяжёлые из-за animation/CSS-vars,
-// в jsdom рендерить их нет смысла.
-vi.mock("~/components/nit", () => ({
-  GridBg: () => null,
-  Orbs: () => null,
-  Chip: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
-  Particles: () => null,
 }));
 
 vi.mock("~/components/simple/ToastContainer", () => ({
@@ -69,14 +63,12 @@ const sampleTemplates = [
   },
 ];
 
-// Замокаем window.location чтобы тесты не реально не редиректили.
 const originalLocation = window.location;
 
 beforeEach(() => {
   mockedList.mockReset();
   mockedGet.mockReset();
   sessionStorage.clear();
-  // Подмена window.location на mutable объект
   Object.defineProperty(window, "location", {
     writable: true,
     value: { href: "" },
@@ -85,7 +77,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  // Восстанавливаем оригинальный location
   Object.defineProperty(window, "location", {
     writable: true,
     value: originalLocation,
@@ -103,12 +94,10 @@ describe("PublicTemplatesGallery (/templates)", () => {
       expect(screen.getByText("Barber public")).toBeInTheDocument();
     });
     expect(screen.getByText("лендинг кофейни")).toBeInTheDocument();
-    // votes badge у t1 (votes=5), нет у t2 (votes=0)
+    // votes-кнопка рендерится всегда в v2 — «▲ 5» для t1
     expect(screen.getByText("▲ 5")).toBeInTheDocument();
-    // hasZones badge у t1
-    expect(screen.getAllByText("zones")).toHaveLength(1);
-    // Счётчик
-    expect(screen.getByText("2 templates")).toBeInTheDocument();
+    // Счётчик плюраль: 2 → "шаблона" (templates.length < 5)
+    expect(screen.getByText(/2 шаблона/)).toBeInTheDocument();
   });
 
   it("показывает empty-state когда галерея пустая", async () => {
@@ -117,9 +106,9 @@ describe("PublicTemplatesGallery (/templates)", () => {
     render(<PublicTemplatesGallery />);
 
     await waitFor(() => {
-      expect(screen.getByText("GALLERY IS EMPTY")).toBeInTheDocument();
+      expect(screen.getByText("Пока пусто")).toBeInTheDocument();
     });
-    // Есть CTA на создание сайта
+    // CTA "Создать сайт" есть
     expect(screen.getByText(/Создать сайт/)).toBeInTheDocument();
   });
 
@@ -129,7 +118,7 @@ describe("PublicTemplatesGallery (/templates)", () => {
     render(<PublicTemplatesGallery />);
 
     await waitFor(() => {
-      expect(screen.getByText("// error")).toBeInTheDocument();
+      expect(screen.getByText(/Не удалось загрузить шаблоны/)).toBeInTheDocument();
     });
   });
 
@@ -153,7 +142,6 @@ describe("PublicTemplatesGallery (/templates)", () => {
 
     await waitFor(() => {
       expect(mockedGet).toHaveBeenCalledWith("t1");
-      // sessionStorage заполнен корректным payload
       const stored = sessionStorage.getItem("nit-pending-template");
       expect(stored).toBeTruthy();
       const parsed = JSON.parse(stored!);
@@ -163,7 +151,6 @@ describe("PublicTemplatesGallery (/templates)", () => {
         prompt: "лендинг кофейни",
         html: "<html>full content</html>",
       });
-      // Редирект на home
       expect(window.location.href).toBe("/");
     });
   });
@@ -179,11 +166,8 @@ describe("PublicTemplatesGallery (/templates)", () => {
 
     await waitFor(() => {
       expect(mockedGet).toHaveBeenCalledWith("t1");
-      // Удалён из локального state
       expect(screen.queryByText("Coffee public")).not.toBeInTheDocument();
-      // Barber остался
       expect(screen.getByText("Barber public")).toBeInTheDocument();
-      // sessionStorage пустой (не записывали)
       expect(sessionStorage.getItem("nit-pending-template")).toBeNull();
     });
   });
