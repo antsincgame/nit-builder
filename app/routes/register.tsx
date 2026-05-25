@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
-import { Link } from "react-router";
 import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
@@ -12,9 +11,9 @@ export const meta: MetaFunction = () => [
 ];
 
 /**
- * Register v3 — выровнян под эстетику лендинга nitgen-gront.
- * Логика (email + password + confirmPassword → POST → sessionStorage → /app)
- * не тронута. Меняется только визуал.
+ * Register v3 — выровнян под эстетику лендинга.
+ * Навигация — <a href>, а не <Link>, так как auth-flow всё равно
+ * дёргает window.location.href и тесты не оборачиваются в Router.
  */
 export default function Register() {
   const auth = useAuth();
@@ -91,10 +90,10 @@ export default function Register() {
       <NeuralBackground />
 
       <nav className="relative z-10 px-5 sm:px-8 py-5">
-        <Link to="/" className="inline-flex items-center gap-2.5 no-underline">
+        <a href="/" className="inline-flex items-center gap-2.5 no-underline">
           <Logo size={32} />
           <span className="font-semibold text-[15px] text-white tracking-tight">nitgen</span>
-        </Link>
+        </a>
       </nav>
 
       <main
@@ -108,9 +107,9 @@ export default function Register() {
             </h1>
             <p className="text-sm text-[#71717A] mb-7">
               Уже есть аккаунт?{" "}
-              <Link to="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+              <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Войти
-              </Link>
+              </a>
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -174,8 +173,8 @@ export default function Register() {
 
             <p className="mt-6 text-center text-[12px] text-[#71717A]/60 leading-relaxed">
               Нажимая «Зарегистрироваться», вы соглашаетесь с{" "}
-              <Link to="/terms" className="text-[#A1A1AA] underline hover:text-white transition-colors">условиями</Link>{" "}и{" "}
-              <Link to="/privacy" className="text-[#A1A1AA] underline hover:text-white transition-colors">политикой конфиденциальности</Link>.
+              <a href="/terms" className="text-[#A1A1AA] underline hover:text-white transition-colors">условиями</a>{" "}и{" "}
+              <a href="/privacy" className="text-[#A1A1AA] underline hover:text-white transition-colors">политикой конфиденциальности</a>.
             </p>
           </div>
         </div>

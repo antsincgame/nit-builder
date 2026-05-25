@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
-import { Link } from "react-router";
 import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
@@ -13,8 +12,9 @@ export const meta: MetaFunction = () => [
 
 /**
  * Login v3 — выровнян под эстетику лендинга nitgen-gront:
- * чёрный #0A0A0A фон, NeuralBackground canvas, emerald-акценты,
- * Inter жирным, логика auth-flow не тронута.
+ * чёрный #0A0A0A фон, NeuralBackground canvas, emerald-акценты.
+ * Навигация — обычные <a href>, так как auth-flow всё равно
+ * дёргает window.location.href и режим SPA-перехода здесь ненужен.
  */
 export default function Login() {
   const auth = useAuth();
@@ -62,10 +62,10 @@ export default function Login() {
       <NeuralBackground />
 
       <nav className="relative z-10 px-5 sm:px-8 py-5">
-        <Link to="/" className="inline-flex items-center gap-2.5 no-underline">
+        <a href="/" className="inline-flex items-center gap-2.5 no-underline">
           <Logo size={32} />
           <span className="font-semibold text-[15px] text-white tracking-tight">nitgen</span>
-        </Link>
+        </a>
       </nav>
 
       <main
@@ -79,9 +79,9 @@ export default function Login() {
             </h1>
             <p className="text-sm text-[#71717A] mb-7">
               Ещё нет аккаунта?{" "}
-              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+              <a href="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Создать
-              </Link>
+              </a>
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
