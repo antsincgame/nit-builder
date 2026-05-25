@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X, Trash2 } from "lucide-react";
 import {
   loadHistory,
   deleteFromHistory,
@@ -30,7 +31,8 @@ type DisplayEntry = {
 };
 
 /**
- * HistoryPanel v2 — русский, без "// history" / "YOUR SITES" / "NO SITES YET".
+ * HistoryPanel v3 — эстетика лендинга: чёрный drawer, lucide иконки,
+ * emerald-акценты. Логика local/remote/migration не тронута.
  */
 export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
   const auth = useAuth();
@@ -133,28 +135,17 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end bg-black/70"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md h-full overflow-hidden flex flex-col"
-        style={{
-          background: "var(--bg-2)",
-          borderLeft: "1px solid var(--line-strong)",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
-        }}
+        className="w-full max-w-md h-full overflow-hidden flex flex-col bg-[#0A0A0A] border-l border-white/[0.08] shadow-[-20px_0_60px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="px-5 py-4 flex items-center justify-between shrink-0"
-          style={{ borderBottom: "1px solid var(--line)" }}
-        >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0 border-b border-white/[0.06]">
           <div>
-            <h3 className="nit-display" style={{ fontSize: 18, color: "var(--ink)" }}>
-              История
-            </h3>
-            <p className="text-[12px] mt-1" style={{ color: "var(--muted-2)" }}>
+            <h3 className="text-lg font-semibold tracking-tight text-white">История</h3>
+            <p className="text-xs mt-1 text-[#71717A]">
               {source === "loading"
                 ? "Загружаем…"
                 : entries.length === 0
@@ -169,13 +160,10 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition"
-            style={{ color: "var(--muted)" }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/[0.04] transition"
             aria-label="Закрыть"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
 
@@ -185,11 +173,10 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="p-4 rounded-xl animate-pulse"
-                  style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--line)" }}
+                  className="p-4 rounded-xl animate-pulse bg-white/[0.02] border border-white/[0.06]"
                 >
-                  <div className="h-3 w-3/4 mb-3 rounded" style={{ background: "var(--line-strong)" }} />
-                  <div className="h-2 w-1/2 rounded" style={{ background: "var(--line)" }} />
+                  <div className="h-3 w-3/4 mb-3 rounded bg-white/[0.08]" />
+                  <div className="h-2 w-1/2 rounded bg-white/[0.04]" />
                 </div>
               ))}
             </div>
@@ -198,10 +185,8 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
           {source !== "loading" && entries.length === 0 && (
             <div className="text-center py-16">
               <div className="text-4xl mb-4 opacity-40">📋</div>
-              <h4 className="nit-display mb-2" style={{ fontSize: 18, color: "var(--ink)" }}>
-                Пока пусто
-              </h4>
-              <p className="text-[13px] max-w-[260px] mx-auto" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+              <h4 className="text-base font-semibold mb-2 text-white">Пока пусто</h4>
+              <p className="text-xs max-w-[260px] mx-auto text-[#71717A] leading-relaxed">
                 {source === "remote"
                   ? "Созданные сайты автоматически появятся здесь"
                   : "Войдите в аккаунт, чтобы ваши сайты сохранялись"}
@@ -215,51 +200,27 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
               type="button"
               disabled={loadingEntry === entry.id}
               onClick={() => handleOpen(entry.id, entry.source)}
-              className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50"
-              style={{
-                background: "rgba(255, 255, 255, 0.02)",
-                border: "1px solid var(--line)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--line-hover)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--line)";
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
-              }}
+              className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50 bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-[13px] line-clamp-2 leading-snug" style={{ color: "var(--ink)" }}>
-                    {entry.prompt}
-                  </p>
+                  <p className="text-[13px] line-clamp-2 leading-snug text-white">{entry.prompt}</p>
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {entry.templateName && (
-                      <span
-                        className="text-[11px] px-2 py-0.5 rounded-md"
-                        style={{ color: "var(--muted)", background: "rgba(255, 255, 255, 0.04)" }}
-                      >
+                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-white/[0.04] text-[#A1A1AA]">
                         {entry.templateName}
                       </span>
                     )}
-                    <span className="text-[12px]" style={{ color: "var(--muted-2)" }}>
-                      {formatDate(entry.createdAt)}
-                    </span>
+                    <span className="text-xs text-[#71717A]/70">{formatDate(entry.createdAt)}</span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={(e) => handleDelete(entry.id, entry.source, e)}
-                  className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center shrink-0"
-                  style={{ color: "var(--muted)" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--pink)"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+                  className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center shrink-0 text-[#71717A] hover:text-rose-300"
                   aria-label="Удалить"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  </svg>
+                  <Trash2 size={13} />
                 </button>
               </div>
             </button>
@@ -267,10 +228,10 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
         </div>
 
         {entries.length > 0 && source === "local" && (
-          <div className="px-5 py-3 shrink-0" style={{ borderTop: "1px solid var(--line)" }}>
-            <p className="text-[12px] text-center" style={{ color: "var(--muted-2)" }}>
+          <div className="px-5 py-3 shrink-0 border-t border-white/[0.06]">
+            <p className="text-xs text-center text-[#71717A]/70">
               Сохранено только в этом браузере ·{" "}
-              <a href="/register" className="transition-colors no-underline" style={{ color: "var(--cyan)" }}>
+              <a href="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors no-underline">
                 зарегистрироваться
               </a>
             </p>

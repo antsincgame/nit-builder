@@ -1,9 +1,10 @@
 /**
- * AuthBadge v2 — русский, без // префиксов, без "Download CLI".
- * Ссылка "Скачать" в dropdown ведёт на /download (человекоориентированную версию).
+ * AuthBadge v3 — эстетика лендинга: чёрный dropdown, emerald-акценты,
+ * lucide иконки (Settings, Download, LogOut, ChevronDown).
  */
 
 import { useState, useRef, useEffect } from "react";
+import { Settings, Download, LogOut, ChevronDown } from "lucide-react";
 import type { AuthState } from "~/lib/contexts/AuthContext";
 import { useAuthRefetch } from "~/lib/contexts/AuthContext";
 
@@ -47,14 +48,8 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
 
   if (auth.status === "loading") {
     return (
-      <div
-        className="hidden sm:flex items-center px-3 py-2 rounded-md"
-        style={{ border: "1px solid var(--line)" }}
-      >
-        <div
-          className="w-16 h-3 animate-pulse rounded"
-          style={{ background: "var(--line-strong)" }}
-        />
+      <div className="hidden sm:flex items-center px-3 py-2 rounded-md border border-white/[0.06]">
+        <div className="w-16 h-3 animate-pulse rounded bg-white/[0.08]" />
       </div>
     );
   }
@@ -64,15 +59,13 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
       <div className="flex gap-1.5 items-center">
         <a
           href="/login"
-          className="hidden sm:inline-block px-3 py-2 text-[13px] no-underline transition-colors"
-          style={{ color: "var(--muted)" }}
+          className="hidden sm:inline-block px-3 py-2 text-[13px] text-[#71717A] hover:text-white transition-colors"
         >
           Войти
         </a>
         <a
           href="/register"
-          className="btn-primary"
-          style={{ padding: "8px 16px", fontSize: 13 }}
+          className="inline-flex items-center px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
         >
           Регистрация
         </a>
@@ -87,54 +80,26 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
       <button
         type="button"
         onClick={() => setMenuOpen(!menuOpen)}
-        className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-md transition"
-        style={{
-          border: "1px solid var(--line-strong)",
-          background: "rgba(19, 20, 27, 0.6)",
-        }}
+        className="flex items-center gap-2 pl-1 pr-2 sm:pr-3 py-1 rounded-md border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.15] transition"
         title={`Вы вошли как ${auth.email}`}
       >
-        <span
-          className="w-7 h-7 rounded-md flex items-center justify-center text-[12px] font-bold"
-          style={{ background: "var(--ink)", color: "var(--bg)" }}
-        >
+        <span className="w-7 h-7 rounded-md flex items-center justify-center text-[12px] font-bold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300">
           {initial}
         </span>
-        <span
-          className="hidden md:inline text-[13px] max-w-[140px] truncate"
-          style={{ color: "var(--ink-dim)" }}
-        >
+        <span className="hidden md:inline text-[13px] max-w-[140px] truncate text-[#A1A1AA]">
           {auth.email}
         </span>
-        <svg
-          className={`w-3 h-3 transition-transform ${menuOpen ? "rotate-180" : ""}`}
-          style={{ color: "var(--muted)" }}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <ChevronDown
+          size={12}
+          className={`text-[#71717A] transition-transform ${menuOpen ? "rotate-180" : ""}`}
+        />
       </button>
 
       {menuOpen && (
-        <div
-          className="absolute right-0 mt-2 w-64 z-50 rounded-xl overflow-hidden"
-          style={{
-            background: "rgba(19, 20, 27, 0.95)",
-            backdropFilter: "blur(12px)",
-            WebkitBackdropFilter: "blur(12px)",
-            border: "1px solid var(--line-strong)",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div className="p-4" style={{ borderBottom: "1px solid var(--line)" }}>
-            <div className="text-[12px] mb-1" style={{ color: "var(--muted-2)" }}>
-              Вы вошли как
-            </div>
-            <div className="text-[14px] truncate" style={{ color: "var(--ink)" }}>
-              {auth.email}
-            </div>
+        <div className="absolute right-0 mt-2 w-64 z-50 rounded-xl overflow-hidden border border-white/[0.08] bg-[#141414] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+          <div className="p-4 border-b border-white/[0.06]">
+            <div className="text-[11px] mb-1 text-[#71717A]/70">Вы вошли как</div>
+            <div className="text-[14px] truncate text-white">{auth.email}</div>
           </div>
           <button
             type="button"
@@ -142,64 +107,25 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
               setMenuOpen(false);
               onOpenSettings();
             }}
-            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3"
-            style={{ color: "var(--ink-dim)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-              e.currentTarget.style.color = "var(--ink)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--ink-dim)";
-            }}
+            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3 text-[#A1A1AA] hover:bg-white/[0.04] hover:text-white"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
+            <Settings size={16} />
             <span>Настройки</span>
           </button>
           <a
             href="/download"
-            className="w-full text-left px-4 py-3 text-[14px] no-underline transition flex items-center gap-3"
-            style={{ color: "var(--ink-dim)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-              e.currentTarget.style.color = "var(--ink)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--ink-dim)";
-            }}
+            className="w-full text-left px-4 py-3 text-[14px] no-underline transition flex items-center gap-3 text-[#A1A1AA] hover:bg-white/[0.04] hover:text-white"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
+            <Download size={16} />
             <span>Скачать на компьютер</span>
           </a>
           <button
             type="button"
             onClick={handleLogout}
             disabled={loggingOut}
-            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3 disabled:opacity-50"
-            style={{
-              borderTop: "1px solid var(--line)",
-              color: "var(--pink)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(244, 114, 182, 0.06)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
+            className="w-full text-left px-4 py-3 text-[14px] transition flex items-center gap-3 disabled:opacity-50 border-t border-white/[0.06] text-rose-300 hover:bg-rose-500/[0.06]"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
+            <LogOut size={16} />
             <span>{loggingOut ? "Выходим…" : "Выйти"}</span>
           </button>
         </div>

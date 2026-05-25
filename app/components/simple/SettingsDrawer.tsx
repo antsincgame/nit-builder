@@ -1,8 +1,10 @@
 /**
- * SettingsDrawer v2 — русский, без "// settings" / "CONFIGURATION".
+ * SettingsDrawer v3 — эстетика лендинга: чёрный модал, без var(--*),
+ * lucide X. Секции внутри свои (Account/TunnelToken/Shortcuts/About).
  */
 
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import { AccountSection } from "~/components/settings/AccountSection";
 import { TunnelTokenSection } from "~/components/settings/TunnelTokenSection";
 import { ShortcutsSection } from "~/components/settings/ShortcutsSection";
@@ -25,39 +27,22 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-center pt-[10vh] px-4"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-center pt-[10vh] px-4 bg-black/70"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-2xl"
-        style={{
-          background: "var(--bg-2)",
-          border: "1px solid var(--line-strong)",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.6)",
-        }}
+        className="w-full max-w-lg overflow-hidden rounded-2xl bg-[#0A0A0A] border border-white/[0.08] shadow-[0_30px_80px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="px-6 py-5 flex items-center justify-between"
-          style={{ borderBottom: "1px solid var(--line)" }}
-        >
-          <h2 className="nit-display" style={{ fontSize: 20, color: "var(--ink)" }}>
-            Настройки
-          </h2>
+        <div className="px-6 py-5 flex items-center justify-between border-b border-white/[0.06]">
+          <h2 className="text-xl font-semibold tracking-tight text-white">Настройки</h2>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg transition flex items-center justify-center"
-            style={{ color: "var(--muted)" }}
+            className="w-8 h-8 rounded-lg transition flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/[0.04]"
             aria-label="Закрыть"
-            onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elev)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
 

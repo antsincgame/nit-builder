@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { X, Trash2, ChevronUp } from "lucide-react";
 import {
   listMyTemplates,
   getMyTemplate,
@@ -20,8 +21,8 @@ type Props = {
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 /**
- * MyTemplatesPanel v2 — русский, без "// templates" / "MY TEMPLATES" /
- * "NO TEMPLATES" / "zones" / "submit ▲".
+ * MyTemplatesPanel v3 — эстетика лендинга: чёрный drawer, emerald-акценты,
+ * lucide иконки (X, Trash2, ChevronUp). Логика list/get/delete/submit не тронута.
  */
 export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
   const [state, setState] = useState<LoadState>("idle");
@@ -122,28 +123,17 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end"
-      style={{ background: "rgba(0,0,0,0.7)" }}
+      className="fixed inset-0 z-[90] backdrop-blur-sm flex items-start justify-end bg-black/70"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md h-full overflow-hidden flex flex-col"
-        style={{
-          background: "var(--bg-2)",
-          borderLeft: "1px solid var(--line-strong)",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.6)",
-        }}
+        className="w-full max-w-md h-full overflow-hidden flex flex-col bg-[#0A0A0A] border-l border-white/[0.08] shadow-[-20px_0_60px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="px-5 py-4 flex items-center justify-between shrink-0"
-          style={{ borderBottom: "1px solid var(--line)" }}
-        >
+        <div className="px-5 py-4 flex items-center justify-between shrink-0 border-b border-white/[0.06]">
           <div>
-            <h3 className="nit-display" style={{ fontSize: 18, color: "var(--ink)" }}>
-              Мои шаблоны
-            </h3>
-            <p className="text-[12px] mt-1" style={{ color: "var(--muted-2)" }}>
+            <h3 className="text-lg font-semibold tracking-tight text-white">Мои шаблоны</h3>
+            <p className="text-xs mt-1 text-[#71717A]">
               {state === "loading"
                 ? "Загружаем…"
                 : state === "error"
@@ -156,13 +146,10 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition"
-            style={{ color: "var(--muted)" }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-[#71717A] hover:text-white hover:bg-white/[0.04] transition"
             aria-label="Закрыть"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-            </svg>
+            <X size={16} />
           </button>
         </div>
 
@@ -172,11 +159,10 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className="p-4 rounded-xl animate-pulse"
-                  style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid var(--line)" }}
+                  className="p-4 rounded-xl animate-pulse bg-white/[0.02] border border-white/[0.06]"
                 >
-                  <div className="h-3 w-2/3 mb-3 rounded" style={{ background: "var(--line-strong)" }} />
-                  <div className="h-2 w-1/2 rounded" style={{ background: "var(--line)" }} />
+                  <div className="h-3 w-2/3 mb-3 rounded bg-white/[0.08]" />
+                  <div className="h-2 w-1/2 rounded bg-white/[0.04]" />
                 </div>
               ))}
             </div>
@@ -185,10 +171,8 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
           {state === "ready" && templates.length === 0 && (
             <div className="text-center py-16">
               <div className="text-4xl mb-4 opacity-40">⭐</div>
-              <h4 className="nit-display mb-2" style={{ fontSize: 18, color: "var(--ink)" }}>
-                Шаблонов пока нет
-              </h4>
-              <p className="text-[13px] max-w-[280px] mx-auto" style={{ color: "var(--muted)", lineHeight: 1.55 }}>
+              <h4 className="text-base font-semibold mb-2 text-white">Шаблонов пока нет</h4>
+              <p className="text-xs max-w-[280px] mx-auto text-[#71717A] leading-relaxed">
                 Создайте сайт и нажмите «Сохранить» в редакторе — он появится здесь.
               </p>
             </div>
@@ -204,77 +188,46 @@ export function MyTemplatesPanel({ isOpen, onClose, onUse }: Props) {
                   type="button"
                   disabled={loadingId === t.id}
                   onClick={() => handleUse(t.id)}
-                  className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50"
-                  style={{
-                    background: "rgba(255, 255, 255, 0.02)",
-                    border: "1px solid var(--line)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "var(--line-hover)";
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "var(--line)";
-                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.02)";
-                  }}
+                  className="w-full text-left p-4 rounded-xl transition group disabled:opacity-50 bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[14px] mb-1 truncate" style={{ color: "var(--ink)" }}>
-                        {t.name}
-                      </p>
+                      <p className="font-semibold text-sm mb-1 truncate text-white">{t.name}</p>
                       {t.prompt && (
-                        <p className="text-[12px] line-clamp-2 leading-snug" style={{ color: "var(--muted)" }}>
-                          {t.prompt}
-                        </p>
+                        <p className="text-xs line-clamp-2 leading-snug text-[#A1A1AA]">{t.prompt}</p>
                       )}
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {t.isPublic && (
                           <span
-                            className="text-[11px] px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--green)", background: "rgba(34, 197, 94, 0.08)" }}
+                            className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md text-emerald-300 bg-emerald-500/10 border border-emerald-500/20"
                             title="Опубликован в галерее сообщества"
                           >
-                            В галерее · ▲ {t.votes}
+                            <ChevronUp size={10} /> {t.votes} · в галерее
                           </span>
                         )}
                         {!t.isPublic && submittedSet.has(t.id) && (
-                          <span
-                            className="text-[11px] px-2 py-0.5 rounded-md"
-                            style={{ color: "var(--muted)", border: "1px dashed var(--line-strong)" }}
-                          >
+                          <span className="text-[11px] px-2 py-0.5 rounded-md text-[#A1A1AA] border border-dashed border-white/[0.12]">
                             На модерации
                           </span>
                         )}
-                        <span className="text-[12px]" style={{ color: "var(--muted-2)" }}>
-                          {formatDate(t.createdAt)}
-                        </span>
+                        <span className="text-xs text-[#71717A]/70">{formatDate(t.createdAt)}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={(e) => handleDelete(t.id, e)}
-                        className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center"
-                        style={{ color: "var(--muted)" }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--pink)"; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = "var(--muted)"; }}
+                        className="opacity-0 group-hover:opacity-100 transition w-7 h-7 rounded-md flex items-center justify-center text-[#71717A] hover:text-rose-300"
                         aria-label="Удалить шаблон"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                        </svg>
+                        <Trash2 size={13} />
                       </button>
                       {!isSubmitted && (
                         <button
                           type="button"
                           disabled={isSubmitting}
                           onClick={(e) => handleSubmit(t.id, e)}
-                          className="opacity-0 group-hover:opacity-100 transition text-[11px] px-2 py-1 rounded-md disabled:opacity-30"
-                          style={{
-                            color: "var(--cyan)",
-                            border: "1px solid var(--line-strong)",
-                          }}
+                          className="opacity-0 group-hover:opacity-100 transition text-[11px] px-2 py-1 rounded-md text-emerald-400 border border-white/[0.08] hover:border-emerald-500/30 hover:bg-emerald-500/[0.06] disabled:opacity-30"
                           title="Отправить в общую галерею"
                         >
                           {isSubmitting ? "…" : "В галерею"}
