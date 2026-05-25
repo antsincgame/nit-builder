@@ -5,13 +5,8 @@ import userEvent from "@testing-library/user-event";
 /**
  * /templates — публичная галерея community-шаблонов.
  *
- * Тесты обновлены под русифицированный PublicTemplatesGallery v2:
- *   "GALLERY IS EMPTY" → "Пока пусто",
- *   "// error" → "Не удалось загрузить шаблоны",
- *   "N templates" → "N шаблона/-ов" (плюраль),
- *   убран badge "zones" (в компоненте его нет).
- *
- * Моки NIT декоративных компонентов больше не нужны — v2 не импортирует ~/components/nit.
+ * Тесты обновлены под PublicTemplatesGallery v3 (лендинг-эстетика):
+ *   "▲ N" → lucide ChevronUp + text N внутри button[aria-label="Проголосовать…"]
  */
 
 vi.mock("~/lib/stores/userTemplatesStore", () => ({
@@ -94,8 +89,11 @@ describe("PublicTemplatesGallery (/templates)", () => {
       expect(screen.getByText("Barber public")).toBeInTheDocument();
     });
     expect(screen.getByText("лендинг кофейни")).toBeInTheDocument();
-    // votes-кнопка рендерится всегда в v2 — «▲ 5» для t1
-    expect(screen.getByText("▲ 5")).toBeInTheDocument();
+    // votes-кнопки: lucide ChevronUp + текст votes внутри button[aria-label]
+    const voteButtons = screen.getAllByLabelText("Проголосовать за шаблон");
+    expect(voteButtons).toHaveLength(2);
+    expect(voteButtons[0]!.textContent).toContain("5");
+    expect(voteButtons[1]!.textContent).toContain("0");
     // Счётчик плюраль: 2 → "шаблона" (templates.length < 5)
     expect(screen.getByText(/2 шаблона/)).toBeInTheDocument();
   });
@@ -108,7 +106,6 @@ describe("PublicTemplatesGallery (/templates)", () => {
     await waitFor(() => {
       expect(screen.getByText("Пока пусто")).toBeInTheDocument();
     });
-    // CTA "Создать сайт" есть
     expect(screen.getByText(/Создать сайт/)).toBeInTheDocument();
   });
 
@@ -157,7 +154,7 @@ describe("PublicTemplatesGallery (/templates)", () => {
 
   it("клик по удалённому шаблону: toast.error + локальное удаление из UI", async () => {
     mockedList.mockResolvedValue(sampleTemplates);
-    mockedGet.mockResolvedValue(null); // шаблон больше не публичный
+    mockedGet.mockResolvedValue(null);
 
     render(<PublicTemplatesGallery />);
     await waitFor(() => screen.getByText("Coffee public"));
