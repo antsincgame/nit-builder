@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
+import { Plus, Download, Share2, Save, History, X, Undo2, Redo2, Loader2 } from "lucide-react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
 import { TemplateGrid } from "~/components/simple/TemplateGrid";
 import { PolishChat } from "~/components/simple/PolishChat";
@@ -20,10 +21,12 @@ import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
 import { SaveAsTemplateDialog } from "~/components/simple/SaveAsTemplateDialog";
 import { MyTemplatesPanel } from "~/components/simple/MyTemplatesPanel";
+import NeuralBackground from "~/components/landing/NeuralBackground";
+import Logo from "~/components/landing/Logo";
 
 export function meta() {
   return [
-    { title: "NITGEN — Создавайте сайты бесплатно" },
+    { title: "nitgen — Создавайте сайты бесплатно" },
     {
       name: "description",
       content: "Простое приложение для создания сайтов. Без программирования, без подписок.",
@@ -32,18 +35,13 @@ export function meta() {
 }
 
 /**
- * Home v4 — приложение для авторизованных пользователей.
+ * Home v5 — эстетика лендинга nitgen-gront.
  *
- * Радикально упрощёно:
- * - Убраны все ambient эффекты (ConicRays/Orbs/Beams/Particles/HorizontalParticles/GridBg)
- * - Убран TerminalCodeCard, GlitchHeading, Chip, StatusDot
- * - Скрыт tunnel offline banner (tunnel всегда offline без CLI;
- *   обычный юзер не должен видеть этот статус)
- * - Скрыт StatusDot tunnel-индикатор
- * - Скрыта ссылка "↓ CLI" в nav (доступно через AuthBadge dropdown)
- * - Pipeline steps "01·ANALYZE·TEMPLATE·CODE" русский
- * - Все кнопки на русском: New → Новый, Abort → Отмена, Share → Поделиться и т.д.
- * - Новый навбар (квадратик N вместо conic-gradient лого)
+ * Меняется только визуал: #0A0A0A фон, NeuralBackground canvas,
+ * emerald-акценты, lucide-react иконки, без mesh-orbs/nit-bg-grid.
+ *
+ * Логика useGenerationFlow / useControlSocket / chat / iframe превью —
+ * не тронуты. Горячие клавиши сохранены.
  */
 export default function Home() {
   const [projectId] = useState(() => `simple-${uuid()}`);
@@ -271,13 +269,8 @@ export default function Home() {
   /* ─── Welcome screen ─── */
   if (mode === "welcome") {
     return (
-      <div className="relative min-h-screen text-[color:var(--ink)] overflow-x-hidden">
-        <div className="nit-bg-mesh" aria-hidden>
-          <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
-          <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
-          <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
-        </div>
-        <div className="nit-bg-grid" aria-hidden />
+      <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden">
+        <NeuralBackground />
         <ToastContainer />
         <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onOpen={openFromHistory} />
         <MyTemplatesPanel
@@ -287,24 +280,11 @@ export default function Home() {
         />
         <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-        <header
-          className="sticky top-0 z-50 w-full backdrop-blur-md"
-          style={{
-            background: "rgba(10, 11, 16, 0.7)",
-            borderBottom: "1px solid var(--line)",
-          }}
-        >
+        <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#0A0A0A]/80 border-b border-white/[0.06]">
           <div className="max-w-[1200px] mx-auto px-5 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2 no-underline">
-              <div
-                className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
-                style={{ background: "var(--ink)", color: "var(--bg)" }}
-              >
-                N
-              </div>
-              <span className="text-[15px] font-semibold tracking-tight text-[color:var(--ink)]">
-                nitgen
-              </span>
+            <a href="/" className="flex items-center gap-2.5 no-underline">
+              <Logo size={32} />
+              <span className="text-[15px] font-semibold text-white tracking-tight">nitgen</span>
             </a>
 
             <div className="flex items-center gap-2">
@@ -313,8 +293,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md transition-colors"
-                    style={{ color: "var(--muted)" }}
+                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
                     title="Мои сайты"
                   >
                     История
@@ -322,8 +301,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setTemplatesOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md transition-colors"
-                    style={{ color: "var(--muted)" }}
+                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
                     title="Мои сохранённые шаблоны"
                   >
                     Мои шаблоны
@@ -337,55 +315,42 @@ export default function Home() {
 
         <main className="relative z-10 max-w-[1100px] mx-auto px-5 sm:px-8 pt-10 sm:pt-16 pb-16">
           <div className="max-w-[680px] mx-auto text-center mb-10 sm:mb-14">
-            <h1
-              className="nit-display mb-4 sm:mb-5"
-              style={{ fontSize: "clamp(32px, 5vw, 48px)", color: "var(--ink)" }}
-            >
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
               Что построим
               <br />
-              <span className="nit-text-gradient-cyan">сегодня?</span>
+              <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
+                сегодня?
+              </span>
             </h1>
-            <p
-              className="max-w-[480px] mx-auto"
-              style={{
-                fontSize: "clamp(14px, 2vw, 16px)",
-                color: "var(--muted)",
-                lineHeight: 1.6,
-              }}
-            >
+            <p className="max-w-[480px] mx-auto text-base sm:text-lg text-[#A1A1AA] leading-relaxed">
               Опишите в двух словах что вы делаете — приложение сделает сайт
               за минуту. Или выберите готовый вариант ниже.
             </p>
           </div>
 
           {auth.status === "loading" && (
-            <div
-              className="mb-8 p-3 flex items-center gap-3 rounded-lg"
-              style={{ border: "1px solid var(--line)", background: "rgba(19, 20, 27, 0.4)" }}
-            >
-              <div className="w-2 h-2 rounded-full bg-[color:var(--muted)] animate-pulse" />
-              <div className="text-[13px]" style={{ color: "var(--muted)" }}>
-                Проверяем…
-              </div>
+            <div className="mb-8 p-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
+              <Loader2 size={14} className="text-emerald-400 animate-spin" />
+              <div className="text-[13px] text-[#71717A]">Проверяем…</div>
             </div>
           )}
 
           {auth.status === "unauthenticated" && (
-            <div
-              className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl"
-              style={{
-                border: "1px solid var(--line-strong)",
-                background: "rgba(19, 20, 27, 0.6)",
-              }}
-            >
-              <div className="flex-1 text-[13px] sm:text-[14px]" style={{ color: "var(--ink-dim)" }}>
+            <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-white/[0.08] bg-[#141414]">
+              <div className="flex-1 text-[13px] sm:text-[14px] text-[#A1A1AA]">
                 Войдите или зарегистрируйтесь — ваши сайты будут сохраняться в истории.
               </div>
               <div className="flex gap-2 shrink-0">
-                <a href="/login" className="btn-ghost" style={{ padding: "8px 16px", fontSize: 13 }}>
+                <a
+                  href="/login"
+                  className="px-4 py-2 rounded-lg text-[13px] text-[#A1A1AA] hover:text-white border border-white/[0.08] hover:border-white/[0.15] transition-colors"
+                >
                   Войти
                 </a>
-                <a href="/register" className="btn-primary" style={{ padding: "8px 16px", fontSize: 13 }}>
+                <a
+                  href="/register"
+                  className="px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
+                >
                   Регистрация
                 </a>
               </div>
@@ -397,20 +362,14 @@ export default function Home() {
           </div>
 
           <div className="mb-5 text-center">
-            <h2
-              className="nit-display"
-              style={{ fontSize: "clamp(22px, 3vw, 28px)", color: "var(--ink)" }}
-            >
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
               Или выберите готовый
             </h2>
           </div>
           <TemplateGrid onSelect={createSite} />
         </main>
 
-        <footer
-          className="relative z-10 px-5 sm:px-8 py-8 text-center text-[13px]"
-          style={{ borderTop: "1px solid var(--line)", color: "var(--muted-2)" }}
-        >
+        <footer className="relative z-10 px-5 sm:px-8 py-8 text-center text-[13px] border-t border-white/[0.06] text-[#71717A]/60">
           <span>nitgen · © {new Date().getFullYear()}</span>
         </footer>
       </div>
@@ -424,7 +383,7 @@ export default function Home() {
     const isBackendArtifact = !!extractPhpSqliteArtifact(previewHtml);
 
     return (
-      <div className="h-screen text-[color:var(--ink)] flex flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
+      <div className="h-screen text-white flex flex-col overflow-hidden bg-[#0A0A0A]">
         <ToastContainer />
         <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onOpen={openFromHistory} />
         <MyTemplatesPanel
@@ -442,19 +401,11 @@ export default function Home() {
         />
 
         {/* Top bar */}
-        <div
-          className="flex items-center justify-between px-3 sm:px-5 py-3 shrink-0 gap-3"
-          style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}
-        >
+        <div className="flex items-center justify-between px-3 sm:px-5 py-3 shrink-0 gap-3 border-b border-white/[0.06] bg-[#0A0A0A]">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 overflow-hidden">
-            <a href="/" className="flex items-center gap-2 no-underline shrink-0">
-              <div
-                className="w-6 h-6 rounded-md flex items-center justify-center font-bold text-[12px]"
-                style={{ background: "var(--ink)", color: "var(--bg)" }}
-              >
-                N
-              </div>
-              <span className="hidden sm:inline text-[13px] font-semibold" style={{ color: "var(--ink)" }}>
+            <a href="/" className="flex items-center gap-2.5 no-underline shrink-0">
+              <Logo size={26} />
+              <span className="hidden sm:inline text-[13px] font-semibold text-white tracking-tight">
                 nitgen
               </span>
             </a>
@@ -466,13 +417,13 @@ export default function Home() {
                   done={currentStep === "template" || currentStep === "code" || currentStep === "done"}
                   label="Анализ"
                 />
-                <span style={{ color: "var(--muted-2)" }}>→</span>
+                <span className="text-[#71717A]/60">→</span>
                 <StepDot
                   active={currentStep === "template"}
                   done={currentStep === "code" || currentStep === "done"}
                   label={templateName ? "Подбор" : "Подбор"}
                 />
-                <span style={{ color: "var(--muted-2)" }}>→</span>
+                <span className="text-[#71717A]/60">→</span>
                 <StepDot
                   active={currentStep === "code"}
                   done={currentStep === "done"}
@@ -491,77 +442,57 @@ export default function Home() {
               <button
                 type="button"
                 onClick={cancelGeneration}
-                className="px-3 py-1.5 text-[12px] font-medium rounded-md transition flex items-center gap-1.5"
-                style={{
-                  border: "1px solid var(--pink)",
-                  color: "var(--pink)",
-                }}
+                className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-rose-500/40 text-rose-300 hover:bg-rose-500/[0.08] transition flex items-center gap-1.5"
                 title="Отмена (Esc)"
               >
-                <span>✕</span>
+                <X size={12} />
                 <span className="hidden sm:inline">Отмена</span>
               </button>
             ) : (
               <>
                 {versions.length > 1 && (
-                  <div
-                    className="hidden sm:flex items-center rounded-md overflow-hidden"
-                    style={{ border: "1px solid var(--line)" }}
-                  >
+                  <div className="hidden sm:flex items-center rounded-md overflow-hidden border border-white/[0.08]">
                     <button
                       type="button"
                       onClick={undoVersion}
                       disabled={!canUndo}
-                      className="px-2.5 py-1.5 text-[13px] transition"
-                      style={{
-                        color: canUndo ? "var(--ink)" : "var(--muted-2)",
-                        cursor: canUndo ? "pointer" : "not-allowed",
-                        opacity: canUndo ? 1 : 0.4,
-                        borderRight: "1px solid var(--line)",
-                      }}
+                      className="px-2.5 py-1.5 text-white hover:bg-white/[0.04] transition border-r border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                       title={
                         canUndo
                           ? `Отменить изменение (${currentVersionIndex}/${versions.length - 1})`
                           : "Нет предыдущих версий"
                       }
                     >
-                      ↶
+                      <Undo2 size={13} />
                     </button>
                     <button
                       type="button"
                       onClick={redoVersion}
                       disabled={!canRedo}
-                      className="px-2.5 py-1.5 text-[13px] transition"
-                      style={{
-                        color: canRedo ? "var(--ink)" : "var(--muted-2)",
-                        cursor: canRedo ? "pointer" : "not-allowed",
-                        opacity: canRedo ? 1 : 0.4,
-                      }}
+                      className="px-2.5 py-1.5 text-white hover:bg-white/[0.04] transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                       title={canRedo ? "Вернуть изменение" : "Нет следующих версий"}
                     >
-                      ↷
+                      <Redo2 size={13} />
                     </button>
                   </div>
                 )}
                 <button
                   type="button"
                   onClick={reset}
-                  className="px-3 py-1.5 text-[12px] font-medium rounded-md transition flex items-center gap-1.5"
-                  style={{ border: "1px solid var(--line-strong)", color: "var(--muted)" }}
+                  className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition flex items-center gap-1.5"
                   title="Создать новый сайт"
                 >
-                  <span>+</span>
+                  <Plus size={12} />
                   <span className="hidden sm:inline">Новый</span>
                 </button>
                 {html && (
                   <button
                     type="button"
                     onClick={downloadHtml}
-                    className="px-3 py-1.5 text-[12px] font-semibold rounded-md transition flex items-center gap-1.5"
-                    style={{ background: "var(--ink)", color: "var(--bg)" }}
+                    className="px-3 py-1.5 text-[12px] font-semibold rounded-md bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] transition shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-1.5"
                     title="Скачать сайт"
                   >
-                    <span>↓</span>
+                    <Download size={12} />
                     <span>Скачать</span>
                   </button>
                 )}
@@ -569,11 +500,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={downloadPhp}
-                    className="hidden md:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md transition items-center gap-1.5"
-                    style={{
-                      border: "1px solid var(--amber)",
-                      color: "var(--amber)",
-                    }}
+                    className="hidden md:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-amber-500/40 text-amber-300 hover:bg-amber-500/[0.08] transition items-center gap-1.5"
                     title="Скачать с встроенным редактором (PHP хостинг)"
                   >
                     С редактором
@@ -583,13 +510,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setShareOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md transition items-center gap-1.5"
-                    style={{
-                      border: "1px solid var(--line-strong)",
-                      color: "var(--cyan)",
-                    }}
+                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-emerald-400 hover:text-emerald-300 hover:border-emerald-500/30 transition items-center gap-1.5"
                     title="Поделиться публичной ссылкой"
                   >
+                    <Share2 size={12} />
                     Поделиться
                   </button>
                 )}
@@ -597,10 +521,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setSaveTemplateOpen(true)}
-                    className="hidden md:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md transition items-center gap-1.5"
-                    style={{ border: "1px solid var(--line)", color: "var(--muted)" }}
+                    className="hidden md:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition items-center gap-1.5"
                     title="Сохранить как свой шаблон"
                   >
+                    <Save size={12} />
                     Сохранить
                   </button>
                 )}
@@ -608,10 +532,10 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md transition items-center gap-1.5"
-                    style={{ border: "1px solid var(--line)", color: "var(--muted)" }}
+                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition items-center gap-1.5"
                     title="Мои сохранённые сайты"
                   >
+                    <History size={12} />
                     История
                   </button>
                 )}
@@ -622,35 +546,26 @@ export default function Home() {
         </div>
 
         {/* Mobile tab-switcher */}
-        <div
-          className="md:hidden flex shrink-0"
-          style={{ borderBottom: "1px solid var(--line)", background: "var(--bg)" }}
-        >
+        <div className="md:hidden flex shrink-0 border-b border-white/[0.06] bg-[#0A0A0A]">
           <button
             type="button"
             onClick={() => setMobileTab("chat")}
-            className="flex-1 py-2.5 text-[13px] font-medium transition"
-            style={{
-              color: mobileTab === "chat" ? "var(--ink)" : "var(--muted)",
-              borderBottom:
-                mobileTab === "chat"
-                  ? "2px solid var(--cyan)"
-                  : "2px solid transparent",
-            }}
+            className={`flex-1 py-2.5 text-[13px] font-medium transition border-b-2 ${
+              mobileTab === "chat"
+                ? "text-white border-emerald-500"
+                : "text-[#71717A] border-transparent"
+            }`}
           >
             Чат{chatMessages.length > 0 ? ` · ${chatMessages.length}` : ""}
           </button>
           <button
             type="button"
             onClick={() => setMobileTab("preview")}
-            className="flex-1 py-2.5 text-[13px] font-medium transition"
-            style={{
-              color: mobileTab === "preview" ? "var(--ink)" : "var(--muted)",
-              borderBottom:
-                mobileTab === "preview"
-                  ? "2px solid var(--cyan)"
-                  : "2px solid transparent",
-            }}
+            className={`flex-1 py-2.5 text-[13px] font-medium transition border-b-2 ${
+              mobileTab === "preview"
+                ? "text-white border-emerald-500"
+                : "text-[#71717A] border-transparent"
+            }`}
           >
             Просмотр
           </button>
@@ -658,7 +573,7 @@ export default function Home() {
 
         <div className="flex-1 grid grid-cols-1 md:grid-cols-[400px_1fr] overflow-hidden">
           <div
-            className={`overflow-hidden ${mobileTab === "chat" ? "flex" : "hidden"} md:flex md:flex-col`}
+            className={`overflow-hidden border-r border-white/[0.06] bg-[#0A0A0A] ${mobileTab === "chat" ? "flex" : "hidden"} md:flex md:flex-col`}
           >
             <PolishChat
               onPolish={polishSite}
@@ -679,8 +594,7 @@ export default function Home() {
           </div>
 
           <div
-            className={`flex-col overflow-hidden relative ${mobileTab === "preview" ? "flex" : "hidden"} md:flex`}
-            style={{ background: "var(--bg-2)" }}
+            className={`flex-col overflow-hidden relative bg-[#141414] ${mobileTab === "preview" ? "flex" : "hidden"} md:flex`}
           >
             {previewHtml ? (
               <iframe
@@ -690,20 +604,10 @@ export default function Home() {
                 className="nit-preview w-full h-full border-0 bg-white"
               />
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-[color:var(--muted)]">
-                <div
-                  className="w-12 h-12 rounded-full mb-5 animate-spin"
-                  style={{
-                    border: "3px solid var(--line)",
-                    borderTopColor: "var(--cyan)",
-                  }}
-                />
-                <p className="text-[14px]" style={{ color: "var(--ink-dim)" }}>
-                  Готовимся…
-                </p>
-                <p className="text-[12px] mt-2" style={{ color: "var(--muted-2)" }}>
-                  Сайт появится здесь во время создания
-                </p>
+              <div className="flex-1 flex flex-col items-center justify-center text-[#71717A]">
+                <Loader2 size={32} className="text-emerald-400 animate-spin mb-5" />
+                <p className="text-sm text-[#A1A1AA]">Готовимся…</p>
+                <p className="text-xs text-[#71717A]/60 mt-2">Сайт появится здесь во время создания</p>
               </div>
             )}
           </div>
@@ -718,16 +622,20 @@ export default function Home() {
 /* ─── Local sub-components ─── */
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
-  const color = active ? "var(--cyan)" : done ? "var(--green)" : "var(--muted-2)";
   return (
-    <span className="flex items-center gap-1.5" style={{ color }}>
+    <span
+      className={`flex items-center gap-1.5 ${
+        active ? "text-emerald-300" : done ? "text-emerald-500/70" : "text-[#71717A]/60"
+      }`}
+    >
       <span
-        className="w-1.5 h-1.5 rounded-full"
-        style={{
-          background: color,
-          boxShadow: active ? `0 0 8px ${color}` : undefined,
-          animation: active ? "nit-pulse 1.5s infinite" : undefined,
-        }}
+        className={`w-1.5 h-1.5 rounded-full ${
+          active
+            ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"
+            : done
+              ? "bg-emerald-500/60"
+              : "bg-[#71717A]/40"
+        }`}
       />
       {label}
     </span>
