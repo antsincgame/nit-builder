@@ -4,6 +4,7 @@ import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
+import { OAuthButtons } from "~/components/auth/OAuthButtons";
 
 export const meta: MetaFunction = () => [
   { title: "Регистрация · nitgen" },
@@ -11,9 +12,7 @@ export const meta: MetaFunction = () => [
 ];
 
 /**
- * Register v3 — выровнян под эстетику лендинга.
- * Навигация — <a href>, а не <Link>, так как auth-flow всё равно
- * дёргает window.location.href и тесты не оборачиваются в Router.
+ * Register v4 — добавлены OAuth-кнопки (Google + GitHub) сверху формы.
  */
 export default function Register() {
   const auth = useAuth();
@@ -105,14 +104,16 @@ export default function Register() {
             <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white mb-2">
               Создать аккаунт
             </h1>
-            <p className="text-sm text-[#71717A] mb-7">
+            <p className="text-sm text-[#71717A] mb-6">
               Уже есть аккаунт?{" "}
               <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Войти
               </a>
             </p>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <OAuthButtons intent="register" />
+
+            <form onSubmit={handleSubmit} className="space-y-4 mt-5">
               <Field
                 label="Email"
                 id="email"
