@@ -210,6 +210,18 @@ async function migrate(): Promise<void> {
     required: false,
     default: "tunnel",
   });
+  // OAuth-привязки. Опциональные, появляются после первого входа через
+  // Google/GitHub. Уникальны per-провайдер: один external account = один юзер.
+  await ensureAttribute("nit_users", "googleId", {
+    kind: "string",
+    size: 64,
+    required: false,
+  });
+  await ensureAttribute("nit_users", "githubId", {
+    kind: "string",
+    size: 64,
+    required: false,
+  });
   // Note: legacy attribute `apiKeysJson` создавался в v2.0.0-alpha,
   // но никогда не использовался. Из миграции убран. На существующих
   // Appwrite-инсталляциях поле сохраняется (idempotent ensureAttribute
@@ -218,6 +230,10 @@ async function migrate(): Promise<void> {
   await sleep(2000);
   await ensureIndex("nit_users", "email_unique", "unique", ["email"]);
   await ensureIndex("nit_users", "tunnelTokenLookup_idx", "key", ["tunnelTokenLookup"]);
+  // Уникальные индексы по OAuth-id для O(1) lookup при login через провайдера.
+  // unique чтобы один внешний account не мог привязаться к нескольким nit_users.
+  await ensureIndex("nit_users", "googleId_unique", "unique", ["googleId"]);
+  await ensureIndex("nit_users", "githubId_unique", "unique", ["githubId"]);
   console.log("");
 
   // ── nit_sites ──
