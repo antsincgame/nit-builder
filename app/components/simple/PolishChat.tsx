@@ -1,8 +1,11 @@
 /**
- * PolishChat v2 — полностью на русском, без "// chat · ai polish" префиксов.
+ * PolishChat v3 — эстетика лендинга:
+ * чёрный фон, emerald-акценты, lucide иконки.
+ * Логика не тронута.
  */
 
 import { useState, useRef, useEffect } from "react";
+import { Send } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; text: string };
 
@@ -40,49 +43,22 @@ export function PolishChat({ onPolish, messages, loading, loadingLabel }: Props)
   };
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{
-        background: "var(--bg)",
-        borderRight: "1px solid var(--line)",
-      }}
-    >
-      <div className="px-5 py-4 shrink-0" style={{ borderBottom: "1px solid var(--line)" }}>
-        <div className="text-[14px] font-semibold mb-1" style={{ color: "var(--ink)" }}>
-          Правки
-        </div>
-        <p className="text-[12px]" style={{ color: "var(--muted)" }}>
-          Опишите что изменить — результат увидите справа.
-        </p>
+    <div className="flex flex-col h-full bg-[#0A0A0A]">
+      <div className="px-5 py-4 shrink-0 border-b border-white/[0.06]">
+        <div className="text-sm font-semibold mb-1 text-white">Правки</div>
+        <p className="text-xs text-[#71717A]">Опишите что изменить — результат увидите справа.</p>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && !loading && (
           <div className="space-y-2">
-            <div className="text-[12px] mb-3" style={{ color: "var(--muted-2)" }}>
-              Попробуйте:
-            </div>
+            <div className="text-xs mb-3 text-[#71717A]/70">Попробуйте:</div>
             {SUGGESTIONS.map((ex) => (
               <button
                 key={ex}
                 type="button"
                 onClick={() => setValue(ex)}
-                className="block w-full text-left px-3.5 py-2.5 text-[13px] rounded-lg transition"
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--line)",
-                  color: "var(--muted)",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--line-hover)";
-                  e.currentTarget.style.color = "var(--ink)";
-                  e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--line)";
-                  e.currentTarget.style.color = "var(--muted)";
-                  e.currentTarget.style.background = "transparent";
-                }}
+                className="block w-full text-left px-3.5 py-2.5 text-[13px] rounded-lg border border-white/[0.06] bg-transparent text-[#A1A1AA] hover:text-white hover:border-white/[0.12] hover:bg-white/[0.03] transition"
               >
                 {ex}
               </button>
@@ -95,16 +71,11 @@ export function PolishChat({ onPolish, messages, loading, loadingLabel }: Props)
           return (
             <div key={i} className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
               <div
-                className="max-w-[88%] px-3.5 py-2.5 text-[13px] whitespace-pre-wrap rounded-xl"
-                style={{
-                  background: isUser
-                    ? "rgba(56, 189, 248, 0.08)"
-                    : "rgba(167, 139, 250, 0.06)",
-                  border: isUser
-                    ? "1px solid rgba(56, 189, 248, 0.25)"
-                    : "1px solid rgba(167, 139, 250, 0.2)",
-                  color: isUser ? "var(--ink)" : "var(--ink-dim)",
-                }}
+                className={`max-w-[88%] px-3.5 py-2.5 text-[13px] whitespace-pre-wrap rounded-2xl border ${
+                  isUser
+                    ? "bg-emerald-500/[0.08] border-emerald-500/25 text-white"
+                    : "bg-white/[0.03] border-white/[0.06] text-[#A1A1AA]"
+                }`}
               >
                 {m.text}
               </div>
@@ -114,46 +85,27 @@ export function PolishChat({ onPolish, messages, loading, loadingLabel }: Props)
 
         {loading && (
           <div className="flex justify-start">
-            <div
-              className="px-3.5 py-2.5 flex items-center gap-3 rounded-xl"
-              style={{
-                background: "rgba(167, 139, 250, 0.06)",
-                border: "1px solid rgba(167, 139, 250, 0.2)",
-              }}
-            >
+            <div className="px-3.5 py-2.5 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04]">
               <div className="flex gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: "var(--violet)", animation: "nit-pulse 1.4s infinite" }}
+                  className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"
+                  style={{ animationDelay: "0.2s" }}
                 />
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: "var(--violet)",
-                    animation: "nit-pulse 1.4s infinite",
-                    animationDelay: "0.2s",
-                  }}
-                />
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{
-                    background: "var(--violet)",
-                    animation: "nit-pulse 1.4s infinite",
-                    animationDelay: "0.4s",
-                  }}
+                  className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"
+                  style={{ animationDelay: "0.4s" }}
                 />
               </div>
               {loadingLabel && (
-                <span className="text-[12px]" style={{ color: "var(--violet)" }}>
-                  {loadingLabel}
-                </span>
+                <span className="text-xs text-emerald-300">{loadingLabel}</span>
               )}
             </div>
           </div>
         )}
       </div>
 
-      <div className="p-3 shrink-0" style={{ borderTop: "1px solid var(--line)" }}>
+      <div className="p-3 shrink-0 border-t border-white/[0.06]">
         <div className="flex gap-2">
           <input
             type="text"
@@ -162,33 +114,16 @@ export function PolishChat({ onPolish, messages, loading, loadingLabel }: Props)
             onKeyDown={(e) => e.key === "Enter" && submit()}
             placeholder={loading ? "Работаем…" : "Что изменить?"}
             disabled={loading}
-            className="flex-1 px-3.5 py-2.5 text-[14px] outline-none disabled:opacity-50 transition rounded-lg"
-            style={{
-              background: "var(--bg-2)",
-              border: "1px solid var(--line-strong)",
-              color: "var(--ink)",
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = "var(--cyan)";
-              e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.12)";
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = "var(--line-strong)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
+            className="flex-1 h-10 px-3.5 text-[14px] outline-none disabled:opacity-50 transition rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/25 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
           />
           <button
             type="button"
             onClick={submit}
             disabled={loading || !value.trim()}
-            className="px-3 py-2.5 rounded-lg disabled:opacity-30"
-            style={{ background: "var(--ink)", color: "var(--bg)" }}
+            className="h-10 w-10 inline-flex items-center justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white transition-all shadow-[0_0_16px_rgba(16,185,129,0.3)] disabled:shadow-none"
             title="Отправить (Enter)"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+            <Send size={14} />
           </button>
         </div>
       </div>

@@ -1,13 +1,14 @@
+/**
+ * TemplateGrid v3 — эстетика лендинга:
+ * карточки на #141414 с border-white/[0.06], hover → emerald.
+ */
+
 import { TEMPLATE_CATALOG } from "~/lib/config/htmlTemplatesCatalog";
 
 type Props = {
   onSelect: (prompt: string) => void;
 };
 
-/**
- * TemplateGrid v2 — без uppercase/font-mono на русских именах.
- * Используется t.emoji вместо SVG TemplateIcon (был сложный технический вид).
- */
 const QUICK_PROMPTS: Record<string, string> = {
   "coffee-shop": "Сайт для уютной кофейни в центре города. Меню, часы работы, адрес, контакты.",
   "barbershop": "Брутальный сайт барбершопа. Услуги, цены, мастера, онлайн-запись.",
@@ -43,14 +44,10 @@ export function TemplateGrid({ onSelect }: Props) {
             key={t.id}
             type="button"
             onClick={() => onSelect(QUICK_PROMPTS[t.id] ?? t.description)}
-            className="nit-card-glow flex flex-col items-start gap-3 p-4 sm:p-5 rounded-xl transition-all"
-            style={{ background: "var(--bg-2)", border: "1px solid var(--line)" }}
+            className="flex flex-col items-start gap-3 p-4 sm:p-5 rounded-xl bg-[#141414] border border-white/[0.06] hover:border-emerald-500/30 hover:bg-[#0f1a14] transition-all"
           >
             <div className="text-2xl sm:text-3xl">{t.emoji}</div>
-            <div
-              className="text-[13px] sm:text-[14px] font-medium text-left leading-tight"
-              style={{ color: "var(--ink)" }}
-            >
+            <div className="text-[13px] sm:text-[14px] font-medium text-left leading-tight text-white">
               {t.name}
             </div>
           </button>
