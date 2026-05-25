@@ -1,54 +1,56 @@
 /**
- * Landing page — v4 «prostoy» версия.
+ * Лендинг nitgen — новый дизайн (минимал-нуар + emerald) из nitgen-gront.
+ * Заменяет предыдущий cyberpunk-редизайн.
  *
- * Переориентировано на нетехнических пользователей.
- * Чат/инпут убран, технические секции (Tunnel, Comparison, FreeForever) убраны.
- * Язык: никаких GPU/LLM/p2p/MIT — только «ваш компьютер», «приватно», «бесплатно».
+ * Структура (порядок секций как в src/App.tsx исходника):
+ *   NeuralBackground (canvas-фон) → Nav → Hero → HowItWorks → Features →
+ *   SeoBlock → Comparison → UseCases → FAQ → FinalCTA → Footer
  */
+import type { Route } from "./+types/landing";
+import NeuralBackground from "~/components/landing/NeuralBackground";
+import Nav from "~/components/landing/Nav";
+import Hero from "~/components/landing/Hero";
+import HowItWorks from "~/components/landing/HowItWorks";
+import Features from "~/components/landing/Features";
+import SeoBlock from "~/components/landing/SeoBlock";
+import Comparison from "~/components/landing/Comparison";
+import UseCases from "~/components/landing/UseCases";
+import FAQ from "~/components/landing/FAQ";
+import FinalCTA from "~/components/landing/FinalCTA";
+import Footer from "~/components/landing/Footer";
 
-import { useAuth } from "~/lib/contexts/AuthContext";
-import { LandingNav } from "~/components/landing/LandingNav";
-import { HeroSection } from "~/components/landing/HeroSection";
-import { WhySection } from "~/components/landing/WhySection";
-import { TemplatesSection } from "~/components/landing/TemplatesSection";
-import { HowItWorksSection } from "~/components/landing/HowItWorksSection";
-import { CtaSection } from "~/components/landing/CtaSection";
-import { LandingFooter } from "~/components/landing/LandingFooter";
-
-export function meta() {
-  return [
-    { title: "NITGEN — Создавай сайты бесплатно" },
-    {
-      name: "description",
-      content:
-        "Опиши свой сайт словами — получи готовый результат за минуту. Без программирования, без подписок.",
-    },
-  ];
-}
+export const meta: Route.MetaFunction = () => [
+  { title: "NITGEN — Создавайте сайты бесплатно с помощью ИИ" },
+  {
+    name: "description",
+    content:
+      "Бесплатный генератор сайтов на нейросети. Опишите проект — ИИ соберёт готовый сайт за 60 секунд прямо на вашем компьютере. Без облака, без подписок, без знания кода.",
+  },
+  {
+    name: "keywords",
+    content:
+      "создать сайт через ИИ, бесплатный генератор сайтов, нейросеть для сайтов, ИИ конструктор, сделать сайт бесплатно",
+  },
+];
 
 export default function Landing() {
-  const auth = useAuth();
-  const isAuthed = auth.status === "authenticated";
-
   return (
-    <div className="relative min-h-screen overflow-x-hidden text-[color:var(--ink)]">
-      {/* Global ambient — мягкий mesh и сетка в фоне */}
-      <div className="nit-bg-mesh" aria-hidden>
-        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
-        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
-        <div className="nit-bg-mesh-orb nit-bg-mesh-3" />
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans relative">
+      <NeuralBackground />
+      <div className="relative z-10">
+        <Nav />
+        <main>
+          <Hero />
+          <HowItWorks />
+          <Features />
+          <SeoBlock />
+          <Comparison />
+          <UseCases />
+          <FAQ />
+          <FinalCTA />
+        </main>
+        <Footer />
       </div>
-      <div className="nit-bg-grid" aria-hidden />
-
-      <LandingNav isAuthed={isAuthed} />
-      <main className="relative z-10">
-        <HeroSection isAuthed={isAuthed} />
-        <WhySection />
-        <TemplatesSection />
-        <HowItWorksSection />
-        <CtaSection isAuthed={isAuthed} />
-      </main>
-      <LandingFooter />
     </div>
   );
 }
