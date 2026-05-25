@@ -1,18 +1,20 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
+import { Link } from "react-router";
+import { Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "~/lib/contexts/AuthContext";
+import NeuralBackground from "~/components/landing/NeuralBackground";
+import Logo from "~/components/landing/Logo";
 
 export const meta: MetaFunction = () => [
-  { title: "Вход · NITGEN" },
+  { title: "Вход · nitgen" },
   { name: "robots", content: "noindex" },
 ];
 
 /**
- * Login v2 — упрощённая версия для обычных пользователей.
- *
- * Раньше была полная техническая верстка с тоннелями, GPU, "Sign in",
- * "// auth» и английскими лейбалами. Привожу к виду register.tsx —
- * одинаковый дизайн, язык обычных людей.
+ * Login v3 — выровнян под эстетику лендинга nitgen-gront:
+ * чёрный #0A0A0A фон, NeuralBackground canvas, emerald-акценты,
+ * Inter жирным, логика auth-flow не тронута.
  */
 export default function Login() {
   const auth = useAuth();
@@ -56,47 +58,30 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen text-[color:var(--ink)] overflow-hidden">
-      <div className="nit-bg-mesh" aria-hidden>
-        <div className="nit-bg-mesh-orb nit-bg-mesh-1" />
-        <div className="nit-bg-mesh-orb nit-bg-mesh-2" />
-      </div>
-      <div className="nit-bg-grid" aria-hidden />
+    <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-hidden">
+      <NeuralBackground />
 
       <nav className="relative z-10 px-5 sm:px-8 py-5">
-        <a href="/" className="inline-flex items-center gap-2 no-underline">
-          <div
-            className="w-7 h-7 rounded-md flex items-center justify-center font-bold text-[14px]"
-            style={{ background: "var(--ink)", color: "var(--bg)" }}
-          >
-            N
-          </div>
-          <span className="text-[15px] font-semibold text-[color:var(--ink)]">nitgen</span>
-        </a>
+        <Link to="/" className="inline-flex items-center gap-2.5 no-underline">
+          <Logo size={32} />
+          <span className="font-semibold text-[15px] text-white tracking-tight">nitgen</span>
+        </Link>
       </nav>
 
       <main
         className="relative z-10 flex items-center justify-center px-5 sm:px-8 pb-12"
         style={{ minHeight: "calc(100vh - 80px)" }}
       >
-        <div className="w-full max-w-[420px]">
-          <div
-            className="rounded-2xl p-6 sm:p-8"
-            style={{
-              background: "rgba(19, 20, 27, 0.85)",
-              backdropFilter: "blur(12px)",
-              WebkitBackdropFilter: "blur(12px)",
-              border: "1px solid var(--line-strong)",
-            }}
-          >
-            <h1 className="nit-display mb-2" style={{ fontSize: 28, color: "var(--ink)" }}>
+        <div className="w-full max-w-[440px]">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#141414] p-7 sm:p-8">
+            <h1 className="text-2xl sm:text-[28px] font-bold tracking-tight text-white mb-2">
               Вход
             </h1>
-            <p className="text-[14px] mb-6" style={{ color: "var(--muted)" }}>
+            <p className="text-sm text-[#71717A] mb-7">
               Ещё нет аккаунта?{" "}
-              <a href="/register" className="transition-colors" style={{ color: "var(--cyan)" }}>
+              <Link to="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                 Создать
-              </a>
+              </Link>
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -123,14 +108,7 @@ export default function Login() {
               />
 
               {error && (
-                <div
-                  className="p-3 text-[13px] rounded-lg"
-                  style={{
-                    border: "1px solid var(--pink)",
-                    background: "rgba(244, 114, 182, 0.08)",
-                    color: "var(--pink)",
-                  }}
-                >
+                <div className="p-3 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.08] text-rose-300">
                   {error}
                 </div>
               )}
@@ -138,14 +116,19 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary w-full"
-                style={{
-                  padding: "12px 22px",
-                  opacity: loading ? 0.6 : 1,
-                  cursor: loading ? "wait" : "pointer",
-                }}
+                className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:border disabled:border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
               >
-                {loading ? "Входим…" : "Войти"}
+                {loading ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Входим…
+                  </>
+                ) : (
+                  <>
+                    Войти
+                    <ArrowRight size={14} />
+                  </>
+                )}
               </button>
             </form>
           </div>
@@ -180,8 +163,7 @@ function Field({
     <div>
       <label
         htmlFor={id}
-        className="block text-[13px] font-medium mb-1.5"
-        style={{ color: "var(--ink-dim)" }}
+        className="block text-[13px] font-medium mb-1.5 text-[#A1A1AA]"
       >
         {label}
       </label>
@@ -194,20 +176,7 @@ function Field({
         autoComplete={autoComplete}
         minLength={minLength}
         placeholder={placeholder}
-        className="w-full px-4 py-3 text-[15px] rounded-lg outline-none transition"
-        style={{
-          background: "var(--bg)",
-          border: "1px solid var(--line-strong)",
-          color: "var(--ink)",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = "var(--cyan)";
-          e.currentTarget.style.boxShadow = "0 0 0 3px rgba(56, 189, 248, 0.15)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = "var(--line-strong)";
-          e.currentTarget.style.boxShadow = "none";
-        }}
+        className="w-full h-11 px-4 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder:text-white/25 focus:outline-none focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20 transition-all"
       />
     </div>
   );
