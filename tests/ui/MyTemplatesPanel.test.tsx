@@ -3,20 +3,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 /**
- * MyTemplatesPanel — drawer со списком пользовательских шаблонов
- * (v2.1 Save as Template follow-up). Покрывает:
- *   - render списка из listMyTemplates
- *   - empty state
- *   - error state при throw
- *   - клик по карточке → getMyTemplate → onUse(full)
- *   - delete → deleteMyTemplate + удаление из UI
- *   - не рендерится при isOpen=false
+ * MyTemplatesPanel — drawer со списком пользовательских шаблонов.
+ *
+ * Тесты обновлены под русифицированный MyTemplatesPanel v2:
+ *   "Шаблонов пока нет" вместо "NO TEMPLATES",
+ *   "Ошибка загрузки" вместо "error",
+ *   убран badge "zones" из компонента — assertion удалён,
+ *   счётчик теперь "Сохранено: N / 50" (regex /N \/ 50/ всё ещё совпадает).
  */
 
 vi.mock("~/lib/stores/userTemplatesStore", () => ({
   listMyTemplates: vi.fn(),
   getMyTemplate: vi.fn(),
   deleteMyTemplate: vi.fn(),
+  submitTemplateForReview: vi.fn(),
+  hasSubmittedTemplate: vi.fn(() => false),
+  markSubmittedTemplate: vi.fn(),
 }));
 
 vi.mock("~/lib/stores/toastStore", () => ({
@@ -91,11 +93,7 @@ describe("MyTemplatesPanel", () => {
       expect(screen.getByText("Coffee dark")).toBeInTheDocument();
       expect(screen.getByText("Barber neon")).toBeInTheDocument();
     });
-    // prompt отображается у t1, нет у t2 (null)
     expect(screen.getByText("лендинг кофейни, dark mode")).toBeInTheDocument();
-    // zones badge у t1 (hasZones=true), нет у t2
-    expect(screen.getAllByText("zones")).toHaveLength(1);
-    // Footer показывает счётчик
     expect(screen.getByText(/2 \/ 50/)).toBeInTheDocument();
   });
 
@@ -107,7 +105,7 @@ describe("MyTemplatesPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("NO TEMPLATES")).toBeInTheDocument();
+      expect(screen.getByText(/Шаблонов пока нет/)).toBeInTheDocument();
     });
   });
 
@@ -119,8 +117,7 @@ describe("MyTemplatesPanel", () => {
     );
 
     await waitFor(() => {
-      // Header показывает "error" в счётчике
-      expect(screen.getByText("error")).toBeInTheDocument();
+      expect(screen.getByText(/Ошибка загрузки/)).toBeInTheDocument();
     });
   });
 
@@ -163,11 +160,9 @@ describe("MyTemplatesPanel", () => {
     );
 
     await waitFor(() => screen.getByText("Coffee dark"));
-    // Delete-кнопки рендерятся с aria-label, ищем по нему
     const deleteButtons = screen.getAllByLabelText("Удалить шаблон");
     expect(deleteButtons).toHaveLength(2);
 
-    // stopPropagation нужен — мокаем event через fireEvent
     fireEvent.click(deleteButtons[0]!);
 
     await waitFor(() => {
@@ -185,8 +180,7 @@ describe("MyTemplatesPanel", () => {
       <MyTemplatesPanel isOpen={true} onClose={onClose} onUse={() => {}} />,
     );
 
-    await waitFor(() => screen.getByText("NO TEMPLATES"));
-    // Outer fixed-inset div — backdrop
+    await waitFor(() => screen.getByText(/Шаблонов пока нет/));
     const backdrop = container.firstChild as HTMLElement;
     fireEvent.click(backdrop);
     expect(onClose).toHaveBeenCalled();

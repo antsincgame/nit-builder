@@ -7,11 +7,9 @@ import { AuthProvider } from "~/lib/contexts/AuthContext";
 /**
  * Login page — happy path, validation errors, server errors, redirect.
  *
- * AuthProvider обернут — компонент Login зовёт useAuth() и редиректит на "/"
- * если уже залогинен.
- *
- * window.location.href переопределяется через property setter — jsdom не
- * имплементирует navigation, и без перехвата setter упадёт.
+ * Тесты обновлены под русифицированный Login v2:
+ *   label "Пароль" вместо "password", кнопка "Войти"/"Входим…" вместо
+ *   "Enter"/"Authenticating", редирект на /app вместо /.
  */
 
 const originalFetch = globalThis.fetch;
@@ -21,7 +19,6 @@ let mockHref = "";
 beforeEach(() => {
   originalLocation = window.location;
   mockHref = "";
-  // Делаем window.location.href setter-овым — но не уходим из jsdom.
   Object.defineProperty(window, "location", {
     configurable: true,
     writable: true,
@@ -36,7 +33,6 @@ beforeEach(() => {
     },
   });
 
-  // Default: AuthProvider при mount → unauthenticated.
   globalThis.fetch = vi.fn().mockResolvedValue(
     new Response(JSON.stringify({ authenticated: false }), { status: 200 }),
   );
@@ -62,11 +58,11 @@ describe("Login page", () => {
     );
 
     expect(await screen.findByLabelText(/email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Enter/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Пароль/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Войти/i })).toBeInTheDocument();
   });
 
-  it("успешный логин шлёт правильный POST и редиректит на /", async () => {
+  it("успешный логин шлёт правильный POST и редиректит на /app", async () => {
     const fetchMock = vi.fn();
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ authenticated: false })),
@@ -86,8 +82,8 @@ describe("Login page", () => {
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/email/i), "alice@example.com");
-    await user.type(screen.getByLabelText(/password/i), "secret-1234");
-    await user.click(screen.getByRole("button", { name: /Enter/i }));
+    await user.type(screen.getByLabelText(/Пароль/i), "secret-1234");
+    await user.click(screen.getByRole("button", { name: /Войти/i }));
 
     await waitFor(() => {
       const loginCall = fetchMock.mock.calls.find(
@@ -103,7 +99,7 @@ describe("Login page", () => {
     });
 
     await waitFor(() => {
-      expect(mockHref).toBe("/");
+      expect(mockHref).toBe("/app");
     });
   });
 
@@ -127,11 +123,10 @@ describe("Login page", () => {
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/email/i), "wrong@example.com");
-    await user.type(screen.getByLabelText(/password/i), "wrong-pass");
-    await user.click(screen.getByRole("button", { name: /Enter/i }));
+    await user.type(screen.getByLabelText(/Пароль/i), "wrong-pass");
+    await user.click(screen.getByRole("button", { name: /Войти/i }));
 
     expect(await screen.findByText(/Неверный email или пароль/i)).toBeInTheDocument();
-    // Не должно быть редиректа при ошибке
     expect(mockHref).toBe("");
   });
 
@@ -151,13 +146,13 @@ describe("Login page", () => {
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/email/i), "x@y.z");
-    await user.type(screen.getByLabelText(/password/i), "12345678");
-    await user.click(screen.getByRole("button", { name: /Enter/i }));
+    await user.type(screen.getByLabelText(/Пароль/i), "12345678");
+    await user.click(screen.getByRole("button", { name: /Войти/i }));
 
     expect(await screen.findByText(/Ошибка сети/i)).toBeInTheDocument();
   });
 
-  it("редиректит на / если юзер уже authenticated", async () => {
+  it("редиректит на /app если юзер уже authenticated", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -175,7 +170,7 @@ describe("Login page", () => {
     );
 
     await waitFor(() => {
-      expect(mockHref).toBe("/");
+      expect(mockHref).toBe("/app");
     });
   });
 
@@ -184,7 +179,6 @@ describe("Login page", () => {
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ authenticated: false })),
     );
-    // Login fetch — никогда не резолвится в этом тесте, чтобы зафиксировать loading
     fetchMock.mockImplementationOnce(() => new Promise(() => {}));
     globalThis.fetch = fetchMock;
 
@@ -196,12 +190,12 @@ describe("Login page", () => {
 
     const user = userEvent.setup();
     await user.type(await screen.findByLabelText(/email/i), "x@y.z");
-    await user.type(screen.getByLabelText(/password/i), "12345678");
-    const btn = screen.getByRole("button", { name: /Enter/i });
+    await user.type(screen.getByLabelText(/Пароль/i), "12345678");
+    const btn = screen.getByRole("button", { name: /Войти/i });
     await user.click(btn);
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Authenticating/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /Входим/i })).toBeDisabled();
     });
   });
 });

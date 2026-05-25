@@ -7,11 +7,13 @@ import type { AuthState } from "~/lib/contexts/AuthContext";
 
 /**
  * AuthBadge — три состояния (loading / unauthenticated / authenticated).
- * Тесты покрывают визуальное поведение каждого + handleLogout flow.
  *
- * Wrapper: компонент использует useAuthRefetch() через context, поэтому
- * оборачиваем в AuthProvider. Сам AuthProvider при mount шлёт fetch на
- * /api/auth/me — мокаем его чтобы тест был детерминированным.
+ * Тесты обновлены под русифицированный AuthBadge v2:
+ *   "Войти"/"Регистрация" вместо "Login"/"Register",
+ *   title="Вы вошли как ..." вместо "Logged in as ...",
+ *   header в dropdown "Вы вошли как" вместо "signed in as",
+ *   "Настройки" вместо "Settings · token",
+ *   "Выйти" вместо "Log out".
  */
 
 const authedState: AuthState = {
@@ -25,15 +27,12 @@ const authedState: AuthState = {
 const originalFetch = globalThis.fetch;
 
 beforeEach(() => {
-  // Default: AuthProvider при mount запросит /api/auth/me — отвечаем "не залогинен"
-  // если тест не переопределит. Конкретные UI-состояния AuthBadge получает через prop.
   globalThis.fetch = vi.fn().mockResolvedValue(
     new Response(JSON.stringify({ authenticated: false }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     }),
   );
-  // Очистим cache между тестами
   if (typeof window !== "undefined") {
     window.localStorage.clear();
   }
@@ -51,13 +50,11 @@ describe("AuthBadge", () => {
         <AuthBadge auth={{ status: "loading" }} onOpenSettings={() => {}} />
       </AuthProvider>,
     );
-    // Skeleton — это пустой div с animate-pulse, нет текстового содержимого.
-    // Проверяем что нет ни Login кнопки, ни email — значит loading state.
-    expect(screen.queryByText(/Login/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Войти/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
   });
 
-  it("в unauthenticated показывает Login + Register CTA", () => {
+  it("в unauthenticated показывает Войти + Регистрация CTA", () => {
     render(
       <AuthProvider>
         <AuthBadge
@@ -67,8 +64,8 @@ describe("AuthBadge", () => {
       </AuthProvider>,
     );
 
-    const login = screen.getByText("Login");
-    const register = screen.getByText(/Register/);
+    const login = screen.getByText("Войти");
+    const register = screen.getByText(/Регистрация/);
     expect(login).toBeInTheDocument();
     expect(register).toBeInTheDocument();
     expect(login.closest("a")).toHaveAttribute("href", "/login");
@@ -82,9 +79,7 @@ describe("AuthBadge", () => {
       </AuthProvider>,
     );
 
-    // Аватар с первой буквой
     expect(screen.getByText("A")).toBeInTheDocument();
-    // Email отображён в trigger
     expect(screen.getByText("alice@example.com")).toBeInTheDocument();
   });
 
@@ -99,20 +94,16 @@ describe("AuthBadge", () => {
       </AuthProvider>,
     );
 
-    // Меню изначально закрыто — кнопка Logout не видна
-    expect(screen.queryByText(/Sign out/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Выйти/i)).not.toBeInTheDocument();
 
-    // Кликаем на trigger
-    const trigger = screen.getByTitle(/Logged in as alice@example.com/);
+    const trigger = screen.getByTitle(/Вы вошли как alice@example.com/);
     await user.click(trigger);
 
-    // Меню открыто
-    expect(screen.getByText(/signed in as/i)).toBeInTheDocument();
+    expect(screen.getByText(/Вы вошли как/i)).toBeInTheDocument();
 
-    // Клик вне меню закрывает его (через mousedown listener)
     fireEvent.mouseDown(screen.getByTestId("outside"));
     await waitFor(() => {
-      expect(screen.queryByText(/signed in as/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Вы вошли как/i)).not.toBeInTheDocument();
     });
   });
 
@@ -125,25 +116,21 @@ describe("AuthBadge", () => {
       </AuthProvider>,
     );
 
-    await user.click(screen.getByTitle(/Logged in as/));
-    const settingsBtn = await screen.findByText(/Settings · token/i);
+    await user.click(screen.getByTitle(/Вы вошли как/));
+    const settingsBtn = await screen.findByText(/^Настройки$/i);
     await user.click(settingsBtn);
 
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
-    // Меню должно закрыться
-    expect(screen.queryByText(/signed in as/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Вы вошли как/i)).not.toBeInTheDocument();
   });
 
   it("logout шлёт POST /api/auth/logout с credentials и refetch'ит auth", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
-    // 1-й вызов — fetchAuth от AuthProvider при mount
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ authenticated: true, userId: "u", email: "alice@example.com" })),
     );
-    // 2-й вызов — наш logout POST
     fetchMock.mockResolvedValueOnce(new Response("{}", { status: 200 }));
-    // 3-й вызов — refetch после logout
     fetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ authenticated: false })),
     );
@@ -155,8 +142,8 @@ describe("AuthBadge", () => {
       </AuthProvider>,
     );
 
-    await user.click(screen.getByTitle(/Logged in as/));
-    const logoutBtn = await screen.findByText(/^Log out$/i);
+    await user.click(screen.getByTitle(/Вы вошли как/));
+    const logoutBtn = await screen.findByText(/^Выйти$/i);
     await user.click(logoutBtn);
 
     await waitFor(() => {
