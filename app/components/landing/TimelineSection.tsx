@@ -41,7 +41,7 @@ const MILESTONES: Milestone[] = [
     date: "Apr 15",
     version: "v2.0-beta.1",
     title: "Multi-user · Appwrite · stabilization",
-    text: "Auth через self-hosted Appwrite. Tunnel-токены argon2id+HMAC. Мои сайты, истории, persistent guest-quotas. 9 critical fixes (unicode regex, CSRF Bearer bypass, session leak). CI green после 10+ красных коммитов.",
+    text: "Auth через self-hosted Appwrite. Ключи туннеля argon2id+HMAC. Мои сайты, истории, persistent guest-quotas. 9 critical fixes (unicode regex, CSRF Bearer bypass, session leak). CI green после 10+ красных коммитов.",
     status: "shipped",
   },
   {
@@ -96,7 +96,6 @@ export function TimelineSection() {
       </RevealOnScroll>
 
       <div className="relative">
-        {/* Вертикальная линия */}
         <div
           className="absolute left-[7px] top-2 bottom-2 w-px hidden md:block"
           style={{ background: "var(--line-strong)" }}
@@ -117,7 +116,7 @@ export function TimelineSection() {
             ⏵ Полный changelog:
           </span>
           <a
-            href="https://github.com/igor1000rr/nit-builder/blob/main/CHANGELOG.md"
+            href="https://github.com/antsincgame/nit-builder/blob/main/CHANGELOG.md"
             className="no-underline transition-colors hover:text-[color:var(--accent-glow)]"
             style={{ color: "var(--ink)", fontFamily: "var(--font-mono)" }}
           >
@@ -125,7 +124,7 @@ export function TimelineSection() {
           </a>
           <span className="text-[color:var(--muted-2)]">·</span>
           <a
-            href="https://github.com/igor1000rr/nit-builder/commits/main"
+            href="https://github.com/antsincgame/nit-builder/commits/main"
             className="no-underline transition-colors hover:text-[color:var(--accent-glow)]"
             style={{ color: "var(--ink)", fontFamily: "var(--font-mono)" }}
           >
@@ -147,7 +146,6 @@ function MilestoneRow({ date, version, title, text, status }: Milestone) {
 
   return (
     <div className="grid md:grid-cols-[160px_1fr] gap-6 items-start">
-      {/* Дата + dot */}
       <div className="flex items-start gap-4">
         <span
           className="block w-4 h-4 rounded-full shrink-0 mt-1"
@@ -172,7 +170,6 @@ function MilestoneRow({ date, version, title, text, status }: Milestone) {
         </div>
       </div>
 
-      {/* Card */}
       <div
         className="p-6 transition-colors hover:bg-[rgba(0,212,255,0.04)]"
         style={{
