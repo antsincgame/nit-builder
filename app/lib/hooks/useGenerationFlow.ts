@@ -386,6 +386,18 @@ export function useGenerationFlow(
 
   const createSite = useCallback(
     async (prompt: string, createOptions: CreateSiteOptions = {}) => {
+      const currentSocket = getSocketRef.current();
+      const currentAuth = authRef.current;
+
+      if (currentAuth.status === "authenticated" && currentSocket.tunnelStatus !== "online") {
+        const msg = "NIT Tunnel не подключён. Скачайте клиент и запустите его на компьютере с LM Studio.";
+        setChatMessages([{ role: "user", text: prompt }, { role: "assistant", text: `❌ ${msg}` }]);
+        setMode("welcome");
+        setLoading(false);
+        toast.error(msg);
+        return;
+      }
+
       setMode("generating");
       setLoading(true);
       setStreamingHtml("");
@@ -400,8 +412,6 @@ export function useGenerationFlow(
       setChatMessages([{ role: "user", text: prompt }]);
 
       // WebSocket tunnel path (preferred если authed + tunnel online).
-      const currentSocket = getSocketRef.current();
-      const currentAuth = authRef.current;
       if (
         currentAuth.status === "authenticated" &&
         currentSocket.status === "authed" &&
@@ -518,6 +528,14 @@ export function useGenerationFlow(
 
       const currentSocket = getSocketRef.current();
       const currentAuth = authRef.current;
+      if (currentAuth.status === "authenticated" && currentSocket.tunnelStatus !== "online") {
+        const msg = "NIT Tunnel не подключён. Запустите клиент, чтобы применить правки через ваш GPU.";
+        setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
+        setLoading(false);
+        toast.error(msg);
+        return;
+      }
+
       if (
         currentAuth.status === "authenticated" &&
         currentSocket.status === "authed" &&

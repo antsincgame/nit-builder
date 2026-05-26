@@ -256,14 +256,7 @@ describe("useGenerationFlow > createSite (HTTP fallback)", () => {
     );
   });
 
-  it("authed → HTTP fallback (если socket не authed) → также saveRemoteSite", async () => {
-    mockedRunHttp.mockResolvedValueOnce({
-      finalHtml: "<html>x</html>",
-      templateId: "tpl",
-      templateName: "Tpl",
-      newSessionId: "s-2",
-    });
-
+  it("authed без online tunnel → не запускает HTTP fallback и просит подключить tunnel", async () => {
     const socket = makeFakeSocket({ status: "idle", tunnelStatus: "offline" });
     const { result } = renderHook(() =>
       useGenerationFlow({
@@ -277,14 +270,13 @@ describe("useGenerationFlow > createSite (HTTP fallback)", () => {
       await result.current.createSite("test");
     });
 
-    expect(result.current.mode).toBe("editing");
-    expect(mockedSaveLocal).toHaveBeenCalled();
-    expect(mockedSaveRemote).toHaveBeenCalledWith({
-      prompt: "test",
-      html: "<html>x</html>",
-      templateId: "tpl",
-      templateName: "Tpl",
-    });
+    expect(mockedRunHttp).not.toHaveBeenCalled();
+    expect(mockedSaveLocal).not.toHaveBeenCalled();
+    expect(mockedSaveRemote).not.toHaveBeenCalled();
+    expect(result.current.mode).toBe("welcome");
+    expect(result.current.loading).toBe(false);
+    expect(result.current.chatMessages.at(-1)?.text).toContain("NIT Tunnel не подключён");
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("NIT Tunnel не подключён"));
   });
 
   it("HTTP fallback — error → возврат в welcome + toast.error", async () => {
