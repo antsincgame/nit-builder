@@ -15,15 +15,31 @@
  *
  * Optional:
  *   SMTP_SECURE        ("true" → SSL/TLS на порту 465; иначе STARTTLS на 587)
+ *
+ * NB: nodemailer импортируется динамически (await import) — это позволяет
+ * пройти CI typecheck/build когда пакета ещё нет в node_modules (старый
+ * lockfile). На Coolify auto-deploy npm install подтянет пакет до
+ * запуска и dynamic import отработает.
  */
 
-import nodemailer from "nodemailer";
-import type { Transporter } from "nodemailer";
+// Loose type для transporter — нам нужен только метод sendMail.
+type Transporter = {
+  sendMail(opts: {
+    from: string;
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }): Promise<unknown>;
+};
 
 let cachedTransporter: Transporter | null = null;
+let initAttempted = false;
 
-function getTransporter(): Transporter | null {
+async function getTransporter(): Promise<Transporter | null> {
   if (cachedTransporter) return cachedTransporter;
+  if (initAttempted) return null;
+  initAttempted = true;
 
   const host = process.env.SMTP_HOST;
   const port = process.env.SMTP_PORT;
@@ -34,18 +50,46 @@ function getTransporter(): Transporter | null {
     return null;
   }
 
-  cachedTransporter = nodemailer.createTransport({
-    host,
-    port: parseInt(port, 10),
-    secure: process.env.SMTP_SECURE === "true" || port === "465",
-    auth: { user, pass },
-  });
+  try {
+    // Динамический импорт — пакет может отсутствовать в CI environment,
+    // но обязателен в production (см. package.json deps).
+    const nodemailerModule = await import("nodemailer").catch(() => null);
+    if (!nodemailerModule) {
+      console.error(
+        "[mailer] nodemailer package is not installed. Run `npm install`.",
+      );
+      return null;
+    }
+    // nodemailer экспорт может быть default или named — берём то что есть.
+    const nm = (nodemailerModule.default ?? nodemailerModule) as {
+      createTransport: (opts: unknown) => Transporter;
+    };
 
-  return cachedTransporter;
+    cachedTransporter = nm.createTransport({
+      host,
+      port: parseInt(port, 10),
+      secure: process.env.SMTP_SECURE === "true" || port === "465",
+      auth: { user, pass },
+    });
+
+    return cachedTransporter;
+  } catch (err) {
+    console.error("[mailer] failed to init transporter:", err);
+    return null;
+  }
 }
 
+/**
+ * Синхронная проверка наличия SMTP-конфигурации. Не подгружает nodemailer —
+ * только смотрит ENV. Подходит для быстрых guard'ов в API-эндпоинтах.
+ */
 export function isMailerConfigured(): boolean {
-  return getTransporter() !== null;
+  return Boolean(
+    process.env.SMTP_HOST &&
+      process.env.SMTP_PORT &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS,
+  );
 }
 
 export type MailOptions = {
@@ -62,10 +106,10 @@ export type MailOptions = {
  * причина.
  */
 export async function sendMail(opts: MailOptions): Promise<boolean> {
-  const transporter = getTransporter();
+  const transporter = await getTransporter();
   if (!transporter) {
     console.warn(
-      "[mailer] SMTP не настроен (нет SMTP_HOST/PORT/USER/PASS) — письмо не отправлено",
+      "[mailer] transporter недоступен (SMTP не настроен или пакет nodemailer отсутствует)",
     );
     return false;
   }
