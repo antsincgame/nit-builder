@@ -92,7 +92,7 @@ Why template-adaptation instead of from-scratch generation: 7B local models chok
 ### Install
 
 ```bash
-git clone https://github.com/igor1000rr/nit-builder.git
+git clone https://github.com/antsincgame/nit-builder.git
 cd nit-builder
 npm install
 cp .env.example .env
@@ -184,97 +184,6 @@ Pure PHP 8.1+, zero dependencies, no database. Argon2id passwords, CSRF tokens, 
 ### Bugs & features
 
 Open an issue using the templates in `.github/ISSUE_TEMPLATE/`. CI must stay green (`npm run lint && npm run typecheck && npm test && npm run build`).
-
----
-
-## Roadmap
-
-### Done
-
-- [x] **v1.0** — HTML-first pipeline, 22 templates, LM Studio + cloud fallbacks
-- [x] **v2.0-beta** — peer-to-peer WSS tunnel, Tauri desktop client (with tray
-  icon / autostart / auto-update), multi-user auth via Appwrite, persistent
-  guest IP quotas, PHP admin baker with `data-edit` zones, Tailwind v4 inline
-  compile, RAG cascade (BM25 + dense + RRF + reranker), eval harness,
-  CSPRNG-randomized `setup.php` filename (anti-race), cyberpunk UI redesign
-
-### v2.1 — UX polish (next)
-
-- [ ] Shareable preview links (`/p/<token>`) — public read-only URLs for
-  generated sites, no download required
-- [ ] "Save as Template" — promote your own successful generation into a
-  personal (or community, via v2.2) template
-- [ ] Continue-from-history — resume polish on a saved site instead of
-  starting a fresh session
-- [ ] Polish undo/redo — every iteration of the polish cascade kept and
-  navigable
-- [ ] Mobile UI — split layout doesn't work on narrow screens, needs a
-  tab-switcher or drawer
-
-### v2.2 — Community templates
-
-- [ ] Template submission pipeline (review → publish), `nit_user_templates`
-  collection in Appwrite
-- [ ] Public gallery (`/templates`) with search, tags, preview
-- [ ] Voting (👍/👎) and usage stats — fed into RAG as a weak signal for
-  the Planner
-- [ ] Forking — fetch someone else's template into your account and adapt it
-
-### v2.3 — Image generation through the tunnel
-
-- [ ] Stable Diffusion XL / Flux Schnell via the same WSS tunnel (new
-  `tunnel:image_generate` message type)
-- [ ] Tauri client auto-detects SD WebUI / ComfyUI / Flux locally just like
-  it does LM Studio today
-- [ ] Inline hero images instead of Unsplash placeholders — Planner suggests
-  prompt, Coder marks `<img data-edit-gen="hero">`, post-processor renders
-- [ ] "Regenerate image" button in the PHP admin — calls SD on the owner's
-  tunnel, not the VPS
-
-### v2.4 — Framework export
-
-- [ ] Export to React + Vite (components per section, Tailwind config, ready
-  `package.json`)
-- [ ] Export to Vue 3 + Vite
-- [ ] Export to Astro (cleanest fit for the current template-based architecture)
-- [ ] Export to WordPress theme — reuse the PHP baker, add `style.css` header,
-  `functions.php` and Customizer integration instead of the flat-file admin
-
-### v2.5 — Backend artifact expansion
-
-`phpSqliteArtifactBuilder` already provides a base (the 8abfe86 work).
-Building on top:
-
-- [ ] Contact forms — `POST /contact.php` with rate-limit and email notification
-- [ ] Booking calendar — date-slot picker, SQLite-backed, no dependencies
-- [ ] Multi-language (i18n) — `data-edit-lang="ru,en"` attribute, language
-  switch via `?lang=` or Accept-Language
-
-### v3.0 — Bundled LLM runtime (big one)
-
-- [ ] Embed `llama.cpp` (via `llama-rs` or direct FFI) into the Tauri client.
-  Tunnel protocol unchanged — the client picks the inference source:
-  LM Studio (as today), bundled runtime, or external OpenAI-compatible endpoint
-- [ ] Auto-download GGUF on first run (`Qwen2.5-Coder-7B-Q4_K_M`, ~4.5 GB)
-  with progress bar
-- [ ] Onboarding wizard — "first time? we'll pick a model for your GPU"
-
-### v3.1 — Plugin marketplace
-
-- [ ] Site-level plugins (analytics, chat widget, cookie banner, GA/GTM) —
-  drop-in injection through the baker
-- [ ] Theme-level plugins (extra sections: pricing table, testimonials slider,
-  FAQ accordion) — extend the Planner schema
-- [ ] Plugin API spec, manifest, signing
-
-### Continuous (no version tag)
-
-- RAG corpus growth: `planExamples` currently ~50, target 300+; weak
-  signals from user feedback (see `feedbackIngest`)
-- Eval harness: nightly regression matrix, public leaderboard, per-template
-  quality scores
-- UI i18n: Ukrainian, Polish, German — for regional small business
-- More example prompts, video tutorials
 
 ---
 
