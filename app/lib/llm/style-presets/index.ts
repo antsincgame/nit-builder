@@ -50,24 +50,38 @@ function hasAntiCyberIntent(text: string): boolean {
   return /без\s+(неон|глитч|glitch|cyber|кибер)|no\s+(neon|glitch|cyber)|avoid\s+(neon|glitch|cyber)/i.test(text);
 }
 
+const TERMINAL_PATTERNS = [/terminal|cli|console|crt|phosphor|терминал|командн|devops|cybersec/];
+const EDITORIAL_PATTERNS = [/editorial|magazine|журнал|редакц|serif|luxury brand|fashion|портфолио|lookbook/];
+const NEON_PATTERNS = [/cyber|кибер|neon|неон|glitch|глитч|brutal|брутал|hud|web3|crypto|крипт/];
+const WARM_PATTERNS = [/warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach/];
+const CLEAN_PATTERNS = [/apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard/];
+
 export function inferStylePresetId(
   userMessage: string,
   plan?: StyleIntentPlan,
 ): StylePresetId {
-  const text = [
-    userMessage,
+  const userText = userMessage.toLowerCase();
+  const planText = [
     plan?.color_mood,
     plan?.style_hints,
     plan?.tone,
     plan?.business_type,
     ...(plan?.keywords ?? []),
   ].filter(Boolean).join(" ").toLowerCase();
+  const text = `${userText} ${planText}`.trim();
 
-  if (hasAny(text, [/terminal|cli|devtool|console|crt|phosphor|терминал|командн|devops|cybersec/])) return "tech-terminal";
-  if (hasAny(text, [/editorial|magazine|журнал|редакц|serif|luxury brand|fashion|портфолио|lookbook/])) return "editorial";
-  if (!hasAntiCyberIntent(text) && hasAny(text, [/cyber|кибер|neon|неон|glitch|глитч|brutal|брутал|hud|web3|crypto|крипт/])) return "neon-cyber";
-  if (hasAny(text, [/warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach/])) return "warm-premium";
-  if (hasAny(text, [/apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard/])) return "clean-saas";
+  // Explicit user wording wins over broader hints inferred by Planner.
+  if (!hasAntiCyberIntent(userText) && hasAny(userText, NEON_PATTERNS)) return "neon-cyber";
+  if (hasAny(userText, TERMINAL_PATTERNS)) return "tech-terminal";
+  if (hasAny(userText, EDITORIAL_PATTERNS)) return "editorial";
+  if (hasAny(userText, WARM_PATTERNS)) return "warm-premium";
+  if (hasAny(userText, CLEAN_PATTERNS)) return "clean-saas";
+
+  if (!hasAntiCyberIntent(text) && hasAny(text, NEON_PATTERNS)) return "neon-cyber";
+  if (hasAny(text, TERMINAL_PATTERNS)) return "tech-terminal";
+  if (hasAny(text, EDITORIAL_PATTERNS)) return "editorial";
+  if (hasAny(text, WARM_PATTERNS)) return "warm-premium";
+  if (hasAny(text, CLEAN_PATTERNS)) return "clean-saas";
   if (plan?.color_mood === "vibrant-neon") return "neon-cyber";
   if (plan?.color_mood === "warm-pastel") return "warm-premium";
   if (plan?.color_mood === "light-minimal") return "clean-saas";

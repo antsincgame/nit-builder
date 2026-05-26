@@ -48,11 +48,21 @@ export default function Login() {
         body: JSON.stringify({ email }),
       });
 
-      const data = (await res.json()) as { error?: string; ok?: boolean };
+      const data = (await res.json()) as {
+        error?: string;
+        ok?: boolean;
+        loggedIn?: boolean;
+        redirectTo?: string;
+      };
 
       if (!res.ok) {
         setError(data.error ?? "Не удалось отправить ссылку. Попробуйте ещё раз.");
         setStage("idle");
+        return;
+      }
+
+      if (data.loggedIn) {
+        window.location.href = data.redirectTo ?? "/app";
         return;
       }
 

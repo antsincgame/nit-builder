@@ -1,7 +1,14 @@
 import { z } from "zod";
 import type { ActionFunctionArgs } from "react-router";
+import { findOrCreateUserByEmail } from "~/lib/server/appwriteUsers.server";
+import { getUserSessionVersion, isAppwriteConfigured } from "~/lib/server/appwrite.server";
 import { createMagicLink } from "~/lib/server/magicLink.server";
 import { sendMail, isMailerConfigured } from "~/lib/server/mailer.server";
+import {
+  buildSessionCookie,
+  createSessionToken,
+  isProduction,
+} from "~/lib/server/sessionCookie.server";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
 
 const RequestSchema = z.object({
@@ -22,6 +29,7 @@ const RequestSchema = z.object({
  * ENV:
  *   SMTP_HOST/PORT/USER/PASS/FROM — для отправки писем
  *   OAUTH_REDIRECT_BASE (или дефолт https://nit.vibecoding.by) — для ссылок
+ *   NIT_EMAIL_ONLY_LOGIN=1 — временный режим: email сразу логинит без письма
  */
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
@@ -67,6 +75,38 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const { email } = parsed.data;
+
+  if (process.env.NIT_EMAIL_ONLY_LOGIN === "1") {
+    if (!isAppwriteConfigured()) {
+      return Response.json(
+        { error: "Auth system is not configured." },
+        { status: 503 },
+      );
+    }
+
+    try {
+      const user = await findOrCreateUserByEmail(email);
+      const sessionVersion = await getUserSessionVersion(user.userId);
+      const sessionToken = createSessionToken(user.userId, sessionVersion);
+
+      return Response.json(
+        { ok: true, loggedIn: true, redirectTo: "/app" },
+        {
+          status: 200,
+          headers: {
+            "Set-Cookie": buildSessionCookie(sessionToken, isProduction()),
+            "Content-Type": "application/json",
+          },
+        },
+      );
+    } catch (err) {
+      console.error("[request-magic-link] email-only login failed:", err);
+      return Response.json(
+        { error: "Вход временно недоступен. Попробуйте позже." },
+        { status: 500 },
+      );
+    }
+  }
 
   // Если mailer не настроен — отдаём 503 чтобы фронт показал понятную
   // ошибку. Это лучше чем silent fail когда юзер думает что письмо ушло.

@@ -83,8 +83,65 @@ function themedProductSeeds(theme: StorefrontTheme, ru: boolean): PlanPricingTie
           { name: "Маникюр", price: "45", features: ["форма", "покрытие", "уход за кутикулой"], highlighted: true },
           { name: "Педикюр", price: "55", features: ["обработка стоп", "покрытие", "крем-уход"] },
           { name: "Брови", price: "30", features: ["коррекция", "окрашивание", "укладка"] },
+          { name: "Укладка", price: "60", features: ["мытьё", "стайлинг", "фиксация"] },
         ]
       : null;
+  }
+
+  if (theme === "courses") {
+    return ru
+      ? [
+          { name: "Основы", price: "120", features: ["4 занятия", "домашние задания", "чат группы"], highlighted: true },
+          { name: "Практикум", price: "240", features: ["8 занятий", "проект", "разбор ошибок"] },
+          { name: "Индивидуально", price: "420", features: ["личный план", "созвоны", "проверка работ"] },
+        ]
+      : [
+          { name: "Basics", price: "120", features: ["4 lessons", "homework", "group chat"], highlighted: true },
+          { name: "Workshop", price: "240", features: ["8 lessons", "project", "review"] },
+          { name: "Private", price: "420", features: ["personal plan", "calls", "feedback"] },
+        ];
+  }
+
+  if (theme === "real-estate") {
+    return ru
+      ? [
+          { name: "Студия у метро", price: "85000", features: ["32 м²", "до метро 6 минут", "готова к заселению"], highlighted: true },
+          { name: "Двухкомнатная с видом", price: "145000", features: ["58 м²", "панорамные окна", "паркинг"] },
+          { name: "Дом у леса", price: "280000", features: ["160 м²", "участок 9 соток", "терраса"] },
+        ]
+      : [
+          { name: "Metro studio", price: "85000", features: ["32 sqm", "6 min to metro", "move-in ready"], highlighted: true },
+          { name: "View apartment", price: "145000", features: ["58 sqm", "panoramic windows", "parking"] },
+          { name: "Forest house", price: "280000", features: ["160 sqm", "garden plot", "terrace"] },
+        ];
+  }
+
+  if (theme === "clinic") {
+    return ru
+      ? [
+          { name: "Первичный приём", price: "70", features: ["осмотр", "план лечения", "30 минут"], highlighted: true },
+          { name: "Профилактика", price: "95", features: ["чистка", "полировка", "рекомендации"] },
+          { name: "Диагностика", price: "120", features: ["снимок", "консультация", "заключение"] },
+        ]
+      : [
+          { name: "Initial visit", price: "70", features: ["exam", "care plan", "30 minutes"], highlighted: true },
+          { name: "Prevention", price: "95", features: ["cleaning", "polishing", "recommendations"] },
+          { name: "Diagnostics", price: "120", features: ["scan", "consultation", "report"] },
+        ];
+  }
+
+  if (theme === "auto") {
+    return ru
+      ? [
+          { name: "Диагностика авто", price: "55", features: ["сканер", "осмотр", "отчёт"], highlighted: true },
+          { name: "Замена масла", price: "40", features: ["работа", "фильтр", "контроль уровней"] },
+          { name: "Тормозная система", price: "120", features: ["колодки", "проверка дисков", "тест"] },
+        ]
+      : [
+          { name: "Car diagnostics", price: "55", features: ["scanner", "inspection", "report"], highlighted: true },
+          { name: "Oil change", price: "40", features: ["labor", "filter", "fluid check"] },
+          { name: "Brake service", price: "120", features: ["pads", "disc check", "road test"] },
+        ];
   }
 
   return null;
