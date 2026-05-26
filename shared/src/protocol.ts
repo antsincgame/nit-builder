@@ -1,4 +1,6 @@
 /**
+ * Adds style preset selection to browser generation messages.
+ *
  * NIT Builder v2.0 — WebSocket Protocol
  *
  * Shared types between:
@@ -93,6 +95,7 @@ export type BrowserToServer =
       mode: GenerationMode;
       prompt: string;
       artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
+ stylePresetId?: "generic" | "neon-cyber" | "clean-saas" | "warm-premium" | "editorial" | "tech-terminal";
       /** Previous site HTML if mode === "polish" */
       previousHtml?: string;
     }

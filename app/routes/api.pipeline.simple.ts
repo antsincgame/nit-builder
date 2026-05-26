@@ -1,3 +1,4 @@
+// Accepts explicit style presets so HTTP generation can steer visual direction.
 import { z } from "zod";
 import { authOrGuest, checkGuestLimit } from "~/lib/server/auth";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
@@ -19,6 +20,9 @@ const Schema = z
     polishIntent: z.enum(["css_patch", "full_rewrite"]).optional(),
     targetSection: z.string().min(1).max(50).optional(),
     artifactMode: z.enum(["template", "custom", "auto", "php-sqlite"]).optional(),
+    stylePresetId: z
+      .enum(["generic", "neon-cyber", "clean-saas", "warm-premium", "editorial", "tech-terminal"])
+      .optional(),
   })
   .refine(
     (d) => d.mode === "continue" || (typeof d.message === "string" && d.message.length >= 1),
@@ -83,7 +87,7 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail }, { status: 400 });
   }
 
-  const { mode, projectId, message, providerId, modelName, polishIntent, targetSection, artifactMode } = parsed.data;
+ const { mode, projectId, message, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
   const memory = getOrCreateSession(sessionId, projectId);
   const providerOverride = providerId ? { providerId, modelName } : undefined;
@@ -105,7 +109,7 @@ export async function action({ request }: { request: Request }) {
               })
             : mode === "continue"
             ? executeHtmlContinue(memory, request.signal, { providerOverride })
-            : executeHtmlSimple(memory, message!, request.signal, { providerOverride, artifactMode });
+ : executeHtmlSimple(memory, message!, request.signal, { providerOverride, artifactMode, stylePresetId });
 
         for await (const event of gen) {
           controller.enqueue(encoder.encode(sse(event)));

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { runHttpPipeline, type HttpPipelineEvent } from "~/lib/services/pipelineHttpFallback";
 
 /**
+ * Covers HTTP fallback request body including explicit style preset selection.
+ *
  * Тесты для HTTP fallback пайплайна. Mock-аем глобальный fetch чтобы
  * вернуть SSE-ответ с известными событиями, проверяем что callback
  * получает корректную последовательность и что результат накапливается.
@@ -50,6 +52,7 @@ describe("runHttpPipeline", () => {
       prompt: "site for coffee shop",
       sessionId: undefined,
       providerId: "lmstudio",
+      stylePresetId: "warm-premium",
       signal: new AbortController().signal,
       onEvent: () => {},
     });
@@ -65,6 +68,7 @@ describe("runHttpPipeline", () => {
       projectId: "p-123",
       message: "site for coffee shop",
       providerId: "lmstudio",
+      stylePresetId: "warm-premium",
     });
   });
 

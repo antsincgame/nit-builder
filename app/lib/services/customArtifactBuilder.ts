@@ -1,3 +1,5 @@
+// Reduces fallback builder's neon bias and removes boilerplate panel copy.
+import type { StylePresetId } from "~/lib/llm/style-presets";
 import type { Plan } from "~/lib/utils/planSchema";
 
 function esc(value: unknown): string {
@@ -16,9 +18,17 @@ function slug(value: string): string {
     .slice(0, 40) || "artifact";
 }
 
-function hasTechMood(plan: Plan, userMessage: string): boolean {
+function hasAntiCyberIntent(text: string): boolean {
+  return /без\s+(неон|глитч|glitch|cyber|кибер)|no\s+(neon|glitch|cyber)|avoid\s+(neon|glitch|cyber)/i.test(text);
+}
+
+function hasTechMood(plan: Plan, userMessage: string, presetId?: StylePresetId): boolean {
+  if (presetId && presetId !== "generic" && presetId !== "neon-cyber" && presetId !== "tech-terminal") {
+    return false;
+  }
   const text = `${userMessage} ${plan.business_type} ${plan.keywords.join(" ")}`.toLowerCase();
-  return /ton|web3|crypto|крипт|saas|game|игр|studio|marketplace|protocol|app|developer|steam|wishlist/.test(text);
+  if (hasAntiCyberIntent(text)) return false;
+  return /cyber|кибер|neon|неон|glitch|глитч|ton|web3|crypto|крипт|game|игр|protocol|developer|terminal|cli|steam|wishlist/.test(text);
 }
 
 function pick(items: string[], fallback: string): string[] {
@@ -51,9 +61,10 @@ function isRu(plan: Plan): boolean {
 export function buildCustomArtifactHtml(params: {
   plan: Plan;
   userMessage: string;
+  presetId?: StylePresetId;
 }): string {
-  const { plan, userMessage } = params;
-  const tech = hasTechMood(plan, userMessage);
+  const { plan, userMessage, presetId } = params;
+  const tech = hasTechMood(plan, userMessage, presetId);
   const title = cleanTitle(plan.hero_headline || plan.business_type, plan.business_type);
   const subtitle = cleanTitle(
     plan.hero_subheadline || `${plan.business_type}: ${plan.target_audience}`,
@@ -107,7 +118,13 @@ export function buildCustomArtifactHtml(params: {
 
   const panels = [
     ...benefits.map((b, i) => ({ k: `0${i + 1}`, title: b.title, body: b.description })),
-    ...keywords.slice(0, 6).map((k, i) => ({ k: `K${i + 1}`, title: k, body: `A dedicated narrative block for ${k}, connected to the main conversion path.` })),
+    ...keywords.slice(0, 6).map((k, i) => ({
+      k: `K${i + 1}`,
+      title: k,
+      body: isRu(plan)
+        ? `Практический блок про ${k}: объясняет ценность, сценарий и следующий шаг.`
+        : `A practical ${k} block explains value, flow, and the next user action.`,
+    })),
   ].slice(0, 12);
   while (panels.length < 12) {
     panels.push({

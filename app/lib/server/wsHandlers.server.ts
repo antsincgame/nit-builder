@@ -1,5 +1,6 @@
 /**
  * WebSocket connection handlers for /api/tunnel and /api/control.
+ * Browser-selected style presets are appended to the tunnel coder prompt.
  *
  * Called from the custom server.js during HTTP upgrade routing.
  */
@@ -38,6 +39,7 @@ import {
 } from "./appwrite.server";
 import { parseSessionCookie, verifySessionToken } from "./sessionCookie.server";
 import { analyzePrompt, buildEnrichedSystemPrompt } from "~/lib/services/promptAnalyzer";
+import { inferStylePresetId, injectStylePreset } from "~/lib/llm/style-presets";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
 import {
   buildPhpSqliteArtifact,
@@ -519,7 +521,10 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
           return;
         }
 
-        const system = buildEnrichedSystemPrompt(msg.prompt, analysis);
+        const system = injectStylePreset(
+          buildEnrichedSystemPrompt(msg.prompt, analysis),
+          msg.stylePresetId ?? inferStylePresetId(msg.prompt),
+        );
 
         const routed = routeRequest({
           requestId: msg.requestId,

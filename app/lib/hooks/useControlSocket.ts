@@ -1,5 +1,5 @@
 /**
- * useControlSocket — React hook managing the WebSocket connection to /api/control.
+ * useControlSocket — WebSocket connection plus style preset forwarding.
  *
  * Lifecycle:
  * 1. Hook mounts → opens WebSocket (cookie auto-auth via same-origin)
@@ -19,6 +19,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { ServerToBrowser, BrowserToServer } from "@nit/shared";
+import type { StylePresetId } from "~/lib/llm/style-presets";
 
 export type ControlSocketStatus =
   | "idle" // not yet initialized
@@ -203,6 +204,7 @@ export function useControlSocket(options: Options) {
       mode: "create" | "polish";
       prompt: string;
       artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
+      stylePresetId?: StylePresetId;
       previousHtml?: string;
     }): boolean => {
       const ws = wsRef.current;
@@ -216,6 +218,7 @@ export function useControlSocket(options: Options) {
           mode: params.mode,
           prompt: params.prompt,
           artifactMode: params.artifactMode,
+          stylePresetId: params.stylePresetId,
           previousHtml: params.previousHtml,
         } satisfies BrowserToServer),
       );

@@ -1,3 +1,4 @@
+// Improves PHP+SQLite storefront generation with niche-specific seeds and labels.
 import type { Plan, PlanPricingTier } from "~/lib/utils/planSchema";
 
 export type PhpSqliteProjectFile = {
@@ -43,7 +44,7 @@ type StorefrontTheme = "beauty" | "food" | "real-estate" | "clinic" | "courses" 
 function storefrontTheme(plan: Plan): StorefrontTheme {
   const text = `${plan.business_type} ${plan.keywords.join(" ")} ${plan.sections.join(" ")}`.toLowerCase();
   if (/beauty|красот|салон|космет|маник|барбер|spa|wellness/.test(text)) return "beauty";
-  if (/food|еда|доставк|ресторан|меню|кафе|кофе/.test(text)) return "food";
+  if (/food|еда|доставк|ресторан|меню|кафе|кофе|кофейн|напит|десерт|пекар/.test(text)) return "food";
   if (/real estate|недвиж|объект|квартир|дом/.test(text)) return "real-estate";
   if (/clinic|клиник|медиц|doctor|стомат/.test(text)) return "clinic";
   if (/course|курс|школ|образован|lesson/.test(text)) return "courses";
@@ -51,8 +52,52 @@ function storefrontTheme(plan: Plan): StorefrontTheme {
   return "generic";
 }
 
+function genericTierNames(tiers: PlanPricingTier[]): boolean {
+  return tiers.every((tier) =>
+    /^(старт|pro|премиум|базов|расшир|starter|premium|basic|launch|forge)$/i.test(tier.name.trim()),
+  );
+}
+
+function themedProductSeeds(theme: StorefrontTheme, ru: boolean): PlanPricingTier[] | null {
+  if (theme === "food") {
+    return ru
+      ? [
+          { name: "Капучино", price: "7.50", features: ["Эспрессо", "молочная пена", "какао"], highlighted: true },
+          { name: "Флэт уайт", price: "8.00", features: ["двойной эспрессо", "бархатное молоко", "насыщенный вкус"] },
+          { name: "Раф карамельный", price: "9.50", features: ["сливки", "карамель", "ваниль"] },
+          { name: "Чизкейк Сан-Себастьян", price: "10.00", features: ["нежный сырный крем", "карамельная корочка", "порция на месте"] },
+          { name: "Круассан миндальный", price: "6.50", features: ["слоёное тесто", "миндальный крем", "свежая выпечка"] },
+        ]
+      : [
+          { name: "Cappuccino", price: "7.50", features: ["espresso", "milk foam", "cocoa"], highlighted: true },
+          { name: "Flat white", price: "8.00", features: ["double espresso", "silky milk", "rich taste"] },
+          { name: "Caramel raf", price: "9.50", features: ["cream", "caramel", "vanilla"] },
+          { name: "San Sebastian cheesecake", price: "10.00", features: ["soft cheese cream", "caramel top", "fresh slice"] },
+          { name: "Almond croissant", price: "6.50", features: ["buttery layers", "almond cream", "fresh pastry"] },
+        ];
+  }
+
+  if (theme === "beauty") {
+    return ru
+      ? [
+          { name: "Маникюр", price: "45", features: ["форма", "покрытие", "уход за кутикулой"], highlighted: true },
+          { name: "Педикюр", price: "55", features: ["обработка стоп", "покрытие", "крем-уход"] },
+          { name: "Брови", price: "30", features: ["коррекция", "окрашивание", "укладка"] },
+        ]
+      : null;
+  }
+
+  return null;
+}
+
 function productSeeds(plan: Plan): PlanPricingTier[] {
+  const theme = storefrontTheme(plan);
+  const themedSeeds = themedProductSeeds(theme, isRu(plan));
+  if (themedSeeds && (!plan.pricing_tiers?.length || genericTierNames(plan.pricing_tiers))) {
+    return themedSeeds;
+  }
   if (plan.pricing_tiers?.length) return plan.pricing_tiers;
+  if (themedSeeds) return themedSeeds;
   return isRu(plan)
     ? [
         {
@@ -111,6 +156,20 @@ function publicText(value: string, fallback: string): string {
     return fallback;
   }
   return cleaned;
+}
+
+function storefrontDisplayName(plan: Plan): string {
+  const source = [
+    plan.hero_headline,
+    plan.hero_subheadline,
+    plan.business_type,
+    ...plan.keywords,
+  ].filter(Boolean).join(" ");
+  const quoted = source.match(/["«“]([^"»”]{2,40})["»”]/);
+  if (quoted?.[1]) return quoted[1].trim();
+  const latinBrand = source.match(/\b([A-Z][A-Za-z0-9]*(?:\s*&\s*|\s+)[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)?)\b/);
+  if (latinBrand?.[1]) return latinBrand[1].trim();
+  return plan.business_type;
 }
 
 function buildConfigPhp(plan: Plan): string {
@@ -488,10 +547,12 @@ ${rows}
 
 function buildIndexPhp(plan: Plan): string {
   const theme = storefrontTheme(plan);
-  const appName = phpString(plan.business_type);
+  const appName = phpString(storefrontDisplayName(plan));
   const headline = phpString(publicText(plan.hero_headline || plan.business_type, plan.business_type));
   const subheadline = phpString(publicText(plan.hero_subheadline || plan.target_audience, isRu(plan) ? "Выберите предложение и оставьте заявку онлайн." : "Choose an offer and submit a request online."));
-  const cta = phpString(publicText(plan.cta_primary || (isRu(plan) ? "В корзину" : "Add to cart"), isRu(plan) ? "Оформить заявку" : "Submit request"));
+  const cta = phpString(theme === "food"
+    ? (isRu(plan) ? "Добавить в заказ" : "Add to order")
+    : publicText(plan.cta_primary || (isRu(plan) ? "В корзину" : "Add to cart"), isRu(plan) ? "Оформить заявку" : "Submit request"));
   const microcopy = phpString(publicText(plan.cta_microcopy || (isRu(plan) ? "Без предоплаты. Ответим после заявки." : "No prepayment. We reply after your request."), isRu(plan) ? "Без предоплаты. Ответим после заявки." : "No prepayment. We reply after your request."));
   const htmlLang = phpString(plan.language || "ru");
   const adminTitle = phpString(isRu(plan) ? "Управление проектом" : "Project control room");
@@ -503,14 +564,28 @@ function buildIndexPhp(plan: Plan): string {
   const trustOne = phpString(publicText(plan.social_proof_line || (isRu(plan) ? "Более 500 заказов и заявок" : "500+ orders and leads"), isRu(plan) ? "Более 500 заявок" : "500+ requests"));
   const trustTwo = phpString(publicText(plan.hours_text || (isRu(plan) ? "Онлайн-заявки 24/7" : "Online requests 24/7"), isRu(plan) ? "Онлайн-заявки 24/7" : "Online requests 24/7"));
   const visualLabel = phpString(publicText(plan.keywords[0] || plan.business_type, plan.business_type).toUpperCase());
-  const brandTagline = phpString(isRu(plan) ? "онлайн-витрина" : "online storefront");
+  const brandTagline = phpString(theme === "food"
+    ? (isRu(plan) ? "кофе · десерты · заказы" : "coffee · desserts · orders")
+    : isRu(plan) ? "онлайн-витрина" : "online storefront");
   const contactLine = phpString(plan.contact_phone || plan.contact_email || (isRu(plan) ? "Ответим в течение дня" : "We reply within a day"));
   const themeClass = phpString(`theme-${theme}`);
-  const heroEyebrow = phpString(theme === "beauty" ? "Запись без предоплаты" : publicText(plan.cta_microcopy || (isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."), isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."));
-  const heroVisualTitle = phpString(theme === "beauty" ? "персональный уход" : "подбор предложения");
-  const heroVisualMetric = phpString(theme === "beauty" ? "мастера и услуги" : "активные предложения");
-  const catalogHeading = phpString(theme === "beauty" ? "Выберите формат визита" : "Витрина предложений");
-  const benefitsHeading = phpString(theme === "beauty" ? "Сервис ощущается ещё до визита" : "Не просто витрина, а понятный путь к заявке");
+  const heroEyebrow = phpString(theme === "beauty"
+    ? "Запись без предоплаты"
+    : theme === "food"
+      ? (isRu(plan) ? "Меню, корзина и заказы без лишних звонков" : "Menu, cart, and orders")
+      : publicText(plan.cta_microcopy || (isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."), isRu(plan) ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."));
+  const heroVisualTitle = phpString(theme === "beauty"
+    ? "персональный уход"
+    : theme === "food" ? (isRu(plan) ? "кофе и десерты" : "coffee and desserts") : "подбор предложения");
+  const heroVisualMetric = phpString(theme === "beauty"
+    ? "мастера и услуги"
+    : theme === "food" ? (isRu(plan) ? "позиций меню" : "menu items") : "активные предложения");
+  const catalogHeading = phpString(theme === "beauty"
+    ? "Выберите формат визита"
+    : theme === "food" ? (isRu(plan) ? "Меню напитков и десертов" : "Coffee and dessert menu") : "Витрина предложений");
+  const benefitsHeading = phpString(theme === "beauty"
+    ? "Сервис ощущается ещё до визита"
+    : theme === "food" ? (isRu(plan) ? "Заказ проходит как в хорошей кофейне: быстро и понятно" : "Ordering feels fast and clear") : "Не просто витрина, а понятный путь к заявке");
   const benefits = plan.key_benefits?.length
     ? plan.key_benefits
     : [
@@ -545,14 +620,24 @@ function buildIndexPhp(plan: Plan): string {
         : "The manager replied almost immediately. No confusion around the booking.",
     },
   ];
-  const showcaseTitle = phpString(theme === "beauty" ? "Атмосфера, мастер и запись в одном сценарии" : "Как устроен путь клиента");
-  const showcaseLead = phpString(theme === "beauty" ? "Сайт должен передавать ощущение салона: спокойствие, аккуратность, понятный выбор и быстрый контакт." : "Показываем предложение, помогаем выбрать и сохраняем заявку без лишних шагов.");
+  const showcaseTitle = phpString(theme === "beauty"
+    ? "Атмосфера, мастер и запись в одном сценарии"
+    : theme === "food" ? "От витрины меню до готового заказа" : "Как устроен путь клиента");
+  const showcaseLead = phpString(theme === "beauty"
+    ? "Сайт должен передавать ощущение салона: спокойствие, аккуратность, понятный выбор и быстрый контакт."
+    : theme === "food" ? "Гость выбирает напитки и десерты, добавляет в корзину и оставляет заказ без звонка." : "Показываем предложение, помогаем выбрать и сохраняем заявку без лишних шагов.");
   const showcaseItems = theme === "beauty"
     ? [
         { title: "Атмосфера", text: "Мягкая визуальная подача помогает почувствовать уровень сервиса до визита." },
         { title: "Мастера", text: "Пакеты и услуги оформлены так, чтобы клиент быстро понял разницу." },
         { title: "Запись", text: "Заявка собирается без лишних полей и сразу попадает в работу." },
       ]
+    : theme === "food"
+      ? [
+          { title: "Меню", text: "Позиции выглядят как настоящие напитки и десерты, а не абстрактные тарифы." },
+          { title: "Корзина", text: "Гость собирает заказ и сразу видит итоговую сумму." },
+          { title: "Админка", text: "Владелец меняет цены, описания и статусы заказов без программиста." },
+        ]
     : [
         { title: "Выбор", text: "Клиент видит предложения и сравнивает их без лишнего шума." },
         { title: "Заявка", text: "Форма собирает нужные контакты и фиксирует заказ." },
@@ -727,7 +812,7 @@ if ($path === '/admin/order/status' && $method === 'POST') {
     redirect('/admin');
 }
 
-function render_header(string $title): void { global $appName, $htmlLang, $path, $brandTagline, $contactLine; ?>
+function render_header(string $title): void { global $appName, $htmlLang, $path, $brandTagline, $contactLine, $themeClass; $isAdminRoute = strpos($path, '/admin') === 0; ?>
 <!doctype html>
 <html lang="<?= h($htmlLang) ?>">
 <head>
@@ -738,38 +823,97 @@ function render_header(string $title): void { global $appName, $htmlLang, $path,
 </head>
 <body class="<?= h($themeClass) ?>">
 <div class="page-shell">
-<header class="topbar">
+<header class="topbar <?= $isAdminRoute ? 'admin-topbar' : '' ?>">
   <div class="topbar-inner">
     <a class="brand" href="/">
       <span class="brand-mark"></span>
       <span class="brand-copy"><strong><?= h($appName) ?></strong><small><?= h($brandTagline) ?></small></span>
     </a>
-    <nav class="nav-pill">
-      <a class="<?= $path === '/' ? 'active' : '' ?>" href="/">Главная</a>
-      <a href="/#catalog">Предложения</a>
-      <a class="<?= $path === '/cart' ? 'active' : '' ?>" href="/cart">Корзина<?= cart_count() > 0 ? ' · ' . (int) cart_count() : '' ?></a>
-      <?php if (strpos($path, '/admin') === 0): ?>
-        <a class="<?= strpos($path, '/admin') === 0 ? 'active' : '' ?>" href="/admin">Админка</a>
-      <?php endif; ?>
-    </nav>
-    <div class="top-actions">
-      <span class="runtime-chip"><?= h($contactLine) ?></span>
-      <a class="top-cta" href="/cart">Оформить заявку</a>
-    </div>
+    <?php if ($isAdminRoute): ?>
+      <nav class="nav-pill admin-nav">
+        <a href="/">На сайт</a>
+        <?php if (current_admin()): ?><a href="/admin/logout">Выйти</a><?php endif; ?>
+      </nav>
+    <?php else: ?>
+      <nav class="nav-pill">
+        <a class="<?= $path === '/' ? 'active' : '' ?>" href="/">Главная</a>
+        <a href="/#catalog">Меню</a>
+        <a class="<?= $path === '/cart' ? 'active' : '' ?>" href="/cart">Корзина<?= cart_count() > 0 ? ' · ' . (int) cart_count() : '' ?></a>
+      </nav>
+      <div class="top-actions">
+        <span class="runtime-chip"><?= h($contactLine) ?></span>
+        <a class="top-cta" href="/cart">Оформить заказ</a>
+      </div>
+    <?php endif; ?>
   </div>
 </header>
 <main>
 <?php }
 
-function render_footer(): void { global $appName; ?>
+function render_footer(): void { global $appName, $themeClass; ?>
 </main>
-<footer><?= h($appName) ?> · онлайн-витрина и заявки</footer>
+<footer><?= h($appName) ?> · <?= strpos($themeClass, 'theme-food') !== false ? 'меню, корзина и заказы' : 'онлайн-витрина и заявки' ?></footer>
 </div>
 </body>
 </html>
 <?php }
 
+function render_admin_product_form(array $p, bool $open = false): void {
+  $id = (int) ($p['id'] ?? 0);
+  $name = (string) ($p['name'] ?? '');
+  $price = (string) ($p['price'] ?? '');
+  $isActive = (int) ($p['is_active'] ?? 1) === 1;
+  ?>
+  <details class="product-editor" <?= $open ? 'open' : '' ?>>
+    <summary class="product-summary">
+      <span class="summary-title"><?= h($name !== '' ? $name : 'Новая позиция') ?></span>
+      <span class="summary-price"><?= h($price !== '' ? $price : 'цена') ?></span>
+      <span class="summary-status <?= $isActive ? 'on' : 'off' ?>"><?= $isActive ? 'активна' : 'скрыта' ?></span>
+      <span class="summary-action"><?= $id > 0 ? 'Редактировать' : 'Добавить' ?></span>
+    </summary>
+  <form class="product-row" method="post" action="/admin/product/save">
+    <?= csrf_field() ?>
+    <input type="hidden" name="id" value="<?= $id ?>">
+    <label class="field product-name"><span>Название</span><input name="name" value="<?= h($name) ?>" placeholder="Капучино"></label>
+    <label class="field product-price"><span>Цена</span><input name="price" type="number" step="0.01" value="<?= h($price) ?>" placeholder="7.50"></label>
+    <label class="field product-order"><span>Сорт.</span><input name="sort_order" type="number" value="<?= (int) ($p['sort_order'] ?? 99) ?>"></label>
+    <label class="switch product-active"><input type="checkbox" name="is_active" value="1" <?php if ($isActive) echo 'checked'; ?>><span>Активен</span></label>
+    <label class="field product-description"><span>Описание</span><textarea name="description" placeholder="Короткое описание позиции"><?= h((string) ($p['description'] ?? '')) ?></textarea></label>
+    <button class="product-save"><?= $id > 0 ? 'Сохранить' : 'Добавить' ?></button>
+  </form>
+  </details>
+<?php }
+
+function render_order_card(array $o): void { ?>
+  <article class="order-card">
+    <div class="order-head">
+      <div>
+        <b>#<?= (int) $o['id'] ?> · <?= h($o['customer_name']) ?></b>
+        <span><?= h($o['customer_email']) ?><?= $o['customer_phone'] !== '' ? ' · ' . h($o['customer_phone']) : '' ?></span>
+      </div>
+      <span class="status status-<?= h($o['status']) ?>"><?= h($o['status']) ?></span>
+    </div>
+    <div class="order-meta">
+      <span>Total: <strong><?= h((string) $o['total']) ?></strong></span>
+      <span><?= h($o['created_at']) ?></span>
+    </div>
+    <form class="status-form" method="post" action="/admin/order/status">
+      <?= csrf_field() ?>
+      <input type="hidden" name="id" value="<?= (int) $o['id'] ?>">
+      <select name="status">
+        <?php foreach (['new', 'paid', 'processing', 'completed', 'cancelled', 'failed'] as $status): ?>
+          <option value="<?= h($status) ?>" <?php if ($o['status'] === $status) echo 'selected'; ?>><?= h($status) ?></option>
+        <?php endforeach; ?>
+      </select>
+      <button>Обновить</button>
+    </form>
+  </article>
+<?php }
+
 if ($path === '/admin/login') {
+    if (current_admin()) {
+        redirect('/admin');
+    }
     render_header('Вход');
     ?>
     <section class="panel narrow">
@@ -830,33 +974,14 @@ if ($path === '/admin') {
           </div>
           <span class="badge"><?= (int) $activeProducts ?> active</span>
         </div>
-        <?php foreach ($products as $p): ?>
-          <form class="product-form" method="post" action="/admin/product/save">
-            <?= csrf_field() ?>
-            <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
-            <label class="field span-6"><span>Название</span><input name="name" value="<?= h($p['name']) ?>"></label>
-            <label class="field span-3"><span>Цена</span><input name="price" type="number" step="0.01" value="<?= h((string) $p['price']) ?>"></label>
-            <label class="field span-3"><span>Порядок</span><input name="sort_order" type="number" value="<?= (int) $p['sort_order'] ?>"></label>
-            <label class="switch span-3"><input type="checkbox" name="is_active" value="1" <?php if ((int) $p['is_active'] === 1) echo 'checked'; ?>><span>Активен</span></label>
-            <label class="field span-9"><span>Описание</span><textarea name="description"><?= h($p['description']) ?></textarea></label>
-            <button class="span-12">Сохранить товар</button>
-          </form>
-        <?php endforeach; ?>
-        <div class="section-title compact">
-          <div>
-            <p class="eyebrow">New item</p>
-            <h2>Новый товар</h2>
-          </div>
+        <div class="product-list">
+          <?php foreach ($products as $p): ?>
+            <?php render_admin_product_form($p); ?>
+          <?php endforeach; ?>
         </div>
-        <form class="product-form new-product" method="post" action="/admin/product/save">
-          <?= csrf_field() ?>
-          <label class="field span-6"><span>Название</span><input name="name" placeholder="Например: Premium package"></label>
-          <label class="field span-3"><span>Цена</span><input name="price" type="number" step="0.01" placeholder="9900"></label>
-          <label class="field span-3"><span>Порядок</span><input name="sort_order" type="number" value="99"></label>
-          <label class="switch span-3"><input type="checkbox" name="is_active" value="1" checked><span>Активен</span></label>
-          <label class="field span-9"><span>Описание</span><textarea name="description" placeholder="Коротко опишите товар или пакет"></textarea></label>
-          <button class="span-12">Добавить товар</button>
-        </form>
+        <div class="new-product-box">
+          <?php render_admin_product_form(['id' => 0, 'name' => '', 'description' => '', 'price' => '', 'sort_order' => 99, 'is_active' => 1]); ?>
+        </div>
       </div>
       <div class="panel admin-orders">
         <div class="section-title">
@@ -867,29 +992,7 @@ if ($path === '/admin') {
           <span class="badge"><?= (int) count($orders) ?> total</span>
         </div>
         <?php foreach ($orders as $o): ?>
-          <article class="order-card">
-            <div class="order-head">
-              <div>
-                <b>#<?= (int) $o['id'] ?> · <?= h($o['customer_name']) ?></b>
-                <span><?= h($o['customer_email']) ?><?= $o['customer_phone'] !== '' ? ' · ' . h($o['customer_phone']) : '' ?></span>
-              </div>
-              <span class="status status-<?= h($o['status']) ?>"><?= h($o['status']) ?></span>
-            </div>
-            <div class="order-meta">
-              <span>Total: <strong><?= h((string) $o['total']) ?></strong></span>
-              <span><?= h($o['created_at']) ?></span>
-            </div>
-            <form class="status-form" method="post" action="/admin/order/status">
-              <?= csrf_field() ?>
-              <input type="hidden" name="id" value="<?= (int) $o['id'] ?>">
-              <select name="status">
-                <?php foreach (['new', 'paid', 'processing', 'completed', 'cancelled', 'failed'] as $status): ?>
-                  <option value="<?= h($status) ?>" <?php if ($o['status'] === $status) echo 'selected'; ?>><?= h($status) ?></option>
-                <?php endforeach; ?>
-              </select>
-              <button>Обновить</button>
-            </form>
-          </article>
+          <?php render_order_card($o); ?>
         <?php endforeach; ?>
         <?php if ($orders === []): ?>
           <p class="empty">Заказов пока нет. Создайте тестовый заказ из корзины.</p>
@@ -1061,13 +1164,13 @@ render_footer();
 function buildStyleCss(plan: Plan): string {
   const dark = plan.color_mood === "dark-premium" || plan.color_mood === "vibrant-neon";
   const isBeauty = /beauty|красот|салон|космет/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
-  const isFood = /food|еда|доставк|ресторан|меню/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
+  const isFood = /food|еда|доставк|ресторан|меню|кафе|кофе|кофейн|напит|десерт|пекар/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
   const isRealEstate = /real estate|недвиж|объект/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
-  const bg = dark ? "#090b13" : isBeauty ? "#fbf3f6" : isFood ? "#fff7ed" : isRealEstate ? "#f3f7f4" : "#f7f4ee";
-  const ink = dark ? "#f6f7fb" : "#111827";
-  const muted = dark ? "#9aa4b2" : "#667085";
-  const card = dark ? "#111827" : "rgba(255,255,255,.82)";
-  const accent = dark ? "#5eead4" : isBeauty ? "#d9468f" : isFood ? "#ea580c" : isRealEstate ? "#15803d" : "#2563eb";
+  const bg = dark ? "#090b13" : isBeauty ? "#fbf3f6" : isFood ? "#fbf1e3" : isRealEstate ? "#f3f7f4" : "#f7f4ee";
+  const ink = dark ? "#f6f7fb" : isFood ? "#2a1810" : "#111827";
+  const muted = dark ? "#9aa4b2" : isFood ? "#7a6255" : "#667085";
+  const card = dark ? "#111827" : isFood ? "rgba(255,250,242,.9)" : "rgba(255,255,255,.82)";
+  const accent = dark ? "#5eead4" : isBeauty ? "#d9468f" : isFood ? "#b45309" : isRealEstate ? "#15803d" : "#2563eb";
 
   return `:root{--bg:${bg};--ink:${ink};--muted:${muted};--card:${card};--accent:${accent};--line:rgba(127,127,127,.22);--soft:rgba(127,127,127,.08);--danger:#ef4444;--ok:#16a34a;--warn:#f59e0b;--shadow:0 32px 100px rgba(15,23,42,.12)}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 8% -12%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 30%),radial-gradient(circle at 90% 8%,rgba(255,255,255,.42),transparent 26%),var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.page-shell{min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 420px)}
@@ -1079,6 +1182,8 @@ main{width:min(1180px,88vw);margin:0 auto}.store-hero{display:grid;grid-template
 .product{position:relative;overflow:hidden;display:flex;flex-direction:column;min-height:520px}.product-art{height:190px;position:relative;overflow:hidden;background:radial-gradient(circle at 50% 20%,color-mix(in srgb,var(--accent) 28%,transparent),transparent 32%),linear-gradient(135deg,color-mix(in srgb,var(--accent) 14%,transparent),rgba(255,255,255,.2));border-bottom:1px solid var(--line)}.product-art span{position:absolute;left:50%;top:50%;width:96px;height:96px;transform:translate(-50%,-50%);border-radius:32px;background:linear-gradient(135deg,rgba(255,255,255,.86),color-mix(in srgb,var(--accent) 20%,transparent));box-shadow:var(--shadow)}.product-art i{position:absolute;left:18%;bottom:-16%;width:150px;height:150px;border-radius:50%;background:color-mix(in srgb,var(--accent) 18%,transparent);filter:blur(.2px)}.product-art b{position:absolute;right:14%;top:18%;width:74px;height:74px;border-radius:24px;background:rgba(255,255,255,.62);box-shadow:0 20px 60px rgba(15,23,42,.08)}.product-body{padding:26px;display:flex;flex:1;flex-direction:column}.product h2{margin:0 0 18px;font-size:28px;letter-spacing:-.03em}.product p,.muted{color:var(--muted)}.product strong{display:block;font-size:38px;margin:22px 0;color:var(--accent);letter-spacing:-.05em}.product form{margin-top:auto}
 .showcase-section{display:grid;grid-template-columns:.86fr 1.14fr;gap:24px;align-items:stretch;padding:6px 0 82px}.showcase-copy{border-radius:32px;padding:32px;background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 16%,transparent),rgba(255,255,255,.2));border:1px solid var(--line);box-shadow:var(--shadow)}.showcase-copy h2{font-size:clamp(34px,5vw,62px);line-height:.94;letter-spacing:-.06em;margin:12px 0}.showcase-copy p{color:var(--muted);font-size:18px}.showcase-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.showcase-card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:24px;box-shadow:var(--shadow)}.showcase-card span{display:inline-flex;color:var(--accent);font-weight:950;font-size:13px;margin-bottom:38px}.showcase-card h3{font-size:24px;margin:0 0 10px;letter-spacing:-.04em}.showcase-card p{margin:0;color:var(--muted)}
 .theme-beauty .hero-visual{background:linear-gradient(135deg,rgba(255,255,255,.58),rgba(255,236,246,.28));}.theme-beauty .hero-visual::after{content:"";position:absolute;right:54px;top:82px;width:112px;height:112px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0 10%,transparent 11%),linear-gradient(135deg,#f9a8d4,var(--accent));box-shadow:0 34px 80px color-mix(in srgb,var(--accent) 24%,transparent)}.theme-beauty .visual-photo::after{content:"";position:absolute;left:28%;right:28%;top:30%;height:42%;border-radius:999px;background:linear-gradient(180deg,rgba(255,255,255,.8),rgba(255,255,255,.18));box-shadow:0 28px 80px rgba(217,70,143,.16)}.theme-beauty .product-art{background:radial-gradient(circle at 52% 28%,rgba(255,255,255,.78),transparent 18%),linear-gradient(135deg,rgba(249,168,212,.42),rgba(255,255,255,.38))}.theme-beauty .product-art::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(217,70,143,.18));filter:blur(.2px)}
+.theme-food .topbar{background:rgba(251,241,227,.86)}.theme-food .brand-mark{border-radius:50%;background:radial-gradient(circle at 36% 32%,#fff8 0 9%,transparent 10%),linear-gradient(135deg,#7c2d12,#d97706)}.theme-food .brand-mark::after{content:"";display:block;width:18px;height:10px;border-radius:0 0 18px 18px;border:2px solid rgba(255,255,255,.82);border-top:0;margin:18px auto 0}.theme-food .store-hero h1{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.065em}.theme-food .hero-visual{background:linear-gradient(135deg,rgba(255,250,242,.84),rgba(245,158,11,.12))}.theme-food .visual-photo::after{content:"";position:absolute;left:26%;right:26%;top:26%;height:36%;border-radius:0 0 80px 80px;border:10px solid rgba(124,45,18,.22);border-top:0}.theme-food .visual-photo span::before{content:"☕ ";}.theme-food .product-art{background:radial-gradient(circle at 48% 26%,rgba(255,255,255,.82),transparent 18%),linear-gradient(135deg,rgba(180,83,9,.22),rgba(255,247,237,.74))}.theme-food .product-art span{border-radius:999px 999px 40px 40px;background:linear-gradient(180deg,#fff7ed,#fed7aa)}.theme-food .product-art span::after{content:"";position:absolute;right:-18px;top:36px;width:30px;height:24px;border:7px solid rgba(124,45,18,.26);border-left:0;border-radius:0 999px 999px 0}.theme-food .product strong::after{content:" BYN";font-size:14px;color:var(--muted);letter-spacing:0;margin-left:5px}.theme-food .top-cta,.theme-food .hero-btn,.theme-food button,.theme-food .admin-logout{background:linear-gradient(135deg,#92400e,#d97706);color:#fff}
+.topbar-inner{height:auto;min-height:78px;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{width:230px}.nav-pill{flex:0 1 auto}.top-actions{width:230px}.admin-topbar .topbar-inner{justify-content:space-between}.admin-topbar .brand{width:auto}.admin-nav{margin-left:auto}.admin-nav a{padding:10px 18px}.admin-topbar .top-cta,.admin-topbar .runtime-chip{display:none}.store-hero{grid-template-columns:minmax(0,1fr) 380px;gap:42px;padding:72px 0 50px}.store-hero h1{font-size:clamp(46px,6.4vw,82px);line-height:.94}.theme-food .store-hero h1{font-size:clamp(44px,5.8vw,76px);line-height:.98}.hero-visual{height:360px}.products{grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}.product{min-height:430px}.product-art{height:150px}.product h2{font-size:24px}.product strong{font-size:30px;margin:14px 0}.admin-hero{padding:34px 0 16px}.admin-hero h1{font-size:clamp(38px,5vw,64px)}.admin-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.admin-stats article{padding:16px}.admin-grid{grid-template-columns:1fr;gap:16px}.product-list{display:grid;gap:8px}.product-row{display:grid;grid-template-columns:minmax(180px,1.5fr) 110px 82px 112px auto;grid-template-areas:"name price sort active save" "description description description description description";gap:8px;align-items:end;border:1px solid var(--line);border-radius:16px;padding:12px;background:rgba(255,255,255,.48)}.product-row input,.product-row textarea,.product-row select{padding:10px 12px;border-radius:12px}.product-row .field{gap:5px}.product-row .product-name{grid-area:name}.product-row .product-price{grid-area:price}.product-row .product-order{grid-area:sort}.product-row .product-active{grid-area:active}.product-row .product-description{grid-area:description}.product-row .product-save{grid-area:save;align-self:end;min-height:42px}.product-row textarea{min-height:44px}.new-product-box{margin-top:12px;border:1px dashed var(--line);border-radius:18px;padding:12px;background:var(--soft)}.new-product-box summary{cursor:pointer;font-weight:950;color:var(--accent)}.new-product-box .product-row{margin-top:12px}.narrow{max-width:560px;padding:34px}.narrow form{display:grid;gap:12px}.admin-orders{align-self:start}.order-card{background:rgba(255,255,255,.52)}
 .benefits-section,.proof-section{padding:12px 0 82px}.section-kicker{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:20px}.section-kicker h2,.proof-section h2{font-size:clamp(34px,5vw,64px);line-height:.94;letter-spacing:-.06em;margin:10px 0 0;max-width:760px}.benefit-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.benefit-card,.faq-grid article{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:24px;box-shadow:var(--shadow)}.benefit-card span{width:42px;height:42px;border-radius:16px;display:block;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 32%,#fff));box-shadow:0 16px 40px color-mix(in srgb,var(--accent) 20%,transparent);margin-bottom:24px}.benefit-card h3,.faq-grid h3{font-size:22px;letter-spacing:-.03em;margin:0 0 10px}.benefit-card p,.faq-grid p{color:var(--muted);margin:0}.proof-section{display:grid;grid-template-columns:.82fr 1.18fr;gap:24px;align-items:start}.faq-grid{display:grid;gap:14px}
 .reviews-section{padding:0 0 82px}.review-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.review-card{display:grid;grid-template-columns:auto 1fr;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:26px;padding:22px;box-shadow:var(--shadow)}.review-avatar{width:52px;height:52px;border-radius:18px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 36%,#fff));color:#fff;font-weight:950;font-size:22px}.stars{color:var(--accent);letter-spacing:.08em;font-size:13px;margin-bottom:8px}.review-card p{margin:0 0 12px;color:var(--muted)}.review-card strong{font-weight:950}
 button,.admin-logout{border:0;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 76%,#fff));color:${dark ? "#061014" : "#fff"};border-radius:16px;padding:13px 18px;font-weight:950;cursor:pointer;text-decoration:none;text-align:center;box-shadow:0 14px 34px color-mix(in srgb,var(--accent) 22%,transparent)}button:hover,.admin-logout:hover{filter:brightness(1.04);transform:translateY(-1px)}
@@ -1088,8 +1193,9 @@ input,textarea,select{width:100%;border:1px solid var(--line);border-radius:16px
 .admin-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(320px,.7fr);gap:18px;padding:12px 0 70px}.section-title{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.section-title.compact{margin-top:24px}.section-title h2{font-size:30px;margin:2px 0 0}.badge{display:inline-flex;align-items:center;border-radius:999px;padding:7px 10px;background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--accent);font-size:12px;font-weight:900}
 .product-form{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;border:1px solid var(--line);border-radius:22px;padding:18px;margin-bottom:14px;background:var(--soft)}.span-3{grid-column:span 3}.span-6{grid-column:span 6}.span-9{grid-column:span 9}.span-12{grid-column:span 12}.switch{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--muted);font-weight:800}.switch input{width:auto;accent-color:var(--accent)}
 .order-card{display:grid;gap:14px;border:1px solid var(--line);border-radius:20px;padding:16px;margin-bottom:14px;background:var(--soft)}.order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.order-head b{display:block}.order-head span,.order-meta{color:var(--muted);font-size:13px}.order-meta{display:flex;justify-content:space-between;gap:10px}.status{border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;text-transform:uppercase;background:var(--line)}.status-paid,.status-completed{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}.status-processing{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}.status-cancelled,.status-failed{background:color-mix(in srgb,var(--danger) 16%,transparent);color:var(--danger)}.status-form{display:grid;grid-template-columns:1fr auto;gap:10px}.empty{color:var(--muted);padding:20px;border:1px dashed var(--line);border-radius:18px}
+.admin-hero{padding:34px 0 16px}.admin-hero h1{font-size:clamp(38px,5vw,64px)}.admin-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.admin-stats article{padding:16px}.admin-grid{grid-template-columns:1fr;gap:16px}.product-list{display:grid;gap:8px}.product-editor{border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,.5);overflow:hidden}.product-editor[open]{background:rgba(255,255,255,.72);box-shadow:var(--shadow)}.product-editor:not([open])>.product-row{display:none}.product-summary{cursor:pointer;display:grid;grid-template-columns:minmax(0,1fr) 90px 82px 120px;gap:10px;align-items:center;padding:14px 16px;list-style:none}.product-summary::-webkit-details-marker{display:none}.summary-title{font-weight:950;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.summary-price{font-weight:950;color:var(--accent);text-align:right}.summary-status{font-size:11px;text-transform:uppercase;font-weight:950;border-radius:999px;padding:5px 9px;text-align:center;background:var(--line);color:var(--muted)}.summary-status.on{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}.summary-action{font-weight:900;color:var(--accent);text-align:right}.product-row{display:grid;grid-template-columns:minmax(180px,1.5fr) 110px 82px 112px auto;grid-template-areas:"name price sort active save" "description description description description description";gap:8px;align-items:end;border-top:1px solid var(--line);padding:12px 14px;background:var(--soft)}.product-row input,.product-row textarea,.product-row select{padding:10px 12px;border-radius:12px}.product-row .field{gap:5px}.product-row .product-name{grid-area:name}.product-row .product-price{grid-area:price}.product-row .product-order{grid-area:sort}.product-row .product-active{grid-area:active}.product-row .product-description{grid-area:description}.product-row .product-save{grid-area:save;align-self:end;min-height:42px}.product-row textarea{min-height:44px}.new-product-box{margin-top:12px;border:1px dashed var(--line);border-radius:18px;padding:12px;background:var(--soft)}.new-product-box .product-editor{background:transparent}.new-product-box .product-summary{display:grid}.narrow{max-width:560px;padding:34px}.narrow form{display:grid;gap:12px}.admin-orders{align-self:start}.order-card{background:rgba(255,255,255,.52)}
 footer{width:min(1180px,88vw);margin:0 auto;padding:28px 0 44px;color:var(--muted);border-top:1px solid var(--line)}
-@media(max-width:900px){.topbar-inner{height:auto;padding:14px 0;display:grid;grid-template-columns:1fr}.nav-pill{justify-content:space-between;overflow:auto}.top-actions{justify-content:flex-start}.store-hero,.grid.two,.admin-grid,.proof-section,.showcase-section{grid-template-columns:1fr}.hero-visual{min-height:320px}.trust-strip,.admin-stats,.benefit-grid,.review-grid,.showcase-grid{grid-template-columns:1fr}.catalog-head,.admin-hero,.section-kicker{align-items:flex-start;flex-direction:column}.span-3,.span-6,.span-9{grid-column:span 12}}
+@media(max-width:720px){.topbar-inner{height:auto;padding:14px 0;display:flex;align-items:flex-start;flex-direction:column}.brand,.top-actions{width:auto}.nav-pill{justify-content:space-between;overflow:auto;width:100%}.top-actions{justify-content:flex-start}.store-hero,.grid.two,.admin-grid,.proof-section,.showcase-section{grid-template-columns:1fr}.hero-visual{min-height:300px}.trust-strip,.benefit-grid,.review-grid,.showcase-grid{grid-template-columns:1fr}.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.catalog-head,.admin-hero,.section-kicker{align-items:flex-start;flex-direction:column}.span-3,.span-6,.span-9{grid-column:span 12}.product-summary{grid-template-columns:minmax(0,1fr) 70px 74px}.summary-action{display:none}.product-row{grid-template-columns:minmax(0,1fr) 92px 70px;grid-template-areas:"name price sort" "description description description" "active save save"}.product-row .product-save{width:100%}}
 `;
 }
 

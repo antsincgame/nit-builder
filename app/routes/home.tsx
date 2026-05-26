@@ -23,6 +23,7 @@ import { SaveAsTemplateDialog } from "~/components/simple/SaveAsTemplateDialog";
 import { MyTemplatesPanel } from "~/components/simple/MyTemplatesPanel";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
+import type { StylePresetId } from "~/lib/llm/style-presets";
 
 export function meta() {
   return [
@@ -53,6 +54,7 @@ export default function Home() {
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("preview");
+  const [stylePresetId, setStylePresetId] = useState<StylePresetId | "auto">("auto");
 
   const socketRef = useRef<ReturnType<typeof useControlSocket> | null>(null);
   const flow = useGenerationFlow({
@@ -156,6 +158,16 @@ export default function Home() {
     }
   }, [handleUseTemplate]);
 
+  const selectedStylePreset = stylePresetId === "auto" ? undefined : stylePresetId;
+  const createSiteWithSelectedStyle = useCallback(
+    (prompt: string) => createSite(prompt, { stylePresetId: selectedStylePreset }),
+    [createSite, selectedStylePreset],
+  );
+
+  // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
+  // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
+  // useMemo: regex дешёвый, но html меняется на каждый стрим-чанк во время
+  // генерации — пусть будет мемо чтобы не пересчитывать на каждый render.
   const hasEditableZones = useMemo(() => {
     const content = html || streamingHtml;
     return !!content && /\sdata-edit="/.test(content);
@@ -352,7 +364,12 @@ export default function Home() {
           )}
 
           <div className="mb-12 sm:mb-16">
-            <SimplePromptInput onSubmit={createSite} loading={loading} />
+            <SimplePromptInput
+              onSubmit={createSiteWithSelectedStyle}
+              loading={loading}
+              selectedStylePresetId={stylePresetId}
+              onStylePresetChange={setStylePresetId}
+            />
           </div>
 
           <div className="mb-5 text-center">
@@ -360,7 +377,7 @@ export default function Home() {
               Или выберите готовый
             </h2>
           </div>
-          <TemplateGrid onSelect={createSite} />
+          <TemplateGrid onSelect={createSiteWithSelectedStyle} />
         </main>
 
         <footer className="relative z-10 px-5 sm:px-8 py-8 text-center text-[13px] border-t border-white/[0.06] text-[#71717A]/60">

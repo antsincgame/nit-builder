@@ -1,3 +1,4 @@
+// Covers PHP+SQLite storefront generation, including niche-specific food output.
 import { describe, expect, it } from "vitest";
 import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -31,6 +32,20 @@ const PLAN: Plan = {
   pricing_tiers: [
     { name: "Сумка", price: "4900 ₽", period: "разово", features: ["Кожа", "Гарантия"] },
     { name: "Рюкзак", price: "8900 ₽", period: "разово", features: ["Ноутбук 15", "Доставка"], highlighted: true },
+  ],
+};
+
+const COFFEE_PLAN: Plan = {
+  ...PLAN,
+  business_type: "кофейня",
+  color_mood: "warm-pastel",
+  keywords: ["кофе", "кофейня Bean & Byte", "десерты", "меню", "заказы"],
+  hero_headline: "Кофейня Bean & Byte — уютный уголок в центре города",
+  hero_subheadline: "Свежие кофе и сладкие десерты каждый день.",
+  cta_primary: "Оформить заказ",
+  pricing_tiers: [
+    { name: "Старт", price: "4900", features: ["Базовая комплектация"] },
+    { name: "Премиум", price: "14900", features: ["Расширенная комплектация"], highlighted: true },
   ],
 };
 
@@ -78,8 +93,9 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/index.php")).toContain("runtime-chip");
     expect(file("public/index.php")).toContain("Ответим в течение дня");
     expect(file("public/index.php")).toContain("global $appName, $htmlLang, $path, $brandTagline, $contactLine");
-    expect(file("public/index.php")).toContain("function render_footer(): void { global $appName;");
-    expect(file("public/index.php")).toContain("if (strpos($path, '/admin') === 0):");
+    expect(file("public/index.php")).toContain("function render_footer(): void { global $appName, $themeClass;");
+    expect(file("public/index.php")).toContain("$isAdminRoute = strpos($path, '/admin') === 0;");
+    expect(file("public/index.php")).toContain("admin-nav");
     expect(file("public/index.php")).not.toContain("|| current_admin()");
     expect(file("public/index.php")).not.toContain("commerce backend");
     expect(file("public/index.php")).not.toContain("PDO + CSRF");
@@ -94,7 +110,9 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/index.php")).toContain("$reviews");
     expect(file("public/index.php")).toContain("$showcaseItems");
     expect(file("public/index.php")).toContain("product-art");
-    expect(file("public/index.php")).toContain("product-form");
+    expect(file("public/index.php")).toContain("product-row");
+    expect(file("public/index.php")).toContain("product-editor");
+    expect(file("public/index.php")).toContain("product-summary");
     expect(file("public/index.php")).toContain("order-card");
     expect(file("public/index.php")).toContain("/admin/order/status");
     expect(file("public/index.php")).toContain("is_active = ?");
@@ -119,6 +137,22 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/assets/style.css")).toContain(".review-grid");
     expect(file("public/assets/style.css")).toContain(".showcase-grid");
     expect(file("public/assets/style.css")).toContain(".faq-grid");
+  });
+
+  it("uses niche-specific menu seeds and warm food theme for coffee projects", () => {
+    const artifact = buildPhpSqliteArtifact({
+      plan: COFFEE_PLAN,
+      userMessage: "кофейня с товарами, корзиной, оплатой и админкой",
+    });
+    const file = (path: string) => artifact.files.find((f) => f.path === path)?.content ?? "";
+
+    expect(file("database/schema.sqlite.sql")).toContain("Капучино");
+    expect(file("database/schema.sqlite.sql")).toContain("Чизкейк Сан-Себастьян");
+    expect(file("database/schema.sqlite.sql")).not.toContain("SELECT 'Старт'");
+    expect(file("public/index.php")).toContain("кофе · десерты · заказы");
+    expect(file("public/index.php")).toContain("Меню напитков и десертов");
+    expect(file("public/assets/style.css")).toContain(".theme-food");
+    expect(file("public/assets/style.css")).toContain("#b45309");
   });
 
   it("keeps generated PHP compatible with PHP 7.4 syntax", () => {

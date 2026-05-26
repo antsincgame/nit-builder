@@ -1,5 +1,5 @@
 /**
- * useGenerationFlow — encapsulates the entire site generation pipeline state.
+ * useGenerationFlow — encapsulates generation state and selected style preset.
  *
  * Раньше эта логика жила inline в app/routes/home.tsx (~500 LOC, треть
  * файла) и смешивалась с layout/JSX. Вынос даёт:
@@ -27,12 +27,14 @@ import { saveRemoteSite, updateRemoteSite } from "~/lib/stores/remoteHistoryStor
 import { toast } from "~/lib/stores/toastStore";
 import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
 import { uuid } from "~/lib/utils/uuid";
+import type { StylePresetId } from "~/lib/llm/style-presets";
 
 // ─── Public types ──────────────────────────────────────────────────
 
 export type ViewMode = "welcome" | "generating" | "editing";
 export type PipelineStep = "plan" | "template" | "code" | "done";
 export type ChatMessage = { role: "user" | "assistant"; text: string };
+export type CreateSiteOptions = { stylePresetId?: StylePresetId };
 
 /** Минимальный shape того что возвращает useControlSocket — чтобы hook не зависел от полного типа. */
 export type ControlSocketLike = {
@@ -43,6 +45,7 @@ export type ControlSocketLike = {
     mode: "create" | "polish";
     prompt: string;
     artifactMode?: ArtifactMode;
+    stylePresetId?: StylePresetId;
     previousHtml?: string;
   }) => boolean;
   sendAbort: (requestId: string) => void;
@@ -97,7 +100,7 @@ export type UseGenerationFlow = {
   currentSiteId: string | null;
 
   // ─── Actions ────────────────────────────────────────
-  createSite: (prompt: string) => Promise<void>;
+  createSite: (prompt: string, createOptions?: CreateSiteOptions) => Promise<void>;
   polishSite: (request: string) => Promise<void>;
   cancelGeneration: () => void;
   /** Используется HistoryPanel при открытии существующего сайта. */
@@ -382,7 +385,7 @@ export function useGenerationFlow(
   // ─── Actions ──────────────────────────────────────────────────────
 
   const createSite = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, createOptions: CreateSiteOptions = {}) => {
       setMode("generating");
       setLoading(true);
       setStreamingHtml("");
@@ -411,6 +414,7 @@ export function useGenerationFlow(
           mode: "create",
           prompt,
           artifactMode,
+          ...(createOptions.stylePresetId ? { stylePresetId: createOptions.stylePresetId } : {}),
         });
         if (!sent) {
           toast.error("Туннель не готов. Попробуй ещё раз.");
@@ -432,6 +436,7 @@ export function useGenerationFlow(
           prompt,
           sessionId: sessionIdRef.current,
           artifactMode,
+          stylePresetId: createOptions.stylePresetId,
           signal: ctrl.signal,
           onEvent: (event) => {
             switch (event.type) {

@@ -1,6 +1,9 @@
+// Registers injectable style presets and auto-selects them from user intent.
 import type { StylePreset, StylePresetId } from "./types";
 import { GENERIC_PRESET } from "./generic";
 import { NEON_CYBER_PRESET } from "./neon-cyber";
+import { CLEAN_SAAS_PRESET } from "./clean-saas";
+import { WARM_PREMIUM_PRESET } from "./warm-premium";
 import { EDITORIAL_PRESET } from "./editorial";
 import { TECH_TERMINAL_PRESET } from "./tech-terminal";
 
@@ -9,6 +12,8 @@ export { type StylePreset, type StylePresetId } from "./types";
 export const STYLE_PRESETS: StylePreset[] = [
   GENERIC_PRESET,
   NEON_CYBER_PRESET,
+  CLEAN_SAAS_PRESET,
+  WARM_PREMIUM_PRESET,
   EDITORIAL_PRESET,
   TECH_TERMINAL_PRESET,
 ];
@@ -27,6 +32,46 @@ export function isKnownPresetId(id: string): id is StylePresetId {
 
 export function getAvailablePresets(): StylePreset[] {
   return STYLE_PRESETS.filter((p) => p.available);
+}
+
+type StyleIntentPlan = {
+  color_mood?: string;
+  style_hints?: string;
+  tone?: string;
+  business_type?: string;
+  keywords?: string[];
+};
+
+function hasAny(text: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(text));
+}
+
+function hasAntiCyberIntent(text: string): boolean {
+  return /без\s+(неон|глитч|glitch|cyber|кибер)|no\s+(neon|glitch|cyber)|avoid\s+(neon|glitch|cyber)/i.test(text);
+}
+
+export function inferStylePresetId(
+  userMessage: string,
+  plan?: StyleIntentPlan,
+): StylePresetId {
+  const text = [
+    userMessage,
+    plan?.color_mood,
+    plan?.style_hints,
+    plan?.tone,
+    plan?.business_type,
+    ...(plan?.keywords ?? []),
+  ].filter(Boolean).join(" ").toLowerCase();
+
+  if (hasAny(text, [/terminal|cli|devtool|console|crt|phosphor|терминал|командн|devops|cybersec/])) return "tech-terminal";
+  if (hasAny(text, [/editorial|magazine|журнал|редакц|serif|luxury brand|fashion|портфолио|lookbook/])) return "editorial";
+  if (!hasAntiCyberIntent(text) && hasAny(text, [/cyber|кибер|neon|неон|glitch|глитч|brutal|брутал|hud|web3|crypto|крипт/])) return "neon-cyber";
+  if (hasAny(text, [/warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach/])) return "warm-premium";
+  if (hasAny(text, [/apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard/])) return "clean-saas";
+  if (plan?.color_mood === "vibrant-neon") return "neon-cyber";
+  if (plan?.color_mood === "warm-pastel") return "warm-premium";
+  if (plan?.color_mood === "light-minimal") return "clean-saas";
+  return "generic";
 }
 
 /**

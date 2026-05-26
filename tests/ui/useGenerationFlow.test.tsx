@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
 /**
- * Unit-тесты для useGenerationFlow — самого крупного hook'а в codebase.
+ * Unit-тесты для useGenerationFlow, включая передачу выбранного style preset.
  *
  * Стратегия: mock'аем runHttpPipeline (его SSE-логика покрыта в
  * pipelineHttpFallback.test.ts) + saveToHistory/saveRemoteSite (storage),
@@ -227,6 +227,35 @@ describe("useGenerationFlow > createSite (HTTP fallback)", () => {
     );
   });
 
+  it("guest с выбранным style preset → HTTP fallback получает stylePresetId", async () => {
+    mockedRunHttp.mockResolvedValueOnce({
+      finalHtml: "<html>styled</html>",
+      templateId: "saas-landing",
+      templateName: "SaaS",
+      newSessionId: "s-style",
+    });
+
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("warm premium SaaS", { stylePresetId: "warm-premium" });
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: "warm premium SaaS",
+        stylePresetId: "warm-premium",
+      }),
+    );
+  });
+
   it("authed → HTTP fallback (если socket не authed) → также saveRemoteSite", async () => {
     mockedRunHttp.mockResolvedValueOnce({
       finalHtml: "<html>x</html>",
@@ -407,6 +436,36 @@ describe("useGenerationFlow > createSite (WebSocket)", () => {
       mode: "create",
       prompt: "backend на PHP MySQL: товары заказы админка оплаты",
       artifactMode: "php-sqlite",
+    });
+    expect(mockedRunHttp).not.toHaveBeenCalled();
+  });
+
+  it("authed + tunnel online с выбранным style preset → sendGenerate получает stylePresetId", async () => {
+    const sendGenerate = vi.fn(() => true);
+    const socket = makeFakeSocket({
+      status: "authed",
+      tunnelStatus: "online",
+      sendGenerate,
+    });
+
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("светлый Apple-style лендинг", { stylePresetId: "clean-saas" });
+    });
+
+    expect(sendGenerate).toHaveBeenCalledWith({
+      requestId: expect.stringMatching(/^req-/),
+      mode: "create",
+      prompt: "светлый Apple-style лендинг",
+      artifactMode: undefined,
+      stylePresetId: "clean-saas",
     });
     expect(mockedRunHttp).not.toHaveBeenCalled();
   });

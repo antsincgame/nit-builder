@@ -1,4 +1,6 @@
 /**
+ * Added real style presets so create pipeline can steer visual direction.
+ *
  * Style presets — концентрат дизайн-правил для Coder-агента.
  *
  * Мотивация: baseline генерация NIT Builder выдаёт generic-Tailwind лендинги.
@@ -15,6 +17,8 @@
 export type StylePresetId =
   | "generic"
   | "neon-cyber"
+  | "clean-saas"
+  | "warm-premium"
   | "editorial"
   | "tech-terminal";
 

@@ -1,5 +1,5 @@
 /**
- * HTTP fallback для генерации сайтов (legacy v1 path).
+ * HTTP fallback для генерации сайтов, включая выбранный style preset.
  *
  * Используется когда WebSocket-туннель недоступен:
  *   - Юзер не залогинен
@@ -21,6 +21,7 @@
 
 import { parseSseStream } from "~/lib/utils/sseParser";
 import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
+import type { StylePresetId } from "~/lib/llm/style-presets";
 
 /** Событие пайплайна, унифицированное для create/polish HTTP-fallback. */
 export type HttpPipelineEvent =
@@ -40,6 +41,7 @@ export type HttpFallbackParams = {
   sessionId?: string;
   providerId?: string;
   artifactMode?: ArtifactMode;
+  stylePresetId?: StylePresetId;
   signal: AbortSignal;
   /** Вызывается на каждое событие. Возврат false — прервать обработку (не используется сейчас, на будущее). */
   onEvent: (event: HttpPipelineEvent) => void;
@@ -73,6 +75,7 @@ export async function runHttpPipeline(
       message: params.prompt,
       providerId: params.providerId,
       artifactMode: params.artifactMode ?? inferArtifactModeFromPrompt(params.prompt),
+      stylePresetId: params.stylePresetId,
     }),
     signal: params.signal,
   });

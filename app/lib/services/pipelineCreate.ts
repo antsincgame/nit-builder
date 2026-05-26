@@ -1,5 +1,5 @@
 /**
- * Create-режим пайплайна: Planner → Template → Skeleton-injection (Tier 3) → Coder.
+ * Create-режим пайплайна теперь выбирает style preset и post-polish guardrails.
  *
  * Skeleton-injection. Если plan содержит весь требуемый копирайт И в шаблоне
  * есть совместимая структура для слотов — Coder LLM пропускается, экономит
@@ -50,8 +50,13 @@ import {
   buildPhpSqliteArtifact,
   renderPhpSqliteArtifactPreview,
 } from "~/lib/services/phpSqliteArtifactBuilder";
-import { injectStylePreset, type StylePresetId } from "~/lib/llm/style-presets";
+import {
+  inferStylePresetId,
+  injectStylePreset,
+  type StylePresetId,
+} from "~/lib/llm/style-presets";
 import { obtainPlan } from "~/lib/services/pipelinePlanner";
+import { postPolishHtml } from "~/lib/services/htmlPostPolish";
 import {
   stripCodeFences,
   readUsage,
@@ -202,6 +207,8 @@ export async function* executeHtmlSimple(
   // удалён. Везде ниже используется напрямую template.id.
 
   const artifactMode = resolveArtifactMode(sanitized, options);
+  const stylePresetId: StylePresetId =
+    options.stylePresetId ?? inferStylePresetId(sanitized, currentPlan);
   if (artifactMode === "php-sqlite") {
     currentPlan = normalizeBackendPlanForPrompt(currentPlan, sanitized);
     memory.planJson = currentPlan;
@@ -261,6 +268,11 @@ export async function* executeHtmlSimple(
   if (artifactMode === "custom") {
     metrics.skeletonInjectSkipped("custom_artifact_mode");
     logger.info(SCOPE, "Skeleton-injection пропущена (custom_artifact_mode), вызываем Coder с нуля");
+    const customSystemPrompt = injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, stylePresetId);
+    const customPromptDelta = customSystemPrompt.length - CUSTOM_ARTIFACT_SYSTEM_PROMPT.length;
+    if (customPromptDelta > 0) {
+      yield { type: "style_preset_used", presetId: stylePresetId, promptDelta: customPromptDelta };
+    }
 
     yield {
       type: "step_start",
@@ -272,7 +284,7 @@ export async function* executeHtmlSimple(
     try {
       const planJsonStr = JSON.stringify(currentPlan);
       const estimatedInputChars =
-        CUSTOM_ARTIFACT_SYSTEM_PROMPT.length + planJsonStr.length + sanitized.length + 500;
+        customSystemPrompt.length + planJsonStr.length + sanitized.length + 500;
       const budget = checkContextBudget(provider, estimatedInputChars, 12_000);
       if (budget.warning) logger.warn(SCOPE, budget.warning);
       if (!budget.ok) {
@@ -293,7 +305,7 @@ export async function* executeHtmlSimple(
 
         result = await streamText({
           model,
-          system: CUSTOM_ARTIFACT_SYSTEM_PROMPT,
+          system: customSystemPrompt,
           prompt: attemptPrompt,
           maxOutputTokens: 16_000,
           temperature: 0.55,
@@ -326,14 +338,18 @@ export async function* executeHtmlSimple(
       const totalMs = Date.now() - startMs;
       const generatedHtml = stripCodeFences(rawHtml);
       const fullHtml = customArtifactLooksTooThin(generatedHtml)
-        ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized })
+        ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized, presetId: stylePresetId })
         : generatedHtml;
+      const polished = postPolishHtml({ html: fullHtml, presetId: stylePresetId, plan: currentPlan });
       if (fullHtml !== generatedHtml) {
         logger.warn(SCOPE, `Custom artifact fallback builder used (${generatedHtml.length} generated chars)`);
       }
-      memory.currentHtml = fullHtml;
+      if (polished.fixes.length > 0) {
+        yield { type: "post_polish_applied", fixes: polished.fixes };
+      }
+      memory.currentHtml = polished.html;
       memory.updatedAt = Date.now();
-      updateSessionHtml(memory.sessionId, fullHtml);
+      updateSessionHtml(memory.sessionId, polished.html);
       metrics.generationCompleted("create", provider.id, totalMs);
       recordGeneration({
         sessionId: memory.sessionId,
@@ -349,7 +365,7 @@ export async function* executeHtmlSimple(
         injectMethod: "coder",
       });
 
-      yield { type: "step_complete", html: fullHtml };
+      yield { type: "step_complete", html: polished.html };
       return;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
@@ -359,11 +375,14 @@ export async function* executeHtmlSimple(
     }
   }
 
-  metrics.skeletonInjectAttempted();
-  const cleanTemplateHtml = loadTemplateHtml(template.id);
-  const injection = injectPlanIntoTemplate(cleanTemplateHtml, currentPlan);
+  const shouldTrySkeleton = stylePresetId === "generic";
+  const cleanTemplateHtml = shouldTrySkeleton ? loadTemplateHtml(template.id) : "";
+  const injection = shouldTrySkeleton
+    ? injectPlanIntoTemplate(cleanTemplateHtml, currentPlan)
+    : null;
+  if (shouldTrySkeleton) metrics.skeletonInjectAttempted();
 
-  if (injection.ok && htmlContainsPrimaryCta(injection.html, currentPlan)) {
+  if (injection?.ok && htmlContainsPrimaryCta(injection.html, currentPlan)) {
     metrics.skeletonInjectSucceeded(template.id, injection.fillRatio);
     metrics.skeletonExtendedSlotsFilled(injection.extendedSlotsFilled);
     const finalHtml = stripCodeFences(injection.html);
@@ -405,7 +424,9 @@ export async function* executeHtmlSimple(
     return;
   }
 
-  const skeletonSkipReason = injection.ok ? "missing_primary_cta" : injection.reason;
+  const skeletonSkipReason = !injection
+    ? "style_preset_requires_coder"
+    : injection.ok ? "missing_primary_cta" : injection.reason;
   metrics.skeletonInjectSkipped(skeletonSkipReason);
   logger.info(SCOPE, `Skeleton-injection пропущена (${skeletonSkipReason}), вызываем Coder`);
 
@@ -429,7 +450,7 @@ export async function* executeHtmlSimple(
   // Default "generic" → no-op (возвращает CODER_SYSTEM_PROMPT без изменений).
   // "neon-cyber" → дописывает ~900 chars правил (палитра, шрифты, glitch/hairline).
   // Сохраняем исходный prompt чтобы можно было считать promptDelta для дебага.
-  const presetId: StylePresetId = options.stylePresetId ?? "generic";
+  const presetId: StylePresetId = stylePresetId;
   const coderSystemPrompt = injectStylePreset(CODER_SYSTEM_PROMPT, presetId);
   const promptDelta = coderSystemPrompt.length - CODER_SYSTEM_PROMPT.length;
   if (promptDelta > 0) {
@@ -549,9 +570,13 @@ export async function* executeHtmlSimple(
     }
 
     const fullHtml = stripCodeFences(rawHtml);
-    memory.currentHtml = fullHtml;
+    const polished = postPolishHtml({ html: fullHtml, presetId, plan: currentPlan });
+    if (polished.fixes.length > 0) {
+      yield { type: "post_polish_applied", fixes: polished.fixes };
+    }
+    memory.currentHtml = polished.html;
     memory.updatedAt = Date.now();
-    updateSessionHtml(memory.sessionId, fullHtml);
+    updateSessionHtml(memory.sessionId, polished.html);
     metrics.generationCompleted("create", provider.id, totalMs);
     recordGeneration({
       sessionId: memory.sessionId,
@@ -566,7 +591,7 @@ export async function* executeHtmlSimple(
       planCached: planCachedFlag,
       injectMethod: "coder",
     });
-    yield { type: "step_complete", html: fullHtml };
+    yield { type: "step_complete", html: polished.html };
   } catch (err) {
     if ((err as Error).name === "AbortError") return;
     metrics.generationFailed("create", "coder_error");

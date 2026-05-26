@@ -1,4 +1,6 @@
 /**
+ * Adds style preset and post-polish events to the pipeline contract.
+ *
  * Public types для htmlOrchestrator pipeline.
  *
  * Вынесены отдельно чтобы:
@@ -55,6 +57,7 @@ export type PipelineEvent =
       extendedSlotsFilled: number;
     }
   | { type: "style_preset_used"; presetId: StylePresetId; promptDelta: number }
+  | { type: "post_polish_applied"; fixes: string[] }
   | { type: "error"; message: string };
 
 export type OrchestratorOptions = {
@@ -63,10 +66,9 @@ export type OrchestratorOptions = {
   polishIntent?: PolishIntent;
   targetSection?: string;
   /**
-   * Style preset для Coder-этапа. Default "generic" — поведение как раньше.
-   * Для "neon-cyber" в system prompt инжектится ~900 chars с palette / fonts /
-   * signature moves; Coder берёт их как жёсткие правила.
-   * Skeleton-injection path (без Coder) preset игнорирует — там нет LLM-шага.
+   * Style preset для Coder/custom этапа. Если не задан, pipeline выводит preset
+   * из запроса и plan. Негенерик preset отключает skeleton path, чтобы стиль не
+   * игнорировался.
    */
   stylePresetId?: StylePresetId;
   /**
