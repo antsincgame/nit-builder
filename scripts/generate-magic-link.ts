@@ -45,7 +45,7 @@ async function main() {
   try {
     // Создать юзера если ещё нет
     const user = await findOrCreateUserByEmail(email);
-    console.log(`[magic-link] user: ${user.userId} (${user.created ? "создан" : "существовал"})`);
+    console.log(`[magic-link] user: ${user.userId}`);
 
     // Сгенерировать токен
     const token = await createMagicLink(email);
