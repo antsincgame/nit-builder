@@ -78,10 +78,9 @@ const SERVER_URL =
     : "wss://nit.vibecoding.by/api/tunnel";
 
 /**
- * Download v4 — replaces waitlist with direct binary download links.
- * Workflow tunnel-release.yml собирает 4 бинаря через Bun cross-compile
- * и аттачит их к GitHub Release. Latest stable release всегда доступен
- * через /releases/latest/download/<file>.
+ * Download v5 — замена «токен» на «ключ доступа» в UI-текстах.
+ * Ссылки на /register заменены на /login — регистрация теперь автоматическая
+ * через magic-link при первом входе.
  */
 export default function Download() {
   const auth = useAuth();
@@ -98,8 +97,6 @@ export default function Download() {
     if (ua.includes("windows") || platform.includes("win")) {
       setDetectedOS("windows");
     } else if (ua.includes("mac") || platform.includes("mac")) {
-      // ARM Mac vs Intel — нет точного API, но user-agent на M1+ обычно содержит "intel" (fake)
-      // или мы предполагаем arm64 для современных Mac'ов 2020+ — это разумный дефолт.
       setDetectedOS("macos-arm");
     } else if (ua.includes("linux") || platform.includes("linux")) {
       setDetectedOS("linux");
@@ -119,7 +116,6 @@ export default function Download() {
       });
   };
 
-  // Платформа которая идёт первой — auto-detected или Windows по умолчанию.
   const primary = PLATFORMS.find((p) => p.id === detectedOS) ?? PLATFORMS[0]!;
   const rest = PLATFORMS.filter((p) => p.id !== primary.id);
 
@@ -156,7 +152,6 @@ export default function Download() {
           </p>
         </div>
 
-        {/* Primary CTA — auto-detected OS */}
         <a
           href={primary.url}
           className="block rounded-2xl border border-emerald-500/20 bg-[#0f1a14] p-6 sm:p-7 mb-4 no-underline group hover:border-emerald-500/30 transition-all shadow-[0_0_40px_rgba(16,185,129,0.06)]"
@@ -182,7 +177,6 @@ export default function Download() {
           </div>
         </a>
 
-        {/* Other platforms */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
           {rest.map((p) => (
             <a
@@ -201,7 +195,6 @@ export default function Download() {
           ))}
         </div>
 
-        {/* Quickstart */}
         <div className="rounded-xl border border-white/[0.06] bg-[#141414] p-5 sm:p-6 mb-6">
           <div className="text-[11px] tracking-[0.15em] uppercase mb-3 font-mono text-emerald-400/80">
             Быстрый старт
@@ -213,17 +206,17 @@ export default function Download() {
               включите Server на порту 1234.
             </li>
             <li>
-              <span className="text-white font-medium">2.</span> Получите tunnel-токен:{" "}
+              <span className="text-white font-medium">2.</span> Получите ключ доступа:{" "}
               {auth.status === "authenticated" ? (
                 <a href="/app" className="text-emerald-400 hover:text-emerald-300 transition-colors">
                   Settings → «Ключ доступа» → Создать новый
                 </a>
               ) : (
-                <a href="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors">
-                  зарегистрируйтесь
+                <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">
+                  войдите в аккаунт
                 </a>
               )}
-              {" "}— токен показывается один раз.
+              {" "}— ключ показывается один раз.
             </li>
             <li>
               <span className="text-white font-medium">3.</span> Скачайте бинарь под вашу ОС
@@ -248,8 +241,8 @@ export default function Download() {
               <CodeBlock
                 code={
                   primary.id === "windows"
-                    ? `.\\${primary.filename} \`\n  --token ВАШ_ТОКЕН \`\n  --server ${SERVER_URL} \`\n  --lm-studio http://localhost:1234/v1`
-                    : `./${primary.filename} \\\n  --token ВАШ_ТОКЕН \\\n  --server ${SERVER_URL} \\\n  --lm-studio http://localhost:1234/v1`
+                    ? `.\\${primary.filename} \`\n  --token ВАШ_КЛЮЧ \`\n  --server ${SERVER_URL} \`\n  --lm-studio http://localhost:1234/v1`
+                    : `./${primary.filename} \\\n  --token ВАШ_КЛЮЧ \\\n  --server ${SERVER_URL} \\\n  --lm-studio http://localhost:1234/v1`
                 }
                 copyKey="run"
                 copied={copied}
@@ -270,7 +263,6 @@ export default function Download() {
           </div>
         </div>
 
-        {/* Source code link */}
         <div className="text-center mb-4">
           <a
             href={`${RELEASE_BASE}/latest`}
@@ -283,7 +275,6 @@ export default function Download() {
           </a>
         </div>
 
-        {/* Dev section */}
         <button
           type="button"
           onClick={() => setDevOpen((v) => !v)}
@@ -303,7 +294,7 @@ export default function Download() {
           <div className="mt-3 rounded-lg border border-white/[0.06] bg-black/30 p-5 space-y-5 text-[13px] text-[#A1A1AA] leading-relaxed">
             <p>
               Нужны: Node.js 20+ или Bun, LM Studio с запущенным сервером,
-              GPU с 6+ ГБ VRAM и tunnel-токен.
+              GPU с 6+ ГБ VRAM и ключ доступа (получите его в Settings после входа).
             </p>
 
             <div>
@@ -323,7 +314,7 @@ export default function Download() {
                 2. Run tunnel
               </div>
               <CodeBlock
-                code={`cd tunnel\nnpm run dev -- \\\n  --token ВАШ_ТОКЕН \\\n  --server ${SERVER_URL} \\\n  --lm-studio http://localhost:1234/v1`}
+                code={`cd tunnel\nnpm run dev -- \\\n  --token ВАШ_КЛЮЧ \\\n  --server ${SERVER_URL} \\\n  --lm-studio http://localhost:1234/v1`}
                 copyKey="run-dev"
                 copied={copied}
                 onCopy={copy}
