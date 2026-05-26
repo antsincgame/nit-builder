@@ -29,6 +29,7 @@
     "tunnel:build": "npm run build --workspace tunnel",
     "shared:build": "npm run build --workspace shared",
     "migrate:appwrite": "tsx scripts/appwrite-migrate.ts",
+    "magic-link": "tsx scripts/generate-magic-link.ts",
     "eval": "tsx scripts/runEval.ts",
     "eval:html": "tsx scripts/runHtmlSmoke.ts",
     "eval:nightly": "tsx scripts/runEval.ts --label=nightly --compare-last --fail-on-regression",
