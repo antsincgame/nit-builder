@@ -1,6 +1,17 @@
 /**
- * TunnelTokenSection v3 — эстетика лендинга: Tailwind, emerald для акцентов,
- * amber для важных предупреждений, rose для опасных действий.
+ * TunnelTokenSection v4 — passwordless era.
+ *
+ * Изменения vs v3:
+ *  - убран password-prompt (юзер не знает пароль — magic-link era)
+ *  - вместо password — confirm() dialog «Создать новый ключ?»
+ *  - заголовок без «(для разработчиков)» — теперь основной flow
+ *  - убрана фраза «через консольный клиент» — теперь GUI приложение
+ *
+ * NB: серверный эндпоинт /api/auth/regenerate-tunnel-token раньше принимал
+ * password в body. Теперь мы шлём пустое body. Серверная сторона должна
+ * принимать запрос без password (auth берётся из session cookie). Если
+ * эндпоинт всё ещё проверяет password — он отдаст 401, и юзер увидит
+ * ошибку. Серверный фикс пойдёт отдельным коммитом.
  */
 
 import { useEffect, useState } from "react";
@@ -13,8 +24,6 @@ type Props = {
 
 export function TunnelTokenSection({ resetSignal }: Props) {
   const auth = useAuth();
-  const [showRegenerate, setShowRegenerate] = useState(false);
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -22,8 +31,6 @@ export function TunnelTokenSection({ resetSignal }: Props) {
 
   useEffect(() => {
     if (resetSignal) {
-      setShowRegenerate(false);
-      setPassword("");
       setError(null);
       setNewToken(null);
       setCopied(false);
@@ -31,6 +38,10 @@ export function TunnelTokenSection({ resetSignal }: Props) {
   }, [resetSignal]);
 
   async function handleRegenerate() {
+    // eslint-disable-next-line no-alert -- intentional destructive confirmation
+    if (!confirm("Создать новый ключ? Старый перестанет работать сразу — все активные подключения отключатся.")) {
+      return;
+    }
     setRegenerating(true);
     setError(null);
     try {
@@ -38,7 +49,7 @@ export function TunnelTokenSection({ resetSignal }: Props) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({}),
       });
       const data = (await res.json()) as { tunnelToken?: string; error?: string };
       if (!res.ok) {
@@ -47,7 +58,6 @@ export function TunnelTokenSection({ resetSignal }: Props) {
         return;
       }
       setNewToken(data.tunnelToken ?? null);
-      setPassword("");
     } catch {
       setError("Ошибка сети");
     } finally {
@@ -73,7 +83,7 @@ export function TunnelTokenSection({ resetSignal }: Props) {
   return (
     <div>
       <div className="text-[11px] uppercase tracking-[0.1em] font-semibold mb-3 text-[#71717A]/80">
-        Ключ доступа (для разработчиков)
+        Ключ доступа
       </div>
 
       {newToken ? (
@@ -109,64 +119,28 @@ export function TunnelTokenSection({ resetSignal }: Props) {
             </button>
           </div>
         </div>
-      ) : showRegenerate ? (
-        <div className="space-y-3">
-          <p className="text-[13px] text-[#A1A1AA] leading-relaxed">
-            Введите ваш пароль. Старый ключ перестанет работать сразу — все
-            активные подключения отключатся.
-          </p>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Ваш пароль"
-            autoComplete="current-password"
-            className="w-full px-3 py-3 text-[14px] outline-none transition rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/25 focus:border-emerald-500/40 focus:ring-1 focus:ring-emerald-500/20"
-          />
-          {error && (
-            <div className="p-2.5 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.06] text-rose-300">
-              {error}
-            </div>
-          )}
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setShowRegenerate(false);
-                setPassword("");
-                setError(null);
-              }}
-              className="flex-1 px-4 py-2.5 text-[13px] rounded-lg border border-white/[0.08] bg-white/[0.02] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition"
-            >
-              Отмена
-            </button>
-            <button
-              type="button"
-              onClick={handleRegenerate}
-              disabled={regenerating || password.length === 0}
-              className="flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-lg bg-rose-500 hover:bg-rose-400 disabled:opacity-40 disabled:cursor-not-allowed text-white transition"
-            >
-              {regenerating ? "…" : "Создать новый"}
-            </button>
-          </div>
-        </div>
       ) : (
         <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
           <p className="text-[13px] mb-3 text-[#A1A1AA] leading-relaxed">
-            Нужен только если вы запускаете генерацию на своём компьютере
-            через консольный клиент. Большинству пользователей не нужен.
+            Используется приложением для подключения к nitgen. Обычно подставляется автоматически при входе по email — создавать новый нужно только если хотите отключить старое устройство.
           </p>
           {auth.tunnelTokenCreatedAt && (
             <p className="text-[12px] mb-3 text-[#71717A]">
               Создан: {new Date(auth.tunnelTokenCreatedAt).toLocaleDateString("ru")}
             </p>
           )}
+          {error && (
+            <div className="p-2.5 mb-3 text-[13px] rounded-lg border border-rose-500/30 bg-rose-500/[0.06] text-rose-300">
+              {error}
+            </div>
+          )}
           <button
             type="button"
-            onClick={() => setShowRegenerate(true)}
-            className="text-[13px] text-rose-300 hover:text-rose-200 transition"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="text-[13px] text-rose-300 hover:text-rose-200 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Создать новый ключ →
+            {regenerating ? "…" : "Создать новый ключ →"}
           </button>
         </div>
       )}
