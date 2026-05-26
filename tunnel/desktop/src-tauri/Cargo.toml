@@ -1,12 +1,12 @@
 [package]
 name = "nit-tunnel-desktop"
-version = "0.1.0-alpha"
+version = "0.1.0"
 description = "NIT Builder tunnel client — proxy your LM Studio to NIT Builder sites"
-authors = ["Igor <igor1000rr>"]
+authors = ["Igor <igor@vibecoding.by>"]
 license = "MIT"
-repository = "https://github.com/igor1000rr/nit-builder"
+repository = "https://github.com/antsincgame/nit-builder"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.77"
 
 [lib]
 name = "nit_tunnel_desktop_lib"
