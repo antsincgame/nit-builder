@@ -18,16 +18,16 @@ export default [
   route("api/bundle/php", "routes/api.bundle.php.ts"),
   route("api/health", "routes/api.health.ts"),
   route("api/metrics", "routes/api.metrics.ts"),
-  // Auth endpoints (Phase B)
+  // Auth endpoints
   route("api/auth/register", "routes/api.auth.register.ts"),
   route("api/auth/login", "routes/api.auth.login.ts"),
   route("api/auth/logout", "routes/api.auth.logout.ts"),
   route("api/auth/logout-all", "routes/api.auth.logout-all.ts"),
   route("api/auth/me", "routes/api.auth.me.ts"),
   route("api/auth/regenerate-tunnel-token", "routes/api.auth.regenerate-tunnel-token.ts"),
-  // OAuth (Google + GitHub)
-  route("api/auth/oauth/:provider/start", "routes/api.auth.oauth.$provider.start.ts"),
-  route("api/auth/oauth/:provider/callback", "routes/api.auth.oauth.$provider.callback.ts"),
+  // Magic-link (passwordless)
+  route("api/auth/request-magic-link", "routes/api.auth.request-magic-link.ts"),
+  route("auth/verify", "routes/auth.verify.ts"),
   // Sites CRUD (Phase B.6)
   route("api/sites", "routes/api.sites.ts"),
   route("api/sites/:id", "routes/api.sites.$id.ts"),
