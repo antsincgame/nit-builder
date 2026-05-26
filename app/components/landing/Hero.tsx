@@ -1,41 +1,72 @@
 /**
  * Hero — главный блок лендинга nitgen.
  *
- * Изменения vs Bolt-исходник:
- * - navigate('/x') из кастомного pushState-роутера → useNavigate() от react-router
- * - RegisterCard кнопка "Зарегистрироваться" ведёт на /register (форма-stub в Bolt)
- * - useOS импортируется из app/hooks (SSR-safe версия)
+ * v6: RegisterCard → LoginCard (magic-link). Юзер вводит email на лендинге,
+ * мы шлём magic-link, при первом входе аккаунт создаётся автоматически.
+ * Никаких чекбоксов согласия (теперь в footer-микрокопии), никаких паролей,
+ * никакой страницы регистрации.
  */
 import { useState } from "react";
-import { Download, Monitor, Apple, Terminal, ArrowRight, CheckSquare, Square, Loader2 } from "lucide-react";
+import { Download, Monitor, Apple, Terminal, ArrowRight, Mail, Loader2, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useOS } from "~/hooks/useOS";
 
-function RegisterCard() {
-  const navigate = useNavigate();
+function LoginCard() {
   const [email, setEmail] = useState("");
-  const [consentData, setConsentData] = useState(false);
-  const [consentTerms, setConsentTerms] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [stage, setStage] = useState<"idle" | "sending" | "sent">("idle");
+  const [error, setError] = useState<string | null>(null);
 
-  const isValid = email.includes("@") && email.includes(".") && consentData && consentTerms;
+  const isValid = email.includes("@") && email.includes(".");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValid) return;
-    setLoading(true);
-    // Прокидываем email на /register, там полноценный flow регистрации (auth API).
-    setTimeout(() => navigate(`/register?email=${encodeURIComponent(email)}`), 400);
-  };
+    if (!isValid || stage === "sending") return;
+    setError(null);
+    setStage("sending");
+    try {
+      const res = await fetch("/api/auth/request-magic-link", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = (await res.json()) as { error?: string; ok?: boolean };
+      if (!res.ok) {
+        setError(data.error ?? "Не удалось отправить ссылку. Попробуйте ещё раз.");
+        setStage("idle");
+        return;
+      }
+      setStage("sent");
+    } catch {
+      setError("Ошибка сети. Попробуйте ещё раз.");
+      setStage("idle");
+    }
+  }
+
+  if (stage === "sent") {
+    return (
+      <div className="rounded-2xl border border-emerald-500/25 bg-[#0f1a14] p-7 text-center shadow-[0_0_40px_rgba(16,185,129,0.08)]">
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-4 border border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-400">
+          <CheckCircle2 size={22} strokeWidth={2.5} />
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">Проверьте почту</h3>
+        <p className="text-sm text-[#A1A1AA] leading-relaxed mb-1">Отправили ссылку для входа на</p>
+        <p className="text-[14px] font-medium text-white mb-4">{email}</p>
+        <p className="text-[11px] text-[#71717A] leading-relaxed">
+          Письмо может прийти в течение минуты. Проверьте папку «Спам».
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-emerald-500/25 bg-[#0f1a14] p-7 shadow-[0_0_40px_rgba(16,185,129,0.08),inset_0_1px_0_rgba(16,185,129,0.1)]">
       <div className="mb-5">
-        <h3 className="text-lg font-semibold text-white leading-tight">Регистрация</h3>
-        <p className="text-xs text-emerald-400/60 mt-0.5">Бесплатно для личного использования</p>
+        <h3 className="text-lg font-semibold text-white leading-tight">Войти в nitgen</h3>
+        <p className="text-xs text-emerald-400/60 mt-0.5">Без пароля — по email. Аккаунт создастся автоматически.</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="relative">
           <input
             type="email"
@@ -47,55 +78,36 @@ function RegisterCard() {
           />
         </div>
 
-        <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setConsentData(!consentData)}
-            className="flex items-start gap-2.5 text-left w-full group cursor-pointer"
-          >
-            {consentData
-              ? <CheckSquare size={16} className="text-emerald-400 shrink-0 mt-0.5" />
-              : <Square size={16} className="text-[#71717A] group-hover:text-[#A1A1AA] shrink-0 mt-0.5 transition-colors" />
-            }
-            <span className="text-[11px] text-[#71717A] leading-relaxed">
-              Даю согласие на обработку персональных данных в соответствии с{" "}
-              <button type="button" onClick={() => navigate("/privacy")} className="text-[#A1A1AA] underline hover:text-white transition-colors">Политикой конфиденциальности</button>,{" "}
-              ФЗ-152 «О персональных данных» (РФ) и Законом N 99-З «О защите персональных данных» (РБ)
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setConsentTerms(!consentTerms)}
-            className="flex items-start gap-2.5 text-left w-full group cursor-pointer"
-          >
-            {consentTerms
-              ? <CheckSquare size={16} className="text-emerald-400 shrink-0 mt-0.5" />
-              : <Square size={16} className="text-[#71717A] group-hover:text-[#A1A1AA] shrink-0 mt-0.5 transition-colors" />
-            }
-            <span className="text-[11px] text-[#71717A] leading-relaxed">
-              Принимаю{" "}
-              <button type="button" onClick={() => navigate("/terms")} className="text-[#A1A1AA] underline hover:text-white transition-colors">Пользовательское соглашение</button>{" "}
-              и{" "}
-              <button type="button" onClick={() => navigate("/terms")} className="text-[#A1A1AA] underline hover:text-white transition-colors">Условия использования сервиса</button>
-            </span>
-          </button>
-        </div>
+        {error && (
+          <div className="p-3 text-[12px] rounded-lg border border-rose-500/30 bg-rose-500/[0.06] text-rose-300">
+            {error}
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={!isValid || loading}
+          disabled={!isValid || stage === "sending"}
           className="w-full h-12 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:border disabled:border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-200 shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
         >
-          {loading ? (
-            <Loader2 size={15} className="animate-spin" />
+          {stage === "sending" ? (
+            <>
+              <Loader2 size={15} className="animate-spin" />
+              Отправляем…
+            </>
           ) : (
             <>
-              Зарегистрироваться
-              <ArrowRight size={14} />
+              <Mail size={14} />
+              Отправить ссылку
             </>
           )}
         </button>
+
+        <p className="text-[10px] text-[#71717A]/70 leading-relaxed text-center">
+          Продолжая, вы соглашаетесь с{" "}
+          <a href="/terms" className="text-[#A1A1AA] underline hover:text-white transition-colors">условиями</a>
+          {" "}и{" "}
+          <a href="/privacy" className="text-[#A1A1AA] underline hover:text-white transition-colors">политикой конфиденциальности</a>.
+        </p>
       </form>
     </div>
   );
@@ -117,7 +129,7 @@ function DownloadCard() {
   return (
     <div id="download" className="rounded-2xl border border-white/[0.08] bg-[#141414] p-7">
       <h3 className="text-lg font-semibold text-white mb-1">Скачать nitgen</h3>
-      <p className="text-xs text-[#71717A] mb-6">Версия 1.0 · ~80 МБ · Бесплатно для личного использования</p>
+      <p className="text-xs text-[#71717A] mb-6">Десктопное приложение · Бесплатно для личного использования</p>
 
       <button
         onClick={() => navigate("/download")}
@@ -217,7 +229,7 @@ export default function Hero() {
           </div>
 
           <div className="lg:sticky lg:top-24 flex flex-col gap-4">
-            <RegisterCard />
+            <LoginCard />
             <DownloadCard />
           </div>
         </div>
@@ -237,21 +249,21 @@ export default function Hero() {
               },
               {
                 step: "2",
-                title: "Скачайте Nitgen",
-                desc: "Бесплатное приложение для Windows, macOS и Linux",
+                title: "Скачайте nitgen",
+                desc: "Десктопное приложение для Windows, macOS и Linux",
                 link: "#download",
                 linkLabel: "Перейти к скачиванию",
               },
               {
                 step: "3",
-                title: "Авторизуйтесь",
-                desc: "Войдите по Email на сайте и в приложении",
+                title: "Войдите по email",
+                desc: "Введите email на сайте и в приложении — ссылка для входа придёт на почту",
                 link: undefined,
                 linkLabel: undefined,
               },
               {
                 step: "4",
-                title: "Творите!",
+                title: "Творите",
                 desc: "Опишите идею — ИИ соберёт сайт за секунды",
                 link: undefined,
                 linkLabel: undefined,
