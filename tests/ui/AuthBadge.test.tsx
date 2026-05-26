@@ -8,12 +8,9 @@ import type { AuthState } from "~/lib/contexts/AuthContext";
 /**
  * AuthBadge — три состояния (loading / unauthenticated / authenticated).
  *
- * Тесты обновлены под русифицированный AuthBadge v2:
- *   "Войти"/"Регистрация" вместо "Login"/"Register",
- *   title="Вы вошли как ..." вместо "Logged in as ...",
- *   header в dropdown "Вы вошли как" вместо "signed in as",
- *   "Настройки" вместо "Settings · token",
- *   "Выйти" вместо "Log out".
+ * Тесты обновлены под AuthBadge v4 (passwordless era):
+ *   unauthenticated state теперь одна кнопка «Войти» → /login (раньше
+ *   было «Войти» + «Регистрация» → /register).
  */
 
 const authedState: AuthState = {
@@ -54,7 +51,7 @@ describe("AuthBadge", () => {
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
   });
 
-  it("в unauthenticated показывает Войти + Регистрация CTA", () => {
+  it("в unauthenticated показывает одну кнопку Войти → /login", () => {
     render(
       <AuthProvider>
         <AuthBadge
@@ -65,11 +62,10 @@ describe("AuthBadge", () => {
     );
 
     const login = screen.getByText("Войти");
-    const register = screen.getByText(/Регистрация/);
     expect(login).toBeInTheDocument();
-    expect(register).toBeInTheDocument();
     expect(login.closest("a")).toHaveAttribute("href", "/login");
-    expect(register.closest("a")).toHaveAttribute("href", "/register");
+    // Регистрация больше не отображается отдельно — magic-link era
+    expect(screen.queryByText(/Регистрация/)).not.toBeInTheDocument();
   });
 
   it("в authenticated показывает первую букву email и сам email", () => {
