@@ -318,6 +318,14 @@ export default function Home() {
                   >
                     Мои шаблоны
                   </button>
+                  <a
+                    href="/download"
+                    className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
+                    title="Скачать NIT Tunnel"
+                  >
+                    <Download size={13} />
+                    Tunnel
+                  </a>
                 </>
               )}
               <AuthBadge auth={auth} onOpenSettings={() => setSettingsOpen(true)} />
@@ -360,6 +368,26 @@ export default function Home() {
                   Войти
                 </a>
               </div>
+            </div>
+          )}
+
+          {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
+            <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
+              <div className="flex-1">
+                <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
+                  NIT Tunnel не подключён
+                </div>
+                <div className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed">
+                  Чтобы генерировать сайты на своём GPU, скачайте клиент, запустите LM Studio и подключите tunnel token.
+                </div>
+              </div>
+              <a
+                href="/download"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
+              >
+                <Download size={14} />
+                Скачать NIT Tunnel
+              </a>
             </div>
           )}
 
