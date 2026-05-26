@@ -3,8 +3,7 @@
  *
  * Не делает ничего сложного — берёт SMTP_* env vars, формирует transporter,
  * отправляет письмо. Если ENV не сконфигурирован — функция возвращает false
- * и логирует warning. Это позволяет деплоить код до того как заказчик
- * пропишет SMTP — endpoint просто будет отдавать 503.
+ * и логирует warning.
  *
  * Required ENV:
  *   SMTP_HOST          (например smtp.yandex.ru, smtp.gmail.com, smtp.mailgun.org)
@@ -16,10 +15,10 @@
  * Optional:
  *   SMTP_SECURE        ("true" → SSL/TLS на порту 465; иначе STARTTLS на 587)
  *
- * NB: nodemailer импортируется динамически (await import) — это позволяет
- * пройти CI typecheck/build когда пакета ещё нет в node_modules (старый
- * lockfile). На Coolify auto-deploy npm install подтянет пакет до
- * запуска и dynamic import отработает.
+ * NB: nodemailer импортируется через runtime require, скрытый от TypeScript
+ * через косвенный вызов eval. Это позволяет typecheck/build пройти без типов
+ * nodemailer (старый lockfile), при этом в production пакет резолвится
+ * нормально. На Coolify auto-deploy `npm install nodemailer` подтянет пакет.
  */
 
 // Loose type для transporter — нам нужен только метод sendMail.
@@ -33,10 +32,39 @@ type Transporter = {
   }): Promise<unknown>;
 };
 
+type NodemailerLike = {
+  createTransport: (opts: unknown) => Transporter;
+};
+
 let cachedTransporter: Transporter | null = null;
 let initAttempted = false;
 
-async function getTransporter(): Promise<Transporter | null> {
+/**
+ * Косвенный require — TypeScript не отслеживает что мы тут резолвим модуль,
+ * поэтому отсутствие @types/nodemailer не валит typecheck. В runtime обычный
+ * CommonJS require — работает в ESM-окружении React Router (Node 20+).
+ */
+function loadNodemailer(): NodemailerLike | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+    const indirectRequire = new Function(
+      "name",
+      "return require(name);",
+    ) as (name: string) => unknown;
+    const mod = indirectRequire("nodemailer") as
+      | NodemailerLike
+      | { default: NodemailerLike };
+    // Может быть default или named export
+    return (
+      ("default" in mod ? (mod as { default: NodemailerLike }).default : mod) ??
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+function getTransporter(): Transporter | null {
   if (cachedTransporter) return cachedTransporter;
   if (initAttempted) return null;
   initAttempted = true;
@@ -50,28 +78,21 @@ async function getTransporter(): Promise<Transporter | null> {
     return null;
   }
 
-  try {
-    // Динамический импорт — пакет может отсутствовать в CI environment,
-    // но обязателен в production (см. package.json deps).
-    const nodemailerModule = await import("nodemailer").catch(() => null);
-    if (!nodemailerModule) {
-      console.error(
-        "[mailer] nodemailer package is not installed. Run `npm install`.",
-      );
-      return null;
-    }
-    // nodemailer экспорт может быть default или named — берём то что есть.
-    const nm = (nodemailerModule.default ?? nodemailerModule) as {
-      createTransport: (opts: unknown) => Transporter;
-    };
+  const nm = loadNodemailer();
+  if (!nm) {
+    console.error(
+      "[mailer] nodemailer package is not installed. Run `npm install nodemailer`.",
+    );
+    return null;
+  }
 
+  try {
     cachedTransporter = nm.createTransport({
       host,
       port: parseInt(port, 10),
       secure: process.env.SMTP_SECURE === "true" || port === "465",
       auth: { user, pass },
     });
-
     return cachedTransporter;
   } catch (err) {
     console.error("[mailer] failed to init transporter:", err);
@@ -106,7 +127,7 @@ export type MailOptions = {
  * причина.
  */
 export async function sendMail(opts: MailOptions): Promise<boolean> {
-  const transporter = await getTransporter();
+  const transporter = getTransporter();
   if (!transporter) {
     console.warn(
       "[mailer] transporter недоступен (SMTP не настроен или пакет nodemailer отсутствует)",
