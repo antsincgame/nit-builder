@@ -46,7 +46,6 @@ let initAttempted = false;
  */
 function loadNodemailer(): NodemailerLike | null {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
     const indirectRequire = new Function(
       "name",
       "return require(name);",
