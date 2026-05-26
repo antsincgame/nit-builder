@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * NIT Tunnel CLI — v0.1.0-alpha (Phase A)
+ * NIT Tunnel CLI — v0.1.0 (Phase A)
  *
  * Usage:
  *   nit-tunnel --server wss://nit.vibecoding.by/api/tunnel --token YOUR_TOKEN
@@ -51,7 +51,7 @@ EXAMPLES:
   nit-tunnel --token xxx --lm-studio http://localhost:11434/v1
 
 MORE INFO:
-  https://github.com/igor1000rr/nit-builder
+  https://github.com/antsincgame/nit-builder
 `);
 }
 
@@ -70,7 +70,7 @@ async function main(): Promise<void> {
   }
 
   console.log("┌───────────────────────────────────────────────┐");
-  console.log("│  NIT Tunnel v0.1.0-alpha                      │");
+  console.log("│  NIT Tunnel v0.1.0                            │");
   console.log("│  peer-to-peer LLM proxy for NIT Builder       │");
   console.log("└───────────────────────────────────────────────┘");
   console.log(`  Server:    ${flags.server}`);
