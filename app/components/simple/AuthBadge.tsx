@@ -1,6 +1,7 @@
 /**
- * AuthBadge v3 — эстетика лендинга: чёрный dropdown, emerald-акценты,
- * lucide иконки (Settings, Download, LogOut, ChevronDown).
+ * AuthBadge v4 — passwordless era: одна кнопка «Войти» вместо «Войти + Регистрация».
+ *
+ * Эстетика лендинга: чёрный dropdown, emerald-акценты, lucide иконки.
  */
 
 import { useState, useRef, useEffect } from "react";
@@ -56,20 +57,12 @@ export function AuthBadge({ auth, onOpenSettings }: Props) {
 
   if (auth.status === "unauthenticated") {
     return (
-      <div className="flex gap-1.5 items-center">
-        <a
-          href="/login"
-          className="hidden sm:inline-block px-3 py-2 text-[13px] text-[#71717A] hover:text-white transition-colors"
-        >
-          Войти
-        </a>
-        <a
-          href="/register"
-          className="inline-flex items-center px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
-        >
-          Регистрация
-        </a>
-      </div>
+      <a
+        href="/login"
+        className="inline-flex items-center px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
+      >
+        Войти
+      </a>
     );
   }
 
