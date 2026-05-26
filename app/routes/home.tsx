@@ -24,6 +24,7 @@ import { MyTemplatesPanel } from "~/components/simple/MyTemplatesPanel";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
 import type { StylePresetId } from "~/lib/llm/style-presets";
+import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 export function meta() {
   return [
@@ -319,7 +320,7 @@ export default function Home() {
                     Мои шаблоны
                   </button>
                   <a
-                    href="/download"
+                    href={tunnelDownloadPath("macos-arm")}
                     className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
                     title="Скачать NIT Tunnel"
                   >
@@ -382,7 +383,7 @@ export default function Home() {
                 </div>
               </div>
               <a
-                href="/download"
+                href={tunnelDownloadPath("macos-arm")}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
               >
                 <Download size={14} />

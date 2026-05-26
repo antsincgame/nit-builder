@@ -10,6 +10,7 @@ export default [
   route("login", "routes/login.tsx"),
   route("register", "routes/register.tsx"),
   route("download", "routes/download.tsx"),
+  route("api/download/tunnel/latest", "routes/api.download.tunnel.latest.ts"),
   // Legal — новый дизайн из nitgen-gront
   route("privacy", "routes/privacy.tsx"),
   route("terms", "routes/terms.tsx"),

@@ -4,6 +4,8 @@ import { Monitor, Apple, Terminal, Download as DownloadIcon, ArrowRight } from "
 import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
+import type { TunnelDownloadPlatform } from "~/lib/utils/tunnelDownloads";
+import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 export const meta: MetaFunction = () => [
   { title: "Скачать · nitgen" },
@@ -34,7 +36,7 @@ const RELEASE_BASE = "https://github.com/antsincgame/nit-builder/releases";
  */
 
 type Platform = {
-  id: string;
+  id: TunnelDownloadPlatform;
   name: string;
   icon: React.ReactNode;
   filename: string;
@@ -48,7 +50,7 @@ const PLATFORMS: Platform[] = [
     name: "Windows",
     icon: <Monitor size={22} />,
     filename: "NIT.Tunnel_0.1.0_x64-setup.exe",
-    url: `${RELEASE_BASE}/latest/download/NIT.Tunnel_0.1.0_x64-setup.exe`,
+    url: tunnelDownloadPath("windows"),
     description: "Windows 10/11",
   },
   {
@@ -56,7 +58,7 @@ const PLATFORMS: Platform[] = [
     name: "macOS (Apple Silicon)",
     icon: <Apple size={22} />,
     filename: "NIT.Tunnel_0.1.0_aarch64.dmg",
-    url: `${RELEASE_BASE}/latest/download/NIT.Tunnel_0.1.0_aarch64.dmg`,
+    url: tunnelDownloadPath("macos-arm"),
     description: "M1, M2, M3, M4",
   },
   {
@@ -64,7 +66,7 @@ const PLATFORMS: Platform[] = [
     name: "macOS (Intel)",
     icon: <Apple size={22} />,
     filename: "NIT.Tunnel_0.1.0_x64.dmg",
-    url: `${RELEASE_BASE}/latest/download/NIT.Tunnel_0.1.0_x64.dmg`,
+    url: tunnelDownloadPath("macos-intel"),
     description: "Mac на Intel",
   },
   {
@@ -72,7 +74,7 @@ const PLATFORMS: Platform[] = [
     name: "Linux",
     icon: <Terminal size={22} />,
     filename: "nit-tunnel_0.1.0_amd64.AppImage",
-    url: `${RELEASE_BASE}/latest/download/nit-tunnel_0.1.0_amd64.AppImage`,
+    url: tunnelDownloadPath("linux"),
     description: "AppImage · универсальный",
   },
 ];
