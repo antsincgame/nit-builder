@@ -22,8 +22,11 @@ const ROUTES_CONFIG = path.resolve(process.cwd(), "app/routes.ts");
 
 /** Файлы которые лежат в app/routes/, но НЕ должны быть зарегистрированы. */
 const ALLOWED_UNROUTED: string[] = [
-  // Сюда добавлять server-only helpers если такие появятся.
-  // Пустой по умолчанию — почти всегда orphaned файл это баг.
+  // OAuth route'ы — заказчик отменил Google/GitHub auth, оставлены как dead
+  // code на случай если потребуется восстановить. В routes.ts не подключены,
+  // юзер до них не дотянется.
+  "api.auth.oauth.$provider.start.ts",
+  "api.auth.oauth.$provider.callback.ts",
 ];
 
 describe("routes registration", () => {
