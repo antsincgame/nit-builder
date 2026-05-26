@@ -338,20 +338,14 @@ export default function Home() {
           {auth.status === "unauthenticated" && (
             <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-white/[0.08] bg-[#141414]">
               <div className="flex-1 text-[13px] sm:text-[14px] text-[#A1A1AA]">
-                Войдите или зарегистрируйтесь — ваши сайты будут сохраняться в истории.
+                Войдите по email — ваши сайты будут сохраняться в истории.
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="shrink-0">
                 <a
                   href="/login"
-                  className="px-4 py-2 rounded-lg text-[13px] text-[#A1A1AA] hover:text-white border border-white/[0.08] hover:border-white/[0.15] transition-colors"
-                >
-                  Войти
-                </a>
-                <a
-                  href="/register"
                   className="px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
                 >
-                  Регистрация
+                  Войти
                 </a>
               </div>
             </div>
