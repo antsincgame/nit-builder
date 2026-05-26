@@ -11,7 +11,7 @@ export function AboutSection() {
         <span>nitgen · v{NIT_SERVER_VERSION}</span>
         <div className="flex gap-4">
           <a
-            href="https://github.com/igor1000rr/nit-builder"
+            href="https://github.com/antsincgame/nit-builder"
             target="_blank"
             rel="noopener"
             className="no-underline text-[#A1A1AA] hover:text-white transition-colors"

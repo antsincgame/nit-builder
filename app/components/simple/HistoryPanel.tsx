@@ -231,9 +231,10 @@ export function HistoryPanel({ onOpen, onClose, isOpen }: Props) {
           <div className="px-5 py-3 shrink-0 border-t border-white/[0.06]">
             <p className="text-xs text-center text-[#71717A]/70">
               Сохранено только в этом браузере ·{" "}
-              <a href="/register" className="text-emerald-400 hover:text-emerald-300 transition-colors no-underline">
-                зарегистрироваться
-              </a>
+              <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors no-underline">
+                войти по email
+              </a>{" "}
+              чтобы синхронизировать
             </p>
           </div>
         )}
