@@ -445,6 +445,39 @@ async function migrate(): Promise<void> {
   await ensureIndex("nit_user_templates", "isPublic_idx", "key", ["isPublic"]);
   console.log("");
 
+  // ── nit_magic_links ──
+  // Magic-link passwordless auth (заменяет email+password в UI).
+  // tokenHash — sha256 от plaintext-токена (plaintext только в письме юзеру);
+  // consumedAt nullable — после первого использования помечается now, повторно
+  // нельзя. expiresAt 15 минут от создания. Cleanup через cron job.
+  console.log("Collection: nit_magic_links");
+  await ensureCollection("nit_magic_links", "NIT Magic Links");
+  await ensureAttribute("nit_magic_links", "email", {
+    kind: "email",
+    required: true,
+  });
+  await ensureAttribute("nit_magic_links", "tokenHash", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_magic_links", "expiresAt", {
+    kind: "datetime",
+    required: true,
+  });
+  await ensureAttribute("nit_magic_links", "consumedAt", {
+    kind: "datetime",
+    required: false,
+  });
+  await sleep(2000);
+  // tokenHash — уникальный (lookup в verify-эндпоинте).
+  await ensureIndex("nit_magic_links", "tokenHash_unique", "unique", ["tokenHash"]);
+  // email — для invalidation предыдущих активных ссылок при отправке новой.
+  await ensureIndex("nit_magic_links", "email_idx", "key", ["email"]);
+  // expiresAt — для cron-cleanup истёкших записей.
+  await ensureIndex("nit_magic_links", "expiresAt_idx", "key", ["expiresAt"]);
+  console.log("");
+
   console.log("✓ Migration complete");
 }
 
