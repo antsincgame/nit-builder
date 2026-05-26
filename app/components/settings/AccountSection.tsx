@@ -1,6 +1,8 @@
 /**
- * AccountSection v3 — эстетика лендинга: Tailwind вместо var(--*),
- * emerald-акценты, rose для опасных действий.
+ * AccountSection v4 — passwordless era.
+ *
+ * Unauthenticated: одна кнопка «Войти по email» (вместо двух «Войти/Регистрация»).
+ * Регистрация в magic-link flow автоматическая — отдельной страницы нет.
  */
 
 import { useState } from "react";
@@ -43,20 +45,15 @@ export function AccountSection({ onClose }: Props) {
     return (
       <div>
         <SectionHeader>Аккаунт</SectionHeader>
-        <div className="flex gap-2">
-          <a
-            href="/login"
-            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-[13px] border border-white/[0.08] bg-white/[0.02] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition"
-          >
-            Войти
-          </a>
-          <a
-            href="/register"
-            className="flex-1 inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
-          >
-            Регистрация
-          </a>
-        </div>
+        <a
+          href="/login"
+          className="block w-full text-center px-4 py-3 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_18px_rgba(16,185,129,0.3)]"
+        >
+          Войти по email
+        </a>
+        <p className="text-[11px] text-[#71717A]/70 leading-relaxed text-center mt-3">
+          Без пароля — пришлём ссылку на почту. Если входите впервые, аккаунт создастся автоматически.
+        </p>
       </div>
     );
   }
