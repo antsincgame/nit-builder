@@ -1,6 +1,6 @@
 # Сайт с PHP-админкой
 
-Сгенерирован [NIT Builder](https://github.com/igor1000rr/nit-builder).
+Сгенерирован [NIT Builder](https://github.com/antsincgame/nit-builder).
 
 ## Установка на хостинг
 
