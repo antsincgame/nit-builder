@@ -43,6 +43,10 @@ export function tunnelGithubDownloadUrl(platform: TunnelDownloadPlatform): strin
   return `https://github.com/antsincgame/nit-builder/releases/latest/download/${asset.filename}`;
 }
 
+export function tunnelGithubReleaseUrl(): string {
+  return "https://github.com/antsincgame/nit-builder/releases/tag/tunnel-v0.1.0";
+}
+
 export function parseTunnelDownloadPlatform(
   value: string | null,
 ): TunnelDownloadPlatform {

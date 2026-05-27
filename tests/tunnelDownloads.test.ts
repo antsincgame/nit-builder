@@ -4,6 +4,7 @@ import {
   parseTunnelDownloadPlatform,
   tunnelDownloadPath,
   tunnelGithubDownloadUrl,
+  tunnelGithubReleaseUrl,
 } from "~/lib/utils/tunnelDownloads";
 
 describe("tunnelDownloads", () => {
@@ -24,6 +25,12 @@ describe("tunnelDownloads", () => {
     );
     expect(tunnelGithubDownloadUrl("windows")).toContain(
       "NIT.Tunnel_0.1.0_x64-setup.exe",
+    );
+  });
+
+  it("returns the tunnel release page while binary assets are unavailable", () => {
+    expect(tunnelGithubReleaseUrl()).toBe(
+      "https://github.com/antsincgame/nit-builder/releases/tag/tunnel-v0.1.0",
     );
   });
 });

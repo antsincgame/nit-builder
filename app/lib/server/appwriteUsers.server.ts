@@ -63,7 +63,7 @@ async function createViaMagicLink(
   const users = getAdminUsers();
   const db = getAdminDatabases();
   const { generateTunnelToken, hashTunnelToken, computeTokenLookup } = await import(
-    "./tunnelTokens.server.js"
+    "./tunnelTokens.server.ts"
   );
 
   const normalized = email.toLowerCase().trim();
