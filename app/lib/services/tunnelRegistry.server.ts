@@ -28,6 +28,13 @@ export type TunnelConnection = {
   /** Unique connection ID (not the same as userId — one user can have multiple tunnels) */
   connectionId: string;
   userId: string;
+  /**
+   * ID привязанного устройства (per-device токен). Присутствует только если
+   * туннель аутентифицировался device-токеном (Cursor-флоу); у legacy
+   * per-account токена отсутствует. Нужен для точечного отзыва конкретного
+   * устройства (revokeDeviceTunnels) без затрагивания других устройств юзера.
+   */
+  deviceId?: string;
   ws: WebSocket;
   capabilities: TunnelCapabilities;
   clientVersion: string;
@@ -326,6 +333,37 @@ export function revokeUserTunnels(
       c.ws.close(closeCode, reason);
     } catch {
       // ws уже закрыт или недоступен — всё равно убираем из реестра
+    }
+    unregisterTunnel(c.connectionId);
+    closed++;
+  }
+  return closed;
+}
+
+/**
+ * Закрывает активные туннели КОНКРЕТНОГО устройства (по deviceId), возвращает
+ * количество. Применение: отзыв устройства в настройках — его соединение
+ * должно оборваться сразу, не дожидаясь реконнекта. Туннели других устройств
+ * юзера не трогаются. Реконнект с отозванным токеном не пройдёт авторизацию.
+ */
+export function revokeDeviceTunnels(
+  deviceId: string,
+  closeCode: number = 4001,
+  reason: string = "Device revoked",
+): number {
+  if (!deviceId) return 0;
+  const matches: TunnelConnection[] = [];
+  for (const conns of tunnels.values()) {
+    for (const c of conns) {
+      if (c.deviceId === deviceId) matches.push(c);
+    }
+  }
+  let closed = 0;
+  for (const c of matches) {
+    try {
+      c.ws.close(closeCode, reason);
+    } catch {
+      // ws уже закрыт — всё равно убираем из реестра
     }
     unregisterTunnel(c.connectionId);
     closed++;
