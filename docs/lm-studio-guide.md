@@ -11,7 +11,7 @@ How to squeeze maximum quality out of a local LLM on a modest GPU (8 GB VRAM tar
 5. **Flash Attention**: ON
 6. **RoPE scaling**: leave as "none" — Qwen2.5 has native 32K, you don't need YaRN for NIT Builder
 
-With these settings, generation is fast and stable for all 16 templates.
+With these settings, generation is fast and stable for all 22 templates.
 
 ---
 
@@ -35,7 +35,7 @@ Qwen2.5-Coder-7B has **32K native context**. You use 30-50% of it. YaRN would be
 
 - You're editing a very large generated site (20K+ tokens) through multiple polish iterations
 - You're using a smaller model (e.g. Qwen2.5-Coder-3B with 8K native context)
-- You're doing multi-page site generation (future v1.4 feature)
+- You're doing multi-page site generation (a future feature)
 
 If NIT Builder shows you the warning `Контекст занят на 85%. Рассмотри YaRN scaling`, that's when to turn it on.
 
@@ -125,7 +125,7 @@ On RTX 3060 8GB with settings above:
 | Polisher (single edit) | 15-40 s |
 | **Total: create a site from scratch** | **30-70 s** |
 
-Groq cloud for comparison: 5-15 seconds total (but requires internet).
+Hosted cloud inference for comparison: ~5–15 s total — but it sends your prompts off your machine, which is exactly what v2 avoids by design.
 
 ---
 

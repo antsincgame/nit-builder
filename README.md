@@ -28,6 +28,19 @@ You describe a site in plain language → a Planner LLM emits a JSON plan → th
 
 ---
 
+## Features (v2)
+
+- **P2P generation** — inference on your own GPU via LM Studio, zero cloud cost
+- **Passwordless accounts** — email magic-link login + OAuth providers
+- **"My sites"** — generations saved in Appwrite, synced across devices
+- **Shareable preview links** — public read-only `/p/<token>` URLs, no ZIP download needed
+- **Save as Template** — turn a good generation into a reusable template
+- **Community gallery** (`/templates`) — public templates with voting and moderation
+- **PHP baker** — `data-edit` zones → flat-file admin in the ZIP bundle
+- **Desktop client** (Tauri) — tray icon, autostart, auto-update
+
+---
+
 ## Architecture (v2)
 
 ```
@@ -170,6 +183,14 @@ Pure PHP 8.1+, zero dependencies, no database. Argon2id passwords, CSRF tokens, 
 - **Argon2id** + HMAC-SHA256 for tunnel tokens, **session-version revocation** for cookies
 - **Appwrite** for user storage, sites, and persistent guest-IP quotas
 - **Vitest 3** — 74 test files, ~11k LOC of tests, CI green on every push
+
+---
+
+## Status & licensing
+
+v2.x is under active development. See [CHANGELOG.md](./CHANGELOG.md) for history and [docs/architecture/v2-tunnel.md](./docs/architecture/v2-tunnel.md) for the tunnel design. Next up: image generation over the tunnel, export to React/Vue/Astro, embedded llama.cpp runtime, plugin marketplace.
+
+The repository code is **MIT** — self-host and use it freely. The hosted **nitgen.org** service is a separate product: free for personal non-commercial use, commercial use requires a license (sales@nitgen.org).
 
 ---
 
