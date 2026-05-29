@@ -13,6 +13,7 @@ export default function Footer() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+            <Link to="/guide" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Как начать</Link>
             <Link to="/login" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Войти</Link>
             <a href="mailto:support@nitgen.org" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Поддержка</a>
             <Link to="/privacy" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Приватность</Link>

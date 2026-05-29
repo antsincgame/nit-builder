@@ -35,6 +35,7 @@ export default function Nav() {
         <div className="hidden md:flex items-center gap-8">
           <a href="#features" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Возможности</a>
           <a href="#how-it-works" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Как работает</a>
+          <Link to="/guide" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Как начать</Link>
           <a href="#comparison" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Сравнение</a>
           <a href="#faq" className="text-[13px] text-[#71717A] hover:text-white transition-colors">FAQ</a>
         </div>
@@ -67,6 +68,7 @@ export default function Nav() {
         <div className="md:hidden bg-[#0A0A0A]/98 backdrop-blur-md border-b border-white/[0.06] px-5 pb-5 pt-2 flex flex-col gap-4">
           <a href="#features" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Возможности</a>
           <a href="#how-it-works" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Как работает</a>
+          <Link to="/guide" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Как начать</Link>
           <a href="#comparison" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Сравнение</a>
           <a href="#faq" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>FAQ</a>
           <Link to="/login" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Войти</Link>

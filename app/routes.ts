@@ -9,6 +9,8 @@ export default [
   route("app", "routes/home.tsx"),
   route("login", "routes/login.tsx"),
   route("register", "routes/register.tsx"),
+  // /guide — пошаговая инструкция для пользователей (LM Studio + tunnel)
+  route("guide", "routes/guide.tsx"),
   route("download", "routes/download.tsx"),
   route("api/download/tunnel/latest", "routes/api.download.tunnel.latest.ts"),
   // Legal — новый дизайн из nitgen-gront
