@@ -8,20 +8,33 @@ import {
 } from "~/lib/server/sessionCookie.server";
 
 /**
- * GET /auth/verify?token=<64hex>
+ * Открытый-редирект guard: разрешаем только относительные пути на свой
+ * сайт. Иначе — дефолт /app. Защищает от редиректа на чужой домен через
+ * подменённый next в verify-ссылке.
+ */
+function safeNext(next: string | null): string {
+  if (!next) return "/app";
+  if (!next.startsWith("/")) return "/app";
+  if (next.startsWith("//") || next.startsWith("/\\")) return "/app";
+  return next;
+}
+
+/**
+ * GET /auth/verify?token=<64hex>&next=</relative/path>
  *
  * Проверяет magic-link токен:
  *   1. Валидирует формат и существование в БД
  *   2. Проверяет expiresAt и что не использован
  *   3. Помечает токен consumedAt=now
  *   4. Находит или создаёт юзера по email
- *   5. Выписывает session cookie и редиректит на /app
+ *   5. Выписывает session cookie и редиректит на next (или /app)
  *
  * Все ошибки → редирект на /login?error=<reason> с понятным сообщением.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
+  const dest = safeNext(url.searchParams.get("next"));
 
   if (!token) {
     return redirectToLoginWithError("missing_token");
@@ -50,7 +63,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     status: 302,
     headers: {
       "Set-Cookie": buildSessionCookie(sessionToken, isProduction()),
-      Location: "/app",
+      Location: dest,
     },
   });
 }

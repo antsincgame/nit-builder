@@ -13,12 +13,28 @@ import { checkRateLimit } from "~/lib/utils/rateLimit";
 
 const RequestSchema = z.object({
   email: z.string().email({ message: "Неверный формат email" }).max(255),
+  // Куда вернуть после входа (например /link?... при привязке устройства).
+  // Валидируется как относительный путь (см. safeNext).
+  next: z.string().max(512).optional(),
 });
+
+/**
+ * Открытый-редирект guard: разрешаем только относительные пути на свой
+ * сайт (начинаются с "/", но не "//" и не "/\\" — иначе это
+ * protocol-relative URL на чужой домен).
+ */
+function safeNext(next: string | null | undefined): string | null {
+  if (!next) return null;
+  if (!next.startsWith("/")) return null;
+  if (next.startsWith("//") || next.startsWith("/\\")) return null;
+  return next;
+}
 
 /**
  * POST /api/auth/request-magic-link
  *
  * Принимает email, создаёт magic-link токен, отправляет письмо со ссылкой.
+ * Опциональный next — куда вернуть после входа (вшивается в verify-ссылку).
  *
  * Защита:
  * - Rate-limit 3/мин на IP (защита от спама)
@@ -75,6 +91,7 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   const { email } = parsed.data;
+  const next = safeNext(parsed.data.next);
 
   if (process.env.NIT_EMAIL_ONLY_LOGIN === "1") {
     if (!isAppwriteConfigured()) {
@@ -90,7 +107,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const sessionToken = createSessionToken(user.userId, sessionVersion);
 
       return Response.json(
-        { ok: true, loggedIn: true, redirectTo: "/app" },
+        { ok: true, loggedIn: true, redirectTo: next ?? "/app" },
         {
           status: 200,
           headers: {
@@ -124,7 +141,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const token = await createMagicLink(email);
     const baseUrl =
       process.env.OAUTH_REDIRECT_BASE ?? "https://nit.vibecoding.by";
-    const link = `${baseUrl.replace(/\/$/, "")}/auth/verify?token=${token}`;
+    const nextParam = next ? `&next=${encodeURIComponent(next)}` : "";
+    const link = `${baseUrl.replace(/\/$/, "")}/auth/verify?token=${token}${nextParam}`;
 
     const sent = await sendMail({
       to: email,
