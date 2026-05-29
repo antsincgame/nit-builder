@@ -6,8 +6,8 @@
  * Никаких чекбоксов согласия (теперь в footer-микрокопии), никаких паролей,
  * никакой страницы регистрации.
  *
- * Скачивается только NIT Tunnel — связь браузерного конструктора с локальным
- * LM Studio. Сам конструктор в браузере, ставить его не нужно.
+ * Скачивается только nitgen (туннель) — связь браузерного конструктора с
+ * локальным LM Studio. Сам конструктор в браузере, ставить его не нужно.
  */
 import { useState } from "react";
 import { Download, Monitor, Apple, Terminal, ArrowRight, Mail, Loader2, CheckCircle2 } from "lucide-react";
@@ -131,7 +131,7 @@ function DownloadCard() {
 
   return (
     <div id="download" className="rounded-2xl border border-white/[0.08] bg-[#141414] p-7">
-      <h3 className="text-lg font-semibold text-white mb-1">Скачать NIT Tunnel</h3>
+      <h3 className="text-lg font-semibold text-white mb-1">Скачать nitgen</h3>
       <p className="text-xs text-[#71717A] mb-6">Связь конструктора с вашим LM Studio · Бесплатно для личного использования</p>
 
       <button
@@ -252,15 +252,15 @@ export default function Hero() {
               },
               {
                 step: "2",
-                title: "Скачайте NIT Tunnel",
+                title: "Скачайте nitgen",
                 desc: "Небольшая программа — связывает ваш LM Studio с конструктором. Windows, macOS, Linux",
                 link: "#download",
                 linkLabel: "Перейти к скачиванию",
               },
               {
                 step: "3",
-                title: "Войдите по email",
-                desc: "Введите email на сайте и в NIT Tunnel — ссылка для входа придёт на почту",
+                title: "Войдите через браузер",
+                desc: "Откройте nitgen, нажмите «Войти через nitgen» и подтвердите устройство в браузере — токен не нужен",
                 link: undefined,
                 linkLabel: undefined,
               },
