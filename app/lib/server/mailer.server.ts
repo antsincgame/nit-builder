@@ -1,24 +1,25 @@
 /**
- * Минимальный SMTP-mailer через nodemailer.
+ * Mailer — Resend (приоритет) + SMTP/nodemailer (фолбэк).
  *
- * Не делает ничего сложного — берёт SMTP_* env vars, формирует transporter,
- * отправляет письмо. Если ENV не сконфигурирован — функция возвращает false
- * и логирует warning.
+ * Если задан RESEND_API_KEY — письма уходят через Resend REST API
+ * (https://resend.com). Иначе используется SMTP через nodemailer.
  *
- * Required ENV:
- *   SMTP_HOST          (например smtp.yandex.ru, smtp.gmail.com, smtp.mailgun.org)
+ * Resend ENV:
+ *   RESEND_API_KEY     ключ API (re_...)
+ *   RESEND_FROM        отправитель, например "nitgen <noreply@nitgen.org>".
+ *                      Домен должен быть верифицирован в Resend; для теста
+ *                      можно использовать "nitgen <onboarding@resend.dev>".
+ *
+ * SMTP ENV (фолбэк, если RESEND_API_KEY не задан):
+ *   SMTP_HOST          (например smtp.yandex.ru, smtp.gmail.com)
  *   SMTP_PORT          (587 для STARTTLS, 465 для SSL/TLS)
  *   SMTP_USER          (логин)
  *   SMTP_PASS          (пароль / app password)
- *   SMTP_FROM          (адрес отправителя, например "nitgen <noreply@nitgen.org>")
- *
- * Optional:
+ *   SMTP_FROM          (адрес отправителя)
  *   SMTP_SECURE        ("true" → SSL/TLS на порту 465; иначе STARTTLS на 587)
  *
- * NB: nodemailer импортируется через runtime require, скрытый от TypeScript
- * через косвенный вызов eval. Это позволяет typecheck/build пройти без типов
- * nodemailer (старый lockfile), при этом в production пакет резолвится
- * нормально. На Coolify auto-deploy `npm install nodemailer` подтянет пакет.
+ * sendMail никогда не throw'ит — возвращает true при успехе, false иначе.
+ * Call sites показывают юзеру generic-сообщение, причина остаётся в логах.
  */
 
 // Loose type для transporter — нам нужен только метод sendMail.
@@ -53,7 +54,6 @@ function loadNodemailer(): NodemailerLike | null {
     const mod = indirectRequire("nodemailer") as
       | NodemailerLike
       | { default: NodemailerLike };
-    // Может быть default или named export
     return (
       ("default" in mod ? (mod as { default: NodemailerLike }).default : mod) ??
       null
@@ -99,17 +99,74 @@ function getTransporter(): Transporter | null {
   }
 }
 
-/**
- * Синхронная проверка наличия SMTP-конфигурации. Не подгружает nodemailer —
- * только смотрит ENV. Подходит для быстрых guard'ов в API-эндпоинтах.
- */
-export function isMailerConfigured(): boolean {
+function resendConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY);
+}
+
+function smtpConfigured(): boolean {
   return Boolean(
     process.env.SMTP_HOST &&
       process.env.SMTP_PORT &&
       process.env.SMTP_USER &&
       process.env.SMTP_PASS,
   );
+}
+
+/**
+ * Отправитель. Resend требует верифицированный домен; SMTP — адрес из конфига.
+ */
+function resolveFrom(): string {
+  return (
+    process.env.RESEND_FROM ??
+    process.env.SMTP_FROM ??
+    "nitgen <noreply@nitgen.org>"
+  );
+}
+
+/**
+ * Отправка через Resend REST API. Возвращает false (не throw) при любой ошибке.
+ */
+async function sendViaResend(opts: MailOptions): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: resolveFrom(),
+        to: [opts.to],
+        subject: opts.subject,
+        text: opts.text,
+        ...(opts.html ? { html: opts.html } : {}),
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      console.error(
+        `[mailer] Resend вернул ${res.status}: ${detail.slice(0, 300)}`,
+      );
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[mailer] Resend запрос упал:", err);
+    return false;
+  }
+}
+
+/**
+ * Синхронная проверка наличия конфигурации почты (Resend ИЛИ SMTP).
+ * Не подгружает nodemailer — только смотрит ENV. Подходит для быстрых
+ * guard'ов в API-эндпоинтах.
+ */
+export function isMailerConfigured(): boolean {
+  return resendConfigured() || smtpConfigured();
 }
 
 export type MailOptions = {
@@ -120,25 +177,28 @@ export type MailOptions = {
 };
 
 /**
- * Отправить письмо. Возвращает true при успехе, false при отсутствии конфига
- * или ошибке. Никогда не throw'ит — call sites обрабатывают false как
- * "не отправилось", показывают юзеру generic-сообщение, в логах остаётся
- * причина.
+ * Отправить письмо. Resend в приоритете (если задан RESEND_API_KEY),
+ * иначе SMTP через nodemailer. Возвращает true при успехе, false при
+ * отсутствии конфига или ошибке. Никогда не throw'ит.
  */
 export async function sendMail(opts: MailOptions): Promise<boolean> {
+  // Resend в приоритете — современный путь, не требует SMTP-портов на VPS.
+  if (resendConfigured()) {
+    return sendViaResend(opts);
+  }
+
+  // Фолбэк: SMTP через nodemailer.
   const transporter = getTransporter();
   if (!transporter) {
     console.warn(
-      "[mailer] transporter недоступен (SMTP не настроен или пакет nodemailer отсутствует)",
+      "[mailer] транспорт недоступен (ни RESEND_API_KEY, ни SMTP не настроены, либо пакет nodemailer отсутствует)",
     );
     return false;
   }
 
-  const from = process.env.SMTP_FROM ?? "nitgen <noreply@nitgen.org>";
-
   try {
     await transporter.sendMail({
-      from,
+      from: resolveFrom(),
       to: opts.to,
       subject: opts.subject,
       text: opts.text,
