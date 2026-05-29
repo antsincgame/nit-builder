@@ -322,10 +322,10 @@ export default function Home() {
                   <a
                     href={tunnelDownloadPath("macos-arm")}
                     className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
-                    title="Скачать NIT Tunnel"
+                    title="Скачать nitgen"
                   >
                     <Download size={13} />
-                    Tunnel
+                    nitgen
                   </a>
                 </>
               )}
@@ -376,10 +376,10 @@ export default function Home() {
             <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
               <div className="flex-1">
                 <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
-                  NIT Tunnel не подключён
+                  nitgen не подключён
                 </div>
                 <div className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed">
-                  Чтобы генерировать сайты на своём GPU, скачайте клиент, запустите LM Studio и подключите tunnel token.
+                  Чтобы генерировать на своём GPU, скачайте nitgen, запустите LM Studio и войдите через «Войти через nitgen».
                 </div>
               </div>
               <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
@@ -388,7 +388,7 @@ export default function Home() {
                   className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
                 >
                   <Download size={14} />
-                  Скачать NIT Tunnel
+                  Скачать nitgen
                 </a>
                 <a
                   href="/guide"
