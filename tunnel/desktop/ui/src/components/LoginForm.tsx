@@ -14,15 +14,32 @@ type Props = {
   loading: boolean;
 };
 
+/** https-origin сайта из ws-адреса туннеля (для /link и /exchange). */
+function deriveSiteUrl(serverUrl: string): string {
+  try {
+    const u = new URL(
+      serverUrl.replace(/^wss:\/\//, "https://").replace(/^ws:\/\//, "http://"),
+    );
+    return u.origin;
+  } catch {
+    return "https://nit.vibecoding.by";
+  }
+}
+
+const DEVICE_NAME = (
+  (typeof navigator !== "undefined" && navigator.platform) || "Десктоп"
+).slice(0, 64);
+
 export function LoginForm({ initial, onSubmit, loading }: Props) {
   const [serverUrl, setServerUrl] = useState(initial.serverUrl);
-  const [token, setToken] = useState(initial.token);
   const [lmStudioUrl, setLmStudioUrl] = useState(initial.lmStudioUrl);
   const [lmStudioStatus, setLmStudioStatus] = useState<
     "untested" | "checking" | "ok" | "error"
   >("untested");
   const [lmStudioModel, setLmStudioModel] = useState<string | null>(null);
   const [lmStudioError, setLmStudioError] = useState<string | null>(null);
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   async function testLmStudio() {
     setLmStudioStatus("checking");
@@ -44,11 +61,34 @@ export function LoginForm({ initial, onSubmit, loading }: Props) {
     }
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token.trim()) return;
-    onSubmit({ serverUrl, token: token.trim(), lmStudioUrl });
+  async function handleLogin() {
+    if (loggingIn || loading) return;
+    setLoginError(null);
+    setLoggingIn(true);
+    try {
+      const siteUrl = deriveSiteUrl(serverUrl);
+      const result = (await invoke("login_with_nitgen", {
+        payload: { site_url: siteUrl, device_name: DEVICE_NAME },
+      })) as { token: string; email: string | null };
+      if (!result?.token) {
+        setLoginError("Не удалось получить токен. Попробуйте ещё раз.");
+        return;
+      }
+      // Токен получен — дальше родитель сохранит и стартует туннель.
+      onSubmit({ serverUrl, token: result.token, lmStudioUrl });
+    } catch (err) {
+      setLoginError(String(err));
+    } finally {
+      setLoggingIn(false);
+    }
   }
+
+  const busy = loggingIn || loading;
+  const buttonLabel = loggingIn
+    ? "Ожидаем вход в браузере…"
+    : loading
+      ? "Запускаем…"
+      : "Войти через nitgen";
 
   return (
     <div
@@ -71,52 +111,14 @@ export function LoginForm({ initial, onSubmit, loading }: Props) {
             marginBottom: "4px",
           }}
         >
-          NIT Tunnel
+          nitgen
         </div>
         <div style={{ fontSize: "12px", color: "var(--text-muted)" }}>
-          Proxy your GPU to NIT Builder
+          Туннель к вашему GPU
         </div>
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: "16px", flex: 1 }}
-      >
-        {/* Token */}
-        <div>
-          <label
-            htmlFor="token"
-            style={{
-              display: "block",
-              fontSize: "12px",
-              color: "var(--text-muted)",
-              marginBottom: "6px",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Tunnel Token
-          </label>
-          <input
-            id="token"
-            type="password"
-            required
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="nit_..."
-            style={inputStyle}
-          />
-          <div
-            style={{
-              fontSize: "11px",
-              color: "var(--text-muted)",
-              marginTop: "4px",
-            }}
-          >
-            Получить на <span style={{ color: "var(--accent)" }}>nit.vibecoding.by/register</span>
-          </div>
-        </div>
-
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px", flex: 1 }}>
         {/* LM Studio URL */}
         <div>
           <label
@@ -205,9 +207,14 @@ export function LoginForm({ initial, onSubmit, loading }: Props) {
 
         <div style={{ flex: 1 }} />
 
+        {loginError && (
+          <div style={{ fontSize: "12px", color: "var(--danger)" }}>✗ {loginError}</div>
+        )}
+
         <button
-          type="submit"
-          disabled={loading || !token.trim()}
+          type="button"
+          onClick={handleLogin}
+          disabled={busy}
           style={{
             ...buttonStyle,
             background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
@@ -215,11 +222,24 @@ export function LoginForm({ initial, onSubmit, loading }: Props) {
             padding: "12px",
             fontWeight: 600,
             fontSize: "14px",
+            opacity: busy ? 0.7 : 1,
           }}
         >
-          {loading ? "Запускаем..." : "Подключиться →"}
+          {buttonLabel}
         </button>
-      </form>
+
+        <div
+          style={{
+            fontSize: "11px",
+            color: "var(--text-muted)",
+            textAlign: "center",
+            lineHeight: 1.5,
+          }}
+        >
+          Откроется браузер — войдите в nitgen и подтвердите это устройство. Токен
+          вводить вручную не нужно.
+        </div>
+      </div>
     </div>
   );
 }
