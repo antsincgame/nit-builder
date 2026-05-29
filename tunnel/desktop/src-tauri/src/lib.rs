@@ -8,6 +8,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod auth_link;
 mod lm_studio;
 mod protocol;
 mod tunnel;
@@ -18,7 +19,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tunnel::{spawn as spawn_tunnel, TunnelConfig, TunnelHandle};
 
-// ─── App state ───────────────────────────────────────────────────
+// ─── App state ─────────────────────────────────────────
 
 #[derive(Default)]
 struct AppState {
@@ -26,7 +27,7 @@ struct AppState {
     stop_token: Mutex<Option<CancellationToken>>,
 }
 
-// ─── IPC commands ────────────────────────────────────────────────
+// ─── IPC commands ───────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartTunnelPayload {
@@ -144,7 +145,25 @@ async fn probe_lm_studio(url: String) -> Result<LmStudioProbeResult, String> {
     }
 }
 
-// ─── Entry ───────────────────────────────────────────────────────
+// ─── Browser login (Cursor-style привязка устройства) ────────────
+
+#[derive(Debug, Deserialize)]
+pub struct LoginPayload {
+    pub site_url: String,
+    pub device_name: String,
+}
+
+/// Открывает браузер для входа и возвращает per-device токен.
+/// UI дальше сам сохраняет токен и вызывает start_tunnel.
+#[tauri::command]
+async fn login_with_nitgen(
+    app: AppHandle,
+    payload: LoginPayload,
+) -> Result<auth_link::LoginResult, String> {
+    auth_link::run_login_flow(app, payload.site_url, payload.device_name).await
+}
+
+// ─── Entry ────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -166,6 +185,7 @@ pub fn run() {
             stop_tunnel,
             is_tunnel_running,
             probe_lm_studio,
+            login_with_nitgen,
         ])
         .setup(|app| {
             // Show main window on startup (unless --autostart)
