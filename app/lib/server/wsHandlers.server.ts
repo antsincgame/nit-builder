@@ -134,7 +134,9 @@ function installKeepalive(ws: WebSocket, label: string): () => void {
 
 // ─── Auth ─────────────────────────────────────────────────────────
 
-async function validateTunnelToken(token: string): Promise<{ userId: string } | null> {
+async function validateTunnelToken(
+  token: string,
+): Promise<{ userId: string; deviceId?: string } | null> {
   if (!isAppwriteConfigured()) {
     const devToken = process.env.NIT_DEV_TUNNEL_TOKEN;
     if (devToken && token === devToken) {
@@ -146,7 +148,7 @@ async function validateTunnelToken(token: string): Promise<{ userId: string } | 
   // fallback на legacy per-account токен в nit_users (обратная совместимость).
   const { findUserByDeviceToken } = await import("./tunnelDevices.server");
   const device = await findUserByDeviceToken(token);
-  if (device) return { userId: device.userId };
+  if (device) return { userId: device.userId, deviceId: device.deviceId };
   return findUserByTunnelToken(token);
 }
 
@@ -287,6 +289,10 @@ export function handleTunnelConnection(ws: WebSocket, req: IncomingMessage): voi
           authed = {
             connectionId,
             userId: user.userId,
+            // deviceId есть только у per-device токенов (Cursor-флоу); у legacy
+            // per-account токена его нет — кладём только когда определён, чтобы
+            // точечный отзыв устройства мог закрыть именно это соединение.
+            ...(user.deviceId ? { deviceId: user.deviceId } : {}),
             ws,
             capabilities: helloMsg.capabilities,
             clientVersion: helloMsg.clientVersion,
