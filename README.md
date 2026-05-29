@@ -31,7 +31,7 @@ You describe a site in plain language → a Planner LLM emits a JSON plan → th
 ## Features (v2)
 
 - **P2P generation** — inference on your own GPU via LM Studio, zero cloud cost
-- **Passwordless accounts** — email magic-link login + OAuth providers
+- **Passwordless accounts** — email magic-link login, no passwords
 - **"My sites"** — generations saved in Appwrite, synced across devices
 - **Shareable preview links** — public read-only `/p/<token>` URLs, no ZIP download needed
 - **Save as Template** — turn a good generation into a reusable template
@@ -182,7 +182,7 @@ Pure PHP 8.1+, zero dependencies, no database. Argon2id passwords, CSRF tokens, 
 - **ws** + **Tauri 2.0** for the tunnel
 - **Argon2id** + HMAC-SHA256 for tunnel tokens, **session-version revocation** for cookies
 - **Appwrite** for user storage, sites, and persistent guest-IP quotas
-- **Vitest 3** — 74 test files, ~11k LOC of tests, CI green on every push
+- **Vitest 3** — 80+ test files, CI green on every push
 
 ---
 
@@ -201,6 +201,8 @@ The repository code is **MIT** — self-host and use it freely. The hosted **nit
 1. Create `app/templates/html/your-id.html` — single file, `<!DOCTYPE html>` to `</html>`, Tailwind via CDN inside the source, all images from Unsplash or inline SVG, responsive (`sm:`/`md:`/`lg:`)
 2. Add metadata in `app/lib/config/htmlTemplatesCatalog.ts`
 3. Open a PR with a screenshot
+
+Full template + code contribution guide: [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Bugs & features
 

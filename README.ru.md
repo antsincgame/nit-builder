@@ -1,7 +1,7 @@
 # NIT Builder
 
 > **Создавай сайты на своей видеокарте. С AI. Бесплатно.**
-> Peer-to-peer AI-конструктор сайтов. Браузер → наш сервер → твой LM Studio. Облачного inference нет, твои промпты не покидают твою машину.
+> Peer-to-peer AI-конструктор сайтов. Браузер → наш сервер → твой LM Studio. Облачного inference нет, подписки нет, твои промпты не покидают твою машину.
 
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-green)
@@ -30,14 +30,14 @@ NIT Builder — open-source AI-конструктор сайтов с **peer-to-
 
 ## Возможности (v2)
 
-- **P2P-генерация** — inference на твоём GPU через LM Studio, ноль облачных затрат
-- **Аккаунты без пароля** — вход по magic-link на email + OAuth-провайдеры
-- **«Мои сайты»** — генерации сохраняются в Appwrite, синхронизация между устройствами
-- **Shareable preview-ссылки** — публичная read-only ссылка `/p/<token>` без скачивания ZIP
-- **Save as Template** — сделать из удачной генерации переиспользуемый шаблон
-- **Публичная галерея шаблонов** (`/templates`) — сообщество, голосование, модерация
-- **PHP-бейкер** — `data-edit` зоны → flat-file админка в ZIP-бандле
-- **Desktop-клиент** (Tauri) — tray-иконка, autostart, auto-update
+- **P2P-генерация** — inference на твоей видеокарте через LM Studio, ноль затрат на облако
+- **Passwordless-вход** — magic-link по email, без паролей
+- **«Мои сайты»** — генерации сохраняются в Appwrite и синхронизируются между устройствами
+- **Публичные превью-ссылки** — read-only `/p/<token>`, делиться сайтом без скачивания ZIP
+- **Save as Template** — превратить удачную генерацию в переиспользуемый шаблон
+- **Галерея сообщества** (`/templates`) — публичные шаблоны с голосованием и модерацией
+- **PHP-бейкер** — зоны `data-edit` → flat-file админка прямо в ZIP-бандле
+- **Десктоп-клиент** (Tauri) — tray-иконка, autostart, auto-update
 
 ---
 
@@ -64,7 +64,7 @@ NIT Builder — open-source AI-конструктор сайтов с **peer-to-
 - `app/` — React Router v7 SSR + WS-обработчики (VPS)
 - `shared/` — общие типы протокола (`@nit/shared`)
 - `tunnel/` — Node CLI клиент (`nit-tunnel`)
-- `tunnel/desktop/` — Tauri 2.0 + Rust десктоп клиент с tray-иконкой, autostart, auto-update
+- `tunnel/desktop/` — Tauri 2.0 + Rust десктоп-клиент с tray-иконкой, autostart, auto-update
 
 Подробнее: [docs/architecture/v2-tunnel.md](./docs/architecture/v2-tunnel.md)
 
@@ -182,15 +182,15 @@ assets/uploads/       ← MIME-валидация, .htaccess блокирует 
 - **ws** + **Tauri 2.0** для туннеля
 - **Argon2id** + HMAC-SHA256 для tunnel-токенов, **session-version revocation** для cookie
 - **Appwrite** для пользователей, сайтов и persistent guest-IP квот
-- **Vitest 3** — 74 тест-файла, ~11k LOC тестов, CI зелёный на каждом push
+- **Vitest 3** — 80+ тест-файлов, CI зелёный на каждом push
 
 ---
 
-## Статус и лицензирование
+## Статус и лицензия
 
-v2.x в активной разработке. История изменений — в [CHANGELOG.md](./CHANGELOG.md), архитектура туннеля — в [docs/architecture/v2-tunnel.md](./docs/architecture/v2-tunnel.md). Дальше по плану: генерация картинок через туннель, экспорт в React/Vue/Astro, встроенный llama.cpp runtime, plugin-маркетплейс.
+v2.x в активной разработке. История изменений — [CHANGELOG.md](./CHANGELOG.md), дизайн туннеля — [docs/architecture/v2-tunnel.md](./docs/architecture/v2-tunnel.md). Дальше в планах: генерация картинок через туннель, экспорт в React/Vue/Astro, встроенный llama.cpp runtime, plugin marketplace.
 
-Код репозитория — **MIT**: разворачивай у себя и пользуйся свободно. Хостируемый сервис **nitgen.org** — отдельный продукт: бесплатен для личного некоммерческого использования, для коммерции нужна лицензия (sales@nitgen.org).
+Код репозитория — **MIT**, self-host и используй свободно. Хостинг **nitgen.org** — это отдельный продукт: бесплатно для личного некоммерческого использования, коммерческое использование — по лицензии (sales@nitgen.org).
 
 ---
 
@@ -201,6 +201,8 @@ v2.x в активной разработке. История изменений
 1. Создай `app/templates/html/your-id.html` — один файл от `<!DOCTYPE html>` до `</html>`, Tailwind через CDN в исходнике, картинки Unsplash или inline SVG, адаптивность (`sm:`/`md:`/`lg:`)
 2. Добавь метаданные в `app/lib/config/htmlTemplatesCatalog.ts`
 3. Открой PR со скриншотом
+
+Подробный гайд по шаблонам и кодовым контрибьюшнам — [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ### Баги и фичи
 

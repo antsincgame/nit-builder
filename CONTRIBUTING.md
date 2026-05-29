@@ -8,7 +8,7 @@ Templates are plain HTML files. You don't need to understand the AI pipeline —
 
 ### Steps
 
-1. **Pick a category that's missing.** Check [existing templates](./app/templates/html/) and [issues tagged `template`](https://github.com/igor1000rr/nit-builder/issues?q=label%3Atemplate). Good candidates: tattoo studio, flower shop, language school, bar/pub, real estate agent, psychologist, dog groomer, event photographer, ceramics studio, game developer portfolio, newsletter landing.
+1. **Pick a category that's missing.** Check [existing templates](./app/templates/html/) and [issues tagged `template`](https://github.com/antsincgame/nit-builder/issues?q=label%3Atemplate). The 22 built-ins already cover coffee shops, barbershops, photographers, dev portfolios, weddings, fitness, restaurants, tutors, beauty, auto shops, handmade, DJs, SaaS, medical, yoga, tattoo, flowers, language schools, law firms, indie game studios and real estate. Good candidates not yet covered: bar/pub, psychologist/therapist, dog groomer, ceramics/pottery studio, car dealership, travel agency, event venue, nonprofit/charity, newsletter landing.
 
 2. **Write the HTML** in `app/templates/html/your-template-id.html`. Rules:
    - **Single file only.** From `<!DOCTYPE html>` to `</html>`.
@@ -86,7 +86,7 @@ For code changes (pipeline, auth, UI, tunnel, PHP-baker):
 
 1. **Open an issue first** describing the problem or proposed feature — avoids wasted work if the direction doesn't fit.
 2. **Fork + branch:** `git checkout -b feat/your-feature`.
-3. **Add tests** for anything non-trivial. Current test files in `tests/` (~11k LOC across 69 files) are good examples.
+3. **Add tests** for anything non-trivial. Current test files in `tests/` (80+ files) are good examples.
 4. **Run checks locally:**
    ```bash
    npm run lint
@@ -125,7 +125,7 @@ nit-builder/
 ├── shared/                 # @nit/shared — WS protocol types, server version
 ├── tunnel/                 # nit-tunnel CLI (Node) — local LM Studio proxy
 ├── tunnel/desktop/         # Tauri 2.0 + Rust — desktop tunnel client with tray
-├── tests/                  # Vitest, 69 test files
+├── tests/                  # Vitest, 80+ test files
 ├── scripts/                # Eval runners, deploy helpers, version sync
 └── server.ts               # Custom HTTP + WS server (run via tsx, NOT plain node)
 ```
