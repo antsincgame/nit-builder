@@ -22,7 +22,7 @@ type PersistedConfig = {
 
 const STORE_PATH = "config.bin";
 const DEFAULT_CONFIG: PersistedConfig = {
-  serverUrl: "wss://nit.vibecoding.by/api/tunnel",
+  serverUrl: "wss://nitgen.org/api/tunnel",
   token: "",
   lmStudioUrl: "http://localhost:1234/v1",
 };
