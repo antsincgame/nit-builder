@@ -1,11 +1,12 @@
 /**
  * SettingsDrawer v3 — эстетика лендинга: чёрный модал, без var(--*),
- * lucide X. Секции внутри свои (Account/TunnelToken/Shortcuts/About).
+ * lucide X. Секции внутри свои (Account/Devices/TunnelToken/Shortcuts/About).
  */
 
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { AccountSection } from "~/components/settings/AccountSection";
+import { DevicesSection } from "~/components/settings/DevicesSection";
 import { TunnelTokenSection } from "~/components/settings/TunnelTokenSection";
 import { ShortcutsSection } from "~/components/settings/ShortcutsSection";
 import { AboutSection } from "~/components/settings/AboutSection";
@@ -48,6 +49,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
 
         <div className="p-6 space-y-7 max-h-[70vh] overflow-y-auto">
           <AccountSection onClose={onClose} />
+          <DevicesSection resetSignal={resetSignal} />
           <TunnelTokenSection resetSignal={resetSignal} />
           <ShortcutsSection />
           <AboutSection />
