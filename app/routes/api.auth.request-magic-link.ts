@@ -44,7 +44,7 @@ function safeNext(next: string | null | undefined): string | null {
  *
  * ENV:
  *   SMTP_HOST/PORT/USER/PASS/FROM — для отправки писем
- *   OAUTH_REDIRECT_BASE (или дефолт https://nit.vibecoding.by) — для ссылок
+ *   OAUTH_REDIRECT_BASE (или дефолт https://nitgen.org) — для ссылок
  *   NIT_EMAIL_ONLY_LOGIN=1 — временный режим: email сразу логинит без письма
  */
 export async function action({ request }: ActionFunctionArgs) {
@@ -140,7 +140,7 @@ export async function action({ request }: ActionFunctionArgs) {
   try {
     const token = await createMagicLink(email);
     const baseUrl =
-      process.env.OAUTH_REDIRECT_BASE ?? "https://nit.vibecoding.by";
+      process.env.OAUTH_REDIRECT_BASE ?? "https://nitgen.org";
     const nextParam = next ? `&next=${encodeURIComponent(next)}` : "";
     const link = `${baseUrl.replace(/\/$/, "")}/auth/verify?token=${token}${nextParam}`;
 
