@@ -56,9 +56,9 @@ export default function SeoBlock() {
             </p>
 
             <p>
-              Скачайте nitgen и <strong className="text-[#A1A1AA]">создайте сайт с помощью ИИ</strong> прямо
-              сейчас — без регистрации карты, без пробных периодов. Нейросеть для создания
-              сайтов работает на Windows, macOS и Linux.
+              Откройте nitgen в браузере и <strong className="text-[#A1A1AA]">создайте сайт с помощью ИИ</strong> прямо
+              сейчас — без регистрации карты, без пробных периодов. Конструктор работает в браузере,
+              а генерация — на вашем компьютере (Windows, macOS, Linux) через LM Studio.
             </p>
           </div>
         </article>

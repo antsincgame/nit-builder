@@ -8,10 +8,10 @@ import type { TunnelDownloadPlatform } from "~/lib/utils/tunnelDownloads";
 import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 export const meta: MetaFunction = () => [
-  { title: "Скачать · nitgen" },
+  { title: "Скачать NIT Tunnel · nitgen" },
   {
     name: "description",
-    content: "Десктопное приложение для подключения локальной модели к nitgen. Windows, macOS, Linux — двойной клик и работает.",
+    content: "NIT Tunnel — небольшая программа для связи вашего локального LM Studio с конструктором nitgen. Windows, macOS, Linux — установил, вошёл по email и работаешь.",
   },
 ];
 
@@ -20,9 +20,10 @@ const RELEASE_BASE = "https://github.com/antsincgame/nit-builder/releases";
 /**
  * Download v6 — пользовательский язык, без консолей.
  *
- * Tauri Desktop GUI заменяет старый CLI. Юзер скачивает установщик,
- * двойной клик → введи email из nitgen → готово. Никаких chmod/xattr/
- * --token/--server в инструкции — это всё делается внутри приложения.
+ * Качается NIT Tunnel (небольшой Tauri GUI) — связывает локальный LM Studio
+ * с конструктором nitgen в браузере. Сам конструктор ставить не нужно.
+ * Двойной клик по установщику → введи email из nitgen → готово. Никаких
+ * chmod/xattr/--token/--server в инструкции — это всё делается внутри туннеля.
  *
  * Filenames собираются workflow tunnel-desktop-release.yml через Tauri 2:
  *   - NIT.Tunnel_<v>_x64-setup.exe   (NSIS installer, Windows)
@@ -121,18 +122,20 @@ export default function Download() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full border border-emerald-500/30 bg-emerald-500/[0.08]">
             <DownloadIcon size={12} className="text-emerald-400" />
-            <span className="text-[11px] font-semibold text-emerald-300">Приложение для компьютера</span>
+            <span className="text-[11px] font-semibold text-emerald-300">NIT Tunnel</span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
-            Запустите nitgen
+            Скачайте NIT Tunnel
             <br />
             <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
-              на своём компьютере
+              и генерируйте на своём GPU
             </span>
           </h1>
           <p className="max-w-[520px] mx-auto text-[15px] sm:text-base text-[#A1A1AA] leading-relaxed">
-            Скачайте установщик, запустите, войдите по email — приложение само подключится к nitgen и
-            начнёт работать. Никаких настроек, никаких консолей.
+            NIT Tunnel — небольшая программа, которая связывает ваш локальный LM Studio с
+            конструктором nitgen. Сам конструктор работает в браузере, ставить его не нужно.
+            Установите туннель, войдите по email — и создавайте сайты на своём GPU. Никаких
+            настроек и консолей.
           </p>
         </div>
 
@@ -190,7 +193,7 @@ export default function Download() {
             <Step number="1" title="Скачайте установщик">
               Нажмите кнопку выше — для вашей системы автоматически предложен правильный файл.
             </Step>
-            <Step number="2" title="Установите приложение">
+            <Step number="2" title="Установите NIT Tunnel">
               <span>
                 Двойной клик по скачанному файлу. На <b className="text-white">Windows</b> запустится мастер установки, на{" "}
                 <b className="text-white">macOS</b> перетащите иконку в Applications, на <b className="text-white">Linux</b>{" "}
@@ -200,13 +203,13 @@ export default function Download() {
             <Step number="3" title="Войдите по email">
               {auth.status === "authenticated" ? (
                 <span>
-                  Приложение откроет окно входа. Используйте тот же email что и здесь —
+                  NIT Tunnel откроет окно входа. Используйте тот же email что и здесь —
                   получите письмо со ссылкой, нажмите, готово.
                 </span>
               ) : (
                 <span>
                   Сначала <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">войдите в nitgen на сайте</a>,
-                  потом откройте приложение и введите тот же email — оно само подключится.
+                  потом откройте NIT Tunnel и введите тот же email — он сам подключится.
                 </span>
               )}
             </Step>
@@ -214,8 +217,8 @@ export default function Download() {
 
           <div className="mt-6 pt-5 border-t border-white/[0.06] text-[12px] text-[#71717A] leading-relaxed">
             Когда туннель подключится — в{" "}
-            <a href="/app" className="text-emerald-400 hover:text-emerald-300 transition-colors">приложении nitgen</a>{" "}
-            загорится зелёный индикатор «Туннель онлайн», генерация будет идти через ваш компьютер.
+            <a href="/app" className="text-emerald-400 hover:text-emerald-300 transition-colors">конструкторе nitgen</a>{" "}
+            загорится зелёный индикатор «Туннель онлайн», и генерация пойдёт через ваш компьютер.
           </div>
         </div>
 
@@ -225,7 +228,7 @@ export default function Download() {
             Если Windows или macOS предупредят про «непроверенный издатель»
           </div>
           <p className="text-[#71717A]">
-            Это нормально для нового приложения — сертификат подписи стоит дорого, мы его пока не покупали.
+            Это нормально для новой программы — сертификат подписи стоит дорого, мы его пока не покупали.
             На <b className="text-white">Windows</b> нажмите «Подробнее» → «Выполнить в любом случае».
             На <b className="text-white">macOS</b> — правый клик по иконке → «Открыть» → «Открыть всё равно».
             Исходный код полностью открыт, проверить можно в{" "}
