@@ -31,6 +31,12 @@ export default [
   // Magic-link (passwordless)
   route("api/auth/request-magic-link", "routes/api.auth.request-magic-link.ts"),
   route("auth/verify", "routes/auth.verify.ts"),
+  // Cursor-style привязка устройств (туннель ↔ аккаунт)
+  route("link", "routes/link.tsx"),
+  route("api/auth/tunnel/approve", "routes/api.auth.tunnel.approve.ts"),
+  route("api/auth/tunnel/exchange", "routes/api.auth.tunnel.exchange.ts"),
+  route("api/auth/tunnel/devices", "routes/api.auth.tunnel.devices.ts"),
+  route("api/auth/tunnel/devices/:id", "routes/api.auth.tunnel.devices.$id.ts"),
   // Sites CRUD (Phase B.6)
   route("api/sites", "routes/api.sites.ts"),
   route("api/sites/:id", "routes/api.sites.$id.ts"),
