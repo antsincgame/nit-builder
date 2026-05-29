@@ -382,13 +382,21 @@ export default function Home() {
                   Чтобы генерировать сайты на своём GPU, скачайте клиент, запустите LM Studio и подключите tunnel token.
                 </div>
               </div>
-              <a
-                href={tunnelDownloadPath("macos-arm")}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
-              >
-                <Download size={14} />
-                Скачать NIT Tunnel
-              </a>
+              <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
+                <a
+                  href={tunnelDownloadPath("macos-arm")}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
+                >
+                  <Download size={14} />
+                  Скачать NIT Tunnel
+                </a>
+                <a
+                  href="/guide"
+                  className="text-[12px] text-amber-200/80 hover:text-amber-100 transition-colors text-center sm:text-right"
+                >
+                  Как подключить — пошагово →
+                </a>
+              </div>
             </div>
           )}
 
