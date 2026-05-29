@@ -16,6 +16,11 @@
  *   APPWRITE_ENDPOINT      — default: https://appwrite.vibecoding.by/v1
  *   APPWRITE_PROJECT_ID    — default: 69ab07130011752aae12
  *   APPWRITE_DATABASE_ID   — default: nit_builder
+ *
+ * NB (Appwrite 1.8+): атрибут с `default` ОБЯЗАН быть `required: false`.
+ * Appwrite 1.8.1 отвергает required+default (attribute_default_unsupported).
+ * Поэтому у всех полей с дефолтом стоит required:false — дефолт сам
+ * подставится, если значение не передали при создании документа.
  */
 
 import { Client, Databases, IndexType } from "node-appwrite";
@@ -337,7 +342,7 @@ async function migrate(): Promise<void> {
   });
   await ensureAttribute("nit_guest_limits", "count", {
     kind: "integer",
-    required: true,
+    required: false, // Appwrite 1.8: default → required:false обязательно
     min: 0,
     default: 0,
   });
@@ -381,7 +386,7 @@ async function migrate(): Promise<void> {
   });
   await ensureAttribute("nit_shared_previews", "views", {
     kind: "integer",
-    required: true,
+    required: false, // Appwrite 1.8: default → required:false обязательно
     min: 0,
     default: 0,
   });
@@ -429,12 +434,12 @@ async function migrate(): Promise<void> {
   });
   await ensureAttribute("nit_user_templates", "isPublic", {
     kind: "boolean",
-    required: true,
+    required: false, // Appwrite 1.8: default → required:false обязательно
     default: false,
   });
   await ensureAttribute("nit_user_templates", "votes", {
     kind: "integer",
-    required: true,
+    required: false, // Appwrite 1.8: default → required:false обязательно
     min: 0,
     default: 0,
   });
@@ -518,7 +523,7 @@ async function migrate(): Promise<void> {
   });
   await ensureAttribute("nit_tunnel_tokens", "revoked", {
     kind: "boolean",
-    required: true,
+    required: false, // Appwrite 1.8: default → required:false обязательно
     default: false,
   });
   await sleep(2000);
