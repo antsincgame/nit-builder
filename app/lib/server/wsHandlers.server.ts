@@ -142,6 +142,11 @@ async function validateTunnelToken(token: string): Promise<{ userId: string } | 
     }
     return null;
   }
+  // Per-device токены (Cursor-style привязка устройств) — основной путь;
+  // fallback на legacy per-account токен в nit_users (обратная совместимость).
+  const { findUserByDeviceToken } = await import("./tunnelDevices.server");
+  const device = await findUserByDeviceToken(token);
+  if (device) return { userId: device.userId };
   return findUserByTunnelToken(token);
 }
 
