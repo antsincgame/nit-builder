@@ -11,7 +11,7 @@ export const meta: Route.MetaFunction = () => [
   {
     name: "description",
     content:
-      "Пошаговая инструкция: как создать сайт в nitgen на своём компьютере. Установка LM Studio, запуск NIT Tunnel и генерация сайта за минуту — без кода и подписок.",
+      "Пошаговая инструкция: как создать сайт в nitgen на своём компьютере. Установка LM Studio, запуск nitgen и генерация сайта за минуту — без кода и подписок.",
   },
 ];
 
@@ -26,7 +26,7 @@ const HARDWARE: Array<{ vram: string; model: string; note: string; star?: boolea
 const TROUBLESHOOTING: Array<{ q: string; a: string }> = [
   {
     q: "Статус «не подключён» не исчезает",
-    a: "Проверьте три вещи: NIT Tunnel запущен, в него вставлен правильный токен, а в LM Studio нажата кнопка Start Server.",
+    a: "Проверьте: nitgen запущен, вы вошли через «Войти через nitgen», и в LM Studio нажата кнопка Start Server.",
   },
   {
     q: "Не хватает памяти при загрузке модели",
@@ -81,19 +81,19 @@ export default function Guide() {
     },
     {
       n: 3,
-      title: "Скачайте и запустите NIT Tunnel",
+      title: "Скачайте и запустите nitgen",
       body: (
         <>
-          NIT Tunnel — маленькое приложение, которое связывает сайт nitgen с вашей
-          LM Studio, чтобы промпты не уходили в облако. Скачайте его, запустите и
-          вставьте свой <b className="text-white">tunnel-токен</b> — его можно скопировать в
-          настройках вашего аккаунта на nitgen (для этого войдите по email). Клиент сам
-          найдёт запущенную LM Studio и подключится.
+          nitgen — маленькое приложение, которое связывает конструктор с вашей
+          LM Studio, чтобы промпты не уходили в облако. Скачайте, запустите и нажмите{" "}
+          <b className="text-white">«Войти через nitgen»</b> — откроется браузер, войдите
+          (если ещё не вошли) и подтвердите это устройство. Клиент сам найдёт запущенную
+          LM Studio и подключится. Токен вводить вручную не нужно.
           <Link
             to="/download"
             className="mt-3 flex w-fit items-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
           >
-            <Download size={14} /> Скачать NIT Tunnel
+            <Download size={14} /> Скачать nitgen
           </Link>
         </>
       ),
