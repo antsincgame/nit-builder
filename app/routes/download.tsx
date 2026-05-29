@@ -1,31 +1,32 @@
 import { useEffect, useState } from "react";
 import type { MetaFunction } from "react-router";
 import { Monitor, Apple, Terminal, Download as DownloadIcon, ArrowRight } from "lucide-react";
-import { useAuth } from "~/lib/contexts/AuthContext";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
 import type { TunnelDownloadPlatform } from "~/lib/utils/tunnelDownloads";
 import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 export const meta: MetaFunction = () => [
-  { title: "Скачать NIT Tunnel · nitgen" },
+  { title: "Скачать nitgen" },
   {
     name: "description",
-    content: "NIT Tunnel — небольшая программа для связи вашего локального LM Studio с конструктором nitgen. Windows, macOS, Linux — установил, вошёл по email и работаешь.",
+    content:
+      "nitgen — небольшая программа, которая связывает ваш локальный LM Studio с конструктором сайтов в браузере. Windows, macOS, Linux: установил, вошёл через браузер — и генерируешь на своём GPU.",
   },
 ];
 
 const RELEASE_BASE = "https://github.com/antsincgame/nit-builder/releases";
 
 /**
- * Download v6 — пользовательский язык, без консолей.
+ * Download v7 — пользовательский язык, без консолей и без ручного токена.
  *
- * Качается NIT Tunnel (небольшой Tauri GUI) — связывает локальный LM Studio
- * с конструктором nitgen в браузере. Сам конструктор ставить не нужно.
- * Двойной клик по установщику → введи email из nitgen → готово. Никаких
- * chmod/xattr/--token/--server в инструкции — это всё делается внутри туннеля.
+ * Качается nitgen (небольшой Tauri GUI) — связывает локальный LM Studio с
+ * конструктором сайтов в браузере. Сам конструктор ставить не нужно.
+ * Двойной клик по установщику → «Войти через nitgen» → подтверждаешь в
+ * браузере → готово. Никаких chmod/xattr/--token/--server в инструкции.
  *
- * Filenames собираются workflow tunnel-desktop-release.yml через Tauri 2:
+ * Filenames собираются workflow tunnel-desktop-release.yml через Tauri 2
+ * (имена артефактов остаются NIT.Tunnel_<v>_* — это просто имена файлов):
  *   - NIT.Tunnel_<v>_x64-setup.exe   (NSIS installer, Windows)
  *   - NIT.Tunnel_<v>_aarch64.dmg     (macOS Apple Silicon)
  *   - NIT.Tunnel_<v>_x64.dmg         (macOS Intel)
@@ -81,7 +82,6 @@ const PLATFORMS: Platform[] = [
 ];
 
 export default function Download() {
-  const auth = useAuth();
   const [detectedOS, setDetectedOS] = useState<string | null>(null);
 
   // Авто-определяем платформу из User-Agent чтобы предложить релевантный
@@ -122,20 +122,20 @@ export default function Download() {
         <div className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 rounded-full border border-emerald-500/30 bg-emerald-500/[0.08]">
             <DownloadIcon size={12} className="text-emerald-400" />
-            <span className="text-[11px] font-semibold text-emerald-300">NIT Tunnel</span>
+            <span className="text-[11px] font-semibold text-emerald-300">nitgen</span>
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
-            Скачайте NIT Tunnel
+            Скачайте nitgen
             <br />
             <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
               и генерируйте на своём GPU
             </span>
           </h1>
           <p className="max-w-[520px] mx-auto text-[15px] sm:text-base text-[#A1A1AA] leading-relaxed">
-            NIT Tunnel — небольшая программа, которая связывает ваш локальный LM Studio с
-            конструктором nitgen. Сам конструктор работает в браузере, ставить его не нужно.
-            Установите туннель, войдите по email — и создавайте сайты на своём GPU. Никаких
-            настроек и консолей.
+            nitgen — небольшая программа, которая связывает ваш локальный LM Studio с
+            конструктором сайтов в браузере. Сам конструктор работает в браузере, ставить его
+            не нужно. Установите, нажмите «Войти через nitgen» и подтвердите устройство в
+            браузере — и создавайте сайты на своём GPU. Никаких настроек и консолей.
           </p>
         </div>
 
@@ -193,25 +193,18 @@ export default function Download() {
             <Step number="1" title="Скачайте установщик">
               Нажмите кнопку выше — для вашей системы автоматически предложен правильный файл.
             </Step>
-            <Step number="2" title="Установите NIT Tunnel">
+            <Step number="2" title="Установите и откройте nitgen">
               <span>
                 Двойной клик по скачанному файлу. На <b className="text-white">Windows</b> запустится мастер установки, на{" "}
                 <b className="text-white">macOS</b> перетащите иконку в Applications, на <b className="text-white">Linux</b>{" "}
                 просто запустите .AppImage.
               </span>
             </Step>
-            <Step number="3" title="Войдите по email">
-              {auth.status === "authenticated" ? (
-                <span>
-                  NIT Tunnel откроет окно входа. Используйте тот же email что и здесь —
-                  получите письмо со ссылкой, нажмите, готово.
-                </span>
-              ) : (
-                <span>
-                  Сначала <a href="/login" className="text-emerald-400 hover:text-emerald-300 transition-colors">войдите в nitgen на сайте</a>,
-                  потом откройте NIT Tunnel и введите тот же email — он сам подключится.
-                </span>
-              )}
+            <Step number="3" title="Войдите — один клик в браузере">
+              <span>
+                В приложении нажмите <b className="text-white">«Войти через nitgen»</b>. Откроется браузер: войдите
+                (если ещё не вошли) и подтвердите это устройство. Токен вводить вручную не нужно.
+              </span>
             </Step>
           </ol>
 
