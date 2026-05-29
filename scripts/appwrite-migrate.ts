@@ -478,6 +478,56 @@ async function migrate(): Promise<void> {
   await ensureIndex("nit_magic_links", "expiresAt_idx", "key", ["expiresAt"]);
   console.log("");
 
+  // ── nit_tunnel_tokens ──
+  // Пер-девайс токены туннеля (Cursor-style привязка устройств через браузер).
+  // В отличие от единственного tunnelToken в nit_users (один на аккаунт),
+  // здесь по строке на каждое устройство — можно видеть список устройств и
+  // отзывать каждое по отдельности.
+  // tokenLookup — HMAC-SHA256 (детерминированный индекс для O(1) lookup),
+  // tokenHash — argon2id (финальная проверка). Тот же two-field scheme что
+  // и у per-account токена в nit_users.
+  console.log("Collection: nit_tunnel_tokens");
+  await ensureCollection("nit_tunnel_tokens", "NIT Tunnel Device Tokens");
+  await ensureAttribute("nit_tunnel_tokens", "userId", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "tokenLookup", {
+    kind: "string",
+    size: 64,
+    required: true,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "tokenHash", {
+    kind: "string",
+    size: 500,
+    required: true,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "deviceName", {
+    kind: "string",
+    size: 128,
+    required: true,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "createdAt", {
+    kind: "datetime",
+    required: true,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "lastSeenAt", {
+    kind: "datetime",
+    required: false,
+  });
+  await ensureAttribute("nit_tunnel_tokens", "revoked", {
+    kind: "boolean",
+    required: true,
+    default: false,
+  });
+  await sleep(2000);
+  // tokenLookup — для O(1) lookup при hello туннеля.
+  await ensureIndex("nit_tunnel_tokens", "tokenLookup_idx", "key", ["tokenLookup"]);
+  // userId — для списка "мои устройства" и отзыва.
+  await ensureIndex("nit_tunnel_tokens", "userId_idx", "key", ["userId"]);
+  console.log("");
+
   console.log("✓ Migration complete");
 }
 
