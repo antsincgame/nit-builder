@@ -31,7 +31,7 @@ const MAX_BACKOFF_SECS: u64 = 60;
 /// Config passed to the tunnel runtime.
 #[derive(Debug, Clone)]
 pub struct TunnelConfig {
-    /// wss://nit.vibecoding.by/api/tunnel (or ws://localhost:3000/api/tunnel for dev)
+    /// wss://nitgen.org/api/tunnel (or ws://localhost:3000/api/tunnel for dev)
     pub server_url: String,
     /// User's tunnel token (nit_...)
     pub token: String,
@@ -41,7 +41,7 @@ pub struct TunnelConfig {
 
 /// Status reported to the UI layer via events.
 #[derive(Debug, Clone, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "status", rename_all = "snake_case")]
 pub enum TunnelStatus {
     Idle,
     ProbingLmStudio,
@@ -53,10 +53,20 @@ pub enum TunnelStatus {
 }
 
 /// Events emitted by the tunnel runtime for UI consumption.
+///
+/// ВАЖНО: StatusChanged и Log — struct-варианты с полем `content`, НЕ
+/// tuple-варианты. При `#[serde(tag = "type")]` serde НЕ поддерживает
+/// внутренний тег на tuple/newtype-вариантах корректно — он разворачивает
+/// содержимое в сам объект, и на JS-стороне `ev.content` оказывается
+/// undefined (setStatus(undefined) → краш StatusHeader, чёрный экран).
+/// Со struct-вариантом `{ content }` JSON получается
+/// `{"type":"status_changed","content":{...}}` — ровно как ждёт types.ts.
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TunnelUiEvent {
-    StatusChanged(TunnelStatus),
+    StatusChanged {
+        content: TunnelStatus,
+    },
     RequestStarted {
         request_id: String,
     },
@@ -72,7 +82,9 @@ pub enum TunnelUiEvent {
         request_id: String,
         error: String,
     },
-    Log(String),
+    Log {
+        content: String,
+    },
 }
 
 /// Handle returned from `spawn` — use this to send events out and stop the runtime.
@@ -96,7 +108,9 @@ pub fn spawn(config: TunnelConfig) -> TunnelHandle {
 
     tokio::spawn(async move {
         if let Err(err) = run_loop(config, event_tx.clone(), stop_for_task).await {
-            let _ = event_tx.send(TunnelUiEvent::Log(format!("Fatal: {}", err)));
+            let _ = event_tx.send(TunnelUiEvent::Log {
+                content: format!("Fatal: {}", err),
+            });
         }
     });
 
@@ -120,24 +134,30 @@ async fn run_loop(
         }
 
         // Probe LM Studio
-        let _ = events.send(TunnelUiEvent::StatusChanged(TunnelStatus::ProbingLmStudio));
+        let _ = events.send(TunnelUiEvent::StatusChanged {
+            content: TunnelStatus::ProbingLmStudio,
+        });
         let model = match lm_studio.probe().await {
             Ok(m) => m,
             Err(err) => {
-                let _ = events.send(TunnelUiEvent::StatusChanged(
-                    TunnelStatus::LmStudioUnreachable {
+                let _ = events.send(TunnelUiEvent::StatusChanged {
+                    content: TunnelStatus::LmStudioUnreachable {
                         reason: err.to_string(),
                     },
-                ));
+                });
                 wait_or_cancel(&stop, Duration::from_secs(backoff)).await;
                 backoff = (backoff * 2).min(MAX_BACKOFF_SECS);
                 continue;
             }
         };
-        let _ = events.send(TunnelUiEvent::Log(format!("LM Studio online: {}", model)));
+        let _ = events.send(TunnelUiEvent::Log {
+            content: format!("LM Studio online: {}", model),
+        });
 
         // Connect to server
-        let _ = events.send(TunnelUiEvent::StatusChanged(TunnelStatus::Connecting));
+        let _ = events.send(TunnelUiEvent::StatusChanged {
+            content: TunnelStatus::Connecting,
+        });
         match connect_and_serve(&config, model.clone(), &events, &stop).await {
             Ok(_) => {
                 // Normal close, reset backoff
@@ -145,20 +165,26 @@ async fn run_loop(
             }
             Err(err) => {
                 let error_msg = err.to_string();
-                let _ = events.send(TunnelUiEvent::Log(format!("Error: {}", error_msg)));
+                let _ = events.send(TunnelUiEvent::Log {
+                    content: format!("Error: {}", error_msg),
+                });
 
                 // Check if this is an auth error — no point retrying
                 if error_msg.contains("auth") || error_msg.contains("token") {
-                    let _ = events.send(TunnelUiEvent::StatusChanged(TunnelStatus::AuthFailed {
-                        reason: error_msg,
-                    }));
+                    let _ = events.send(TunnelUiEvent::StatusChanged {
+                        content: TunnelStatus::AuthFailed {
+                            reason: error_msg,
+                        },
+                    });
                     return Ok(()); // stop runtime — user needs to fix token
                 }
 
-                let _ = events.send(TunnelUiEvent::StatusChanged(TunnelStatus::Disconnected {
-                    reason: error_msg,
-                    retry_in_seconds: backoff,
-                }));
+                let _ = events.send(TunnelUiEvent::StatusChanged {
+                    content: TunnelStatus::Disconnected {
+                        reason: error_msg,
+                        retry_in_seconds: backoff,
+                    },
+                });
             }
         }
 
@@ -253,25 +279,24 @@ async fn connect_and_serve(
                         let parsed: ServerToTunnel = match serde_json::from_str(&text) {
                             Ok(p) => p,
                             Err(err) => {
-                                let _ = events.send(TunnelUiEvent::Log(
-                                    format!("Malformed server message: {}", err),
-                                ));
+                                let _ = events.send(TunnelUiEvent::Log {
+                                    content: format!("Malformed server message: {}", err),
+                                });
                                 continue;
                             }
                         };
 
                         match parsed {
                             ServerToTunnel::Welcome { user_id, .. } => {
-                                let _ = events.send(TunnelUiEvent::StatusChanged(
-                                    TunnelStatus::Connected {
+                                let _ = events.send(TunnelUiEvent::StatusChanged {
+                                    content: TunnelStatus::Connected {
                                         user_id: user_id.clone(),
                                         model: model.clone(),
                                     },
-                                ));
-                                let _ = events.send(TunnelUiEvent::Log(format!(
-                                    "Authenticated as user {}",
-                                    user_id
-                                )));
+                                });
+                                let _ = events.send(TunnelUiEvent::Log {
+                                    content: format!("Authenticated as user {}", user_id),
+                                });
                             }
                             ServerToTunnel::HeartbeatAck { .. } => {
                                 // silent
@@ -400,17 +425,18 @@ async fn connect_and_serve(
                                     active.lock().await.remove(&request_id)
                                 {
                                     token.cancel();
-                                    let _ = events.send(TunnelUiEvent::Log(format!(
-                                        "Aborted request {}",
-                                        &request_id[..8.min(request_id.len())]
-                                    )));
+                                    let _ = events.send(TunnelUiEvent::Log {
+                                        content: format!(
+                                            "Aborted request {}",
+                                            &request_id[..8.min(request_id.len())]
+                                        ),
+                                    });
                                 }
                             }
                             ServerToTunnel::Error { code, message } => {
-                                let _ = events.send(TunnelUiEvent::Log(format!(
-                                    "Server error [{:?}]: {}",
-                                    code, message
-                                )));
+                                let _ = events.send(TunnelUiEvent::Log {
+                                    content: format!("Server error [{:?}]: {}", code, message),
+                                });
                                 if matches!(
                                     code,
                                     ServerErrorCode::AuthFailed | ServerErrorCode::InvalidToken

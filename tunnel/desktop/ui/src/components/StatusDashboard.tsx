@@ -179,7 +179,10 @@ function StatusHeader({ status }: { status: TunnelStatus }) {
   let dotColor = "#64748b";
   let pulse = false;
 
-  switch (status.status) {
+  // Защита: если status почему-то undefined/без поля status (рассинхрон
+  // события), не падаем — показываем нейтральное состояние вместо краша
+  // всего дерева (раньше это давало чёрный экран).
+  switch (status?.status) {
     case "idle":
       label = "Idle";
       subtitle = "Запускаем...";
@@ -222,6 +225,10 @@ function StatusHeader({ status }: { status: TunnelStatus }) {
       subtitle = "Проверь что LM Studio запущен";
       color = "var(--danger)";
       dotColor = "#ef4444";
+      break;
+    default:
+      label = "—";
+      subtitle = "";
       break;
   }
 

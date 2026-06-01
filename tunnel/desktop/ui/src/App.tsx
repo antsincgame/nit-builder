@@ -38,7 +38,7 @@ export function App() {
   const [starting, setStarting] = useState(false);
   const [bootLoaded, setBootLoaded] = useState(false);
 
-  // ─── Load persisted config on mount ───────────────────────────
+  // ─── Load persisted config on mount ────────────────────────
 
   useEffect(() => {
     let cancelled = false;
@@ -87,8 +87,12 @@ export function App() {
   const handleTunnelEvent = useCallback((ev: TunnelUiEvent) => {
     switch (ev.type) {
       case "status_changed":
-        setStatus(ev.content);
-        addLog(formatStatusLog(ev.content));
+        // content приходит из Rust как { status: ... }. Защита от undefined
+        // на случай рассинхрона формата — чтобы кривое событие не уронило UI.
+        if (ev.content && typeof ev.content.status === "string") {
+          setStatus(ev.content);
+          addLog(formatStatusLog(ev.content));
+        }
         break;
       case "request_started":
         setActiveRequests((prev) => {
@@ -127,7 +131,7 @@ export function App() {
         addLog(`✗ Request ${ev.request_id.slice(0, 8)} failed: ${ev.error}`);
         break;
       case "log":
-        addLog(ev.content);
+        if (typeof ev.content === "string") addLog(ev.content);
         break;
     }
     // `addLog` намеренно не в deps — он сам useCallback с []-deps и
@@ -148,7 +152,7 @@ export function App() {
     });
   }, []);
 
-  // ─── Actions ──────────────────────────────────────────────────
+  // ─── Actions ────────────────────────────────────
 
   const handleStart = useCallback(
     async (cfg: PersistedConfig) => {
@@ -204,9 +208,13 @@ export function App() {
     } catch {
       // ignore
     }
+    // После сброса токена возвращаемся на экран логина, чтобы App не висел
+    // в dashboard со старым статусом.
+    setStatus({ status: "idle" });
+    setScreen("login");
   }, [config]);
 
-  // ─── Render ───────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────
 
   if (!bootLoaded) {
     return (
@@ -266,5 +274,7 @@ function formatStatusLog(s: TunnelStatus): string {
       return `✗ Auth failed: ${s.reason}`;
     case "lm_studio_unreachable":
       return `✗ LM Studio unreachable: ${s.reason}`;
+    default:
+      return "";
   }
 }
