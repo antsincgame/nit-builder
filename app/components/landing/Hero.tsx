@@ -208,10 +208,22 @@ export default function Hero() {
 
             {/* Подзаголовок */}
             <p className="text-lg text-[#A1A1AA] leading-relaxed max-w-xl">
-              Генератор сайтов на нейросети — <strong className="text-white font-semibold">бесплатно для личного использования</strong>. Опишите проект одним предложением —
-              ИИ соберёт готовый сайт за <strong className="text-white font-semibold">60 секунд</strong> прямо на вашем компьютере.
-              <span className="text-white/60"> Без данных в облаке. Без знания кода.</span>
+              Опишите проект одним предложением — ИИ соберёт <strong className="text-white font-semibold">полноценный сайт</strong> за <strong className="text-white font-semibold">60 секунд</strong>: с SEO, картинками, а при необходимости — с базой данных и админкой.
+              <span className="text-white/60"> Бесплатно для личного использования, локально на вашем компьютере. Без облака и без знания кода.</span>
             </p>
+
+            {/* Мини-чипы преимуществ */}
+            <div className="flex flex-wrap gap-2">
+              {["SEO из коробки", "База данных + админка", "Картинки и медиа", "Готов к публикации"].map((chip) => (
+                <span
+                  key={chip}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.08] bg-[#141414] text-[12px] text-[#A1A1AA]"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/70" />
+                  {chip}
+                </span>
+              ))}
+            </div>
 
             <div className="mt-2">
               <div
