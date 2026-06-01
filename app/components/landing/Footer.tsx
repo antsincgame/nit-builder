@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Instagram, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import Logo from "./Logo";
 
 export default function Footer() {
@@ -30,7 +30,22 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-white/[0.08] bg-[#141414] text-[13px] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition-all"
           >
-            <Instagram size={15} className="text-emerald-400/80" />
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-emerald-400/80"
+              aria-hidden="true"
+            >
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+            </svg>
             Instagram
           </a>
           <a
