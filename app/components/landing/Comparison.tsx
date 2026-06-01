@@ -11,6 +11,8 @@ const rows: { label: string; nitgen: Val; tilda: Val; wix: Val; bolt: Val }[] = 
   { label: "Работает офлайн", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
   { label: "Открытый код", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
   { label: "Создание через ИИ", nitgen: "yes", tilda: "no", wix: "partial", bolt: "yes" },
+  { label: "SEO из коробки", nitgen: "yes", tilda: "yes", wix: "yes", bolt: "partial" },
+  { label: "База данных + админка", nitgen: "yes", tilda: "partial", wix: "partial", bolt: "no" },
 ];
 
 function CellValue({ val, isNitgen }: { val: Val; isNitgen?: boolean }) {
