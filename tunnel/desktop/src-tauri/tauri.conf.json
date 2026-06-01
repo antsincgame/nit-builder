@@ -66,9 +66,5 @@
       }
     }
   },
-  "plugins": {
-    "autostart": {
-      "activated": true
-    }
-  }
+  "plugins": {}
 }
