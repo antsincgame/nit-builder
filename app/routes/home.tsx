@@ -303,6 +303,7 @@ export default function Home() {
             <div className="flex items-center gap-2">
               {auth.status === "authenticated" && (
                 <>
+                  <TunnelStatusPill status={socket.tunnelStatus} />
                   <button
                     type="button"
                     onClick={() => setHistoryOpen(true)}
@@ -486,6 +487,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <TunnelStatusPill status={socket.tunnelStatus} compact />
             {isGenerating ? (
               <button
                 type="button"
@@ -668,6 +670,49 @@ export default function Home() {
 }
 
 /* ─── Local sub-components ─── */
+
+/**
+ * Индикатор подключения туннеля в шапке. Берёт живой socket.tunnelStatus
+ * ("online" | "offline" | "unknown") и показывает зелёную точку «Подключён»
+ * либо серую «Не подключён». Обновляется сам, когда десктоп-туннель
+ * поднимет/оборвёт WebSocket. compact — узкий вид для тулбара редактора.
+ */
+function TunnelStatusPill({
+  status,
+  compact = false,
+}: {
+  status: "online" | "offline" | "unknown";
+  compact?: boolean;
+}) {
+  const online = status === "online";
+  const label = online ? "Подключён" : "Не подключён";
+  const title = online
+    ? "Туннель подключён — генерация идёт через ваш GPU"
+    : "Туннель не подключён. Запустите nitgen и LM Studio.";
+
+  return (
+    <span
+      title={title}
+      className={`inline-flex items-center gap-1.5 rounded-md border ${
+        compact ? "px-2 py-1" : "px-2.5 py-1.5"
+      } text-[12px] font-medium ${
+        online
+          ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300"
+          : "border-white/[0.08] bg-white/[0.02] text-[#71717A]"
+      }`}
+    >
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${
+          online
+            ? "bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"
+            : "bg-[#71717A]/60"
+        }`}
+      />
+      {!compact && <span>{label}</span>}
+      {compact && <span className="hidden sm:inline">{label}</span>}
+    </span>
+  );
+}
 
 function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
   return (
