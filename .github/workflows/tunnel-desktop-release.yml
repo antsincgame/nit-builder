@@ -1,6 +1,6 @@
 name: Tunnel Desktop Release
 
-# Сборка GUI-клиента nit-tunnel (Tauri 2 + React) для всех платформ.
+# Сборка GUI-клиента nitgen (Tauri 2 + React) для всех платформ.
 #
 # Производит:
 #   - Windows  → NIT Tunnel_0.1.0_x64-setup.exe (NSIS installer)
@@ -11,14 +11,15 @@ name: Tunnel Desktop Release
 # Триггер:
 #   - push тега вида `tunnel-desktop-v*` (например `tunnel-desktop-v0.1.0`)
 #   - публикация GitHub Release с tunnel-desktop-v* тегом
-#   - ручной запуск через GitHub UI
+#   - ручной запуск через GitHub UI (workflow_dispatch)
 #
-# Артефакты автоматически прикрепляются к GitHub Release.
+# Артефакты автоматически прикрепляются к GitHub Release (для тег/release-событий).
+# При ручном запуске (workflow_dispatch) — кладутся как artifacts прогона.
 #
-# Подписание (code signing) опционально:
-#   - macOS: APPLE_CERTIFICATE + APPLE_CERTIFICATE_PASSWORD + APPLE_SIGNING_IDENTITY
-#   - Windows: WINDOWS_CERTIFICATE + WINDOWS_CERTIFICATE_PASSWORD
-# Без них бинари собираются без подписи (юзеру придётся "Allow Anyway").
+# ВАЖНО: updater убран из приложения, поэтому TAURI_SIGNING_* НЕ передаём —
+# пустой/отсутствующий ключ подписи updater'а раньше ронял `tauri build` с
+# exit code 1 на всех платформах. Code-signing (Apple/Windows) тоже опционален
+# и здесь не настроен — бинари без подписи (юзеру "Open Anyway").
 
 on:
   push:
@@ -31,12 +32,17 @@ on:
 permissions:
   contents: write
 
+# Не плодим параллельные прогоны на один и тот же ref — новый отменяет старый.
+concurrency:
+  group: tunnel-desktop-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build ${{ matrix.platform.name }}
     # Условие на release — реагируем только на tunnel-desktop-v* теги. Для
-    # push и workflow_dispatch — всегда. Без этого workflow срабатывал бы на
-    # любой release включая tunnel-v* (CLI релизы).
+    # push тега и workflow_dispatch — всегда. Без этого workflow срабатывал бы
+    # на любой release включая tunnel-v* (CLI релизы).
     if: |
       github.event_name != 'release' ||
       startsWith(github.event.release.tag_name, 'tunnel-desktop-v')
@@ -50,7 +56,7 @@ jobs:
             target: aarch64-apple-darwin
             bundles: dmg
           - name: macos-x64
-            os: macos-latest
+            os: macos-13
             target: x86_64-apple-darwin
             bundles: dmg
           - name: linux-x64
@@ -121,12 +127,11 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          # Tauri updater signing (для auto-update в будущем)
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # NB: TAURI_SIGNING_PRIVATE_KEY НЕ передаём — updater убран, а пустой
+          # ключ подписи ломал `tauri build` (exit code 1) на всех платформах.
         with:
           projectPath: tunnel/desktop
-          # Указываем target для cross-build (важно для macOS Intel на ARM runner)
+          # Указываем target для cross-build (важно для macOS Intel на отдельном раннере)
           args: --target ${{ matrix.platform.target }} --bundles ${{ matrix.platform.bundles }}
 
       - name: Upload artifacts
@@ -179,34 +184,34 @@ jobs:
             artifacts/**/*.AppImage
             artifacts/**/*.deb
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: NIT Tunnel Desktop ${{ steps.tag.outputs.tag }}
+          name: nitgen Desktop ${{ steps.tag.outputs.tag }}
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
-            ## NIT Tunnel — десктопное приложение
+            ## nitgen — десктопное приложение (туннель)
 
-            GUI-клиент для подключения LM Studio к nitgen. Один установщик — двойной клик и работает, никаких консолей.
+            GUI-клиент: проксирует ваш локальный LM Studio к nitgen, чтобы генерировать сайты на своём GPU. Один установщик — двойной клик и работает, никаких консолей.
 
             ### Скачать
 
             | Платформа | Файл |
             |---|---|
-            | 🪟 Windows 10/11 | `NIT Tunnel_*.exe` (NSIS установщик) |
-            | 🍎 macOS Apple Silicon (M1-M4) | `NIT Tunnel_*_aarch64.dmg` |
+            | 🪟 Windows 10/11 | `NIT Tunnel_*_x64-setup.exe` (NSIS установщик) |
+            | 🍎 macOS Apple Silicon (M1–M4) | `NIT Tunnel_*_aarch64.dmg` |
             | 💻 macOS Intel | `NIT Tunnel_*_x64.dmg` |
             | 🐧 Linux (Debian/Ubuntu) | `nit-tunnel_*_amd64.deb` |
             | 🐧 Linux (universal) | `nit-tunnel_*_amd64.AppImage` |
 
-            ### Как использовать
+            ### Как пользоваться
 
             **1.** Запустите LM Studio, загрузите модель (рекомендуем `Qwen2.5-Coder-7B-Instruct`), включите Server (порт 1234).
 
-            **2.** Получите ключ доступа на [nit.vibecoding.by](https://nit.vibecoding.by) → войдите в аккаунт → Settings → «Ключ доступа» → Создать новый.
+            **2.** Установите nitgen под свою ОС и запустите.
 
-            **3.** Скачайте установщик под вашу ОС, запустите, введите ключ — туннель подключится автоматически.
+            **3.** Нажмите «Войти через nitgen» — откроется браузер на [nitgen.org](https://nitgen.org), подтвердите привязку устройства. Туннель подключится автоматически.
 
-            **4.** В [nit.vibecoding.by/app](https://nit.vibecoding.by/app) загорится зелёный индикатор «Туннель онлайн» — генерация пойдёт через ваш GPU.
+            **4.** На [nitgen.org/app](https://nitgen.org/app) загорится зелёный индикатор «Подключён» — генерация пойдёт через ваш GPU.
 
             ### macOS / Windows: «приложение не подписано»
 
@@ -214,6 +219,6 @@ jobs:
 
             **macOS:** правый клик на .dmg → Open → «Open Anyway» в System Settings → Privacy & Security.
 
-            **Windows:** SmartScreen покажет «Windows protected your PC» → нажмите «More info» → «Run anyway».
+            **Windows:** SmartScreen покажет «Windows protected your PC» → «More info» → «Run anyway».
 
-            Это безопасно — исходный код полностью открыт ([GitHub](https://github.com/antsincgame/nit-builder)), сборка делается в GitHub Actions (видны логи каждой сборки).
+            Это безопасно — исходный код открыт ([GitHub](https://github.com/antsincgame/nit-builder)), сборка идёт в GitHub Actions (логи каждой сборки видны).
