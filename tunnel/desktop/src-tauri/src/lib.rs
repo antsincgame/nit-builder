@@ -19,7 +19,7 @@ use tokio::sync::Mutex;
 use tokio_util::sync::CancellationToken;
 use tunnel::{spawn as spawn_tunnel, TunnelConfig, TunnelHandle};
 
-// ─── App state ─────────────────────────────────────────
+// ─── App state ─────────────────────────────────────────────
 
 #[derive(Default)]
 struct AppState {
@@ -27,7 +27,7 @@ struct AppState {
     stop_token: Mutex<Option<CancellationToken>>,
 }
 
-// ─── IPC commands ───────────────────────────────────
+// ─── IPC commands ──────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StartTunnelPayload {
@@ -163,7 +163,7 @@ async fn login_with_nitgen(
     auth_link::run_login_flow(app, payload.site_url, payload.device_name).await
 }
 
-// ─── Entry ────────────────────────────────────────
+// ─── Entry ─────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -172,7 +172,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(
             tauri_plugin_autostart::init(
                 tauri_plugin_autostart::MacosLauncher::LaunchAgent,
