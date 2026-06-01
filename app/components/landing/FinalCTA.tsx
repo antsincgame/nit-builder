@@ -24,8 +24,8 @@ export default function FinalCTA() {
             <span className="bg-gradient-to-r from-emerald-300 via-white to-emerald-200 bg-clip-text text-transparent">через ИИ — для себя</span>
           </h2>
           <p className="relative text-lg text-[#A1A1AA] mb-10 max-w-xl mx-auto">
-            <strong className="text-white">Бесплатно для личного использования.</strong> Без карты. Без подписки.
-            Нейросеть сгенерирует сайт за <strong className="text-emerald-300">60 секунд</strong>.
+            <strong className="text-white">Бесплатно для личного использования.</strong> Без карты, без подписки.
+            Нейросеть соберёт полноценный сайт — с SEO, картинками, базой и админкой — за <strong className="text-emerald-300">60 секунд</strong>.
           </p>
 
           <div className="relative flex flex-col items-center gap-3">
