@@ -80,12 +80,16 @@ const requestListener = createRequestListener({
 // prerender живёт в Coolify, в сети 'coolify', доступен по DNS-алиасу
 // 'prerender' на порту 3000. API: GET /render?url=https://example.com
 //
-// Включается флагом PRERENDER_ENABLED=1 (по умолчанию вкл в продакшене).
+// Включается ЯВНО флагом PRERENDER_ENABLED=1. По умолчанию ВЫКЛ везде,
+// включая prod: self-hosted prerender был снят (OOM-петля под нагрузкой).
+// При дефолте "1" каждый запрос бота уходил на несуществующий хост
+// prerender:3000, висел 60 сек до таймаута и только потом фолбэкался на
+// SSR — медленно для краулеров и копит подвисшие upstream-сокеты. Кто
+// поднимет prerender обратно — выставит PRERENDER_ENABLED=1 в окружении.
 // Тайм-аут 60 сек — prerender сам по себе медленный (~9 сек на холодный
 // рендер, мгновенно из кэша).
 
-const PRERENDER_ENABLED =
-  (process.env.PRERENDER_ENABLED ?? (NODE_ENV === "production" ? "1" : "0")) === "1";
+const PRERENDER_ENABLED = (process.env.PRERENDER_ENABLED ?? "0") === "1";
 const PRERENDER_HOST = process.env.PRERENDER_HOST ?? "prerender";
 const PRERENDER_PORT = parseInt(process.env.PRERENDER_PORT ?? "3000", 10);
 const PRERENDER_TIMEOUT_MS = parseInt(process.env.PRERENDER_TIMEOUT_MS ?? "60000", 10);
