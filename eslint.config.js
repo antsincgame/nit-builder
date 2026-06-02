@@ -27,7 +27,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
 
 export default tseslint.config(
-  // ─── 1. Игнор ───────────────────────────────────────────────
+  // ─── 1. Игнор ────────────────────────────────────
   {
     ignores: [
       "node_modules/**",
@@ -46,11 +46,11 @@ export default tseslint.config(
     ],
   },
 
-  // ─── 2. Базовые JS правила для всех .ts/.tsx ───────────────
+  // ─── 2. Базовые JS правила для всех .ts/.tsx ───────────
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
-  // ─── 3. Browser/Node globals + React Hooks ─────────────────
+  // ─── 3. Browser/Node globals + React Hooks ─────────────
   {
     files: ["app/**/*.{ts,tsx}", "shared/**/*.ts"],
     languageOptions: {
@@ -84,7 +84,7 @@ export default tseslint.config(
       // но в JSX prop-типах допустимо для placeholder'ов.
       "@typescript-eslint/no-empty-object-type": "off",
 
-      // ─── Vanilla JS ─────────────
+      // ─── Vanilla JS ───────────
       "no-console": "off", // логгер ниже warn-уровня — namespaced, ок
       "no-debugger": "error",
       "no-alert": "error",
@@ -100,19 +100,27 @@ export default tseslint.config(
     },
   },
 
-  // ─── 4. Server-only ужесточения ────────────────────────────
+  // ─── 4. Server-only ужесточения ─────────────────────────────
   // В server-коде ловим необработанные промисы — на сервере unhandled
   // rejection потенциально роняет процесс/режет SSR ответ.
   {
     files: ["app/lib/server/**/*.ts", "app/routes/api.*.ts", "server.ts"],
+    // Type-aware парсинг ТОЛЬКО для этих файлов (не весь recommendedTypeChecked
+    // на проект — иначе лишний шум и медленный lint). projectService даёт type
+    // info, нужный no-floating-promises. tsconfigRootDir по умолчанию = cwd
+    // (корень репо, где tsconfig.json) — при запуске `eslint .` это верно.
+    languageOptions: {
+      parserOptions: { projectService: true },
+    },
     rules: {
-      // no-misused-promises требует type info — оставим warn чтобы
-      // постепенно прибирать без падения CI.
-      "@typescript-eslint/no-floating-promises": "off", // нужен type-aware, дорого
+      // Необработанный промис в server-коде = потенциальный unhandled
+      // rejection (роняет процесс / рвёт SSR). Намеренный fire-and-forget
+      // помечается `void`-префиксом (как в wsHandlers) — он НЕ флагается.
+      "@typescript-eslint/no-floating-promises": "error",
     },
   },
 
-  // ─── 5. Тестам можно больше ────────────────────────────────
+  // ─── 5. Тестам можно больше ────────────────────────
   {
     files: ["tests/**/*.ts", "**/*.test.ts", "**/*.test.tsx"],
     languageOptions: {
@@ -125,7 +133,7 @@ export default tseslint.config(
     },
   },
 
-  // ─── 6. Скрипты — Node-only globals ────────────────────────
+  // ─── 6. Скрипты — Node-only globals ──────────────────────
   // .mjs включён вместе с .ts — sync-version.mjs (запускается из npm-hook
   // "version") использует console/process; без явного globals.node lint
   // падает no-undef.
@@ -134,7 +142,7 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node } },
   },
 
-  // ─── 7. Tunnel CLI / Tauri UI ──────────────────────────────
+  // ─── 7. Tunnel CLI / Tauri UI ──────────────────────────
   {
     files: ["tunnel/**/*.{ts,tsx}"],
     languageOptions: {
