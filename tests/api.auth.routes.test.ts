@@ -63,7 +63,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  // vitest 4: resetAllMocks, НЕ restoreAllMocks. В v4 restore «восстанавливает»
+  // фабричные vi.fn() из vi.mock(), отвязывая их от верхнеуровневых ссылок
+  // (mockedVerifyToken и пр.) — после этого .mockReturnValue() в теле теста
+  // влияет на отвязанный объект, а роут вызывает уже другой (восстановленный)
+  // → возвращался undefined и тесты на успешную авторизацию падали. reset
+  // сбрасывает реализацию+историю, сохраняя сам объект мока.
+  vi.resetAllMocks();
 });
 
 function jsonRequest(url: string, body: unknown, opts?: { method?: string; ip?: string }): Request {
