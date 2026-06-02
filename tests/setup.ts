@@ -36,3 +36,48 @@ if (typeof window !== "undefined" && !window.matchMedia) {
     }),
   });
 }
+
+// localStorage / sessionStorage.
+//
+// jsdom их предоставляет, НО на Node >= 22.4 появился НАТИВНЫЙ
+// globalThis.localStorage, недоступный без флага --localstorage-file
+// (обращение даёт undefined + ExperimentalWarning). В связке с vitest 4 + jsdom
+// он по-разному (зависит от минорной версии Node / воркера) перебивает
+// jsdom-овский Storage — тесты, дёргающие window.localStorage, падают с
+// "Cannot read properties of undefined (reading 'clear')".
+//
+// Ставим детерминированный in-memory Storage НЕЗАВИСИМО от версии Node. Покрыты
+// все используемые методы (getItem/setItem/removeItem/clear/key/length); никаких
+// jsdom-специфичных Storage-семантик (events, quota) тесты не используют.
+if (typeof window !== "undefined") {
+  const createStorageMock = (): Storage => {
+    let store: Record<string, string> = {};
+    return {
+      get length() {
+        return Object.keys(store).length;
+      },
+      clear() {
+        store = {};
+      },
+      getItem(key: string) {
+        return Object.prototype.hasOwnProperty.call(store, key) ? store[key]! : null;
+      },
+      key(index: number) {
+        return Object.keys(store)[index] ?? null;
+      },
+      removeItem(key: string) {
+        delete store[key];
+      },
+      setItem(key: string, value: string) {
+        store[key] = String(value);
+      },
+    };
+  };
+  for (const name of ["localStorage", "sessionStorage"] as const) {
+    Object.defineProperty(window, name, {
+      writable: true,
+      configurable: true,
+      value: createStorageMock(),
+    });
+  }
+}
