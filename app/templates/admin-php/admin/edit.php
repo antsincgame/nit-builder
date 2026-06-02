@@ -39,10 +39,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($type === 'richtext') {
             $raw = (string)($_POST['value'] ?? '');
-            // Whitelist разрешённых тегов. strip_tags не удаляет атрибуты,
-            // но дальше мы хотя бы блокируем теги script/style/iframe/object.
-            // Для полной защиты от XSS на production стоит подключить HTMLPurifier.
+            // 1) Whitelist тегов. strip_tags вырезает script/style/iframe/object,
+            //    но НЕ трогает атрибуты — после него на разрешённых тегах могут
+            //    остаться on*-хендлеры и javascript:-ссылки.
             $clean = strip_tags($raw, '<p><br><strong><em><b><i><u><a><ul><ol><li><h2><h3><h4><blockquote>');
+            // 2) Baseline anti-XSS поверх strip_tags (zero-dep, без HTMLPurifier):
+            //    a. срезаем любые on*-атрибуты (onclick/onerror/onmouseover/…);
+            //    b. нейтрализуем опасные схемы в href/src (javascript:/vbscript:/data:),
+            //       в т.ч. с пробелами/таб/перевод строки внутри схемы (jav\tascript:).
+            //    preg_replace может вернуть null (backtrack-лимит) — тогда не теряем
+            //    контент, а откатываемся к версии после strip_tags.
+            $clean = preg_replace('/\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
+            $clean = preg_replace(
+                '/\b(href|src)\s*=\s*("|\')\s*[\s\x00-\x20]*(?:j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t|d\s*a\s*t\s*a)\s*:[^"\']*\2/i',
+                '$1="#"',
+                $clean,
+            ) ?? $clean;
+            // Полноценная защита для недоверенного multi-user редактирования —
+            // по-прежнему HTMLPurifier; здесь модель угроз «владелец правит свой сайт».
             if (mb_strlen($clean) > 10000) {
                 $err = 'Слишком длинный контент (максимум 10000 символов).';
             } else {

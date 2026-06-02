@@ -32,10 +32,15 @@
 
 ## Nginx-конфигурация (если не Apache)
 
+`.htaccess` Nginx **игнорирует** — без правил ниже `data/users.json` (хеши паролей) открыт по HTTP, а PHP в `assets/uploads/` исполняется. Готовый сниппет лежит в архиве: `nginx-snippet.conf` — подключи его внутри `server { … }` через `include /path/to/nginx-snippet.conf;` (либо вставь вручную):
+
 ```nginx
-location ~ /data/ { deny all; }
-location /assets/uploads/ {
-    location ~ \.(php|phtml|phps)$ { deny all; }
+# Префикс ^~ обязателен: он перебивает regex-локейшен PHP-FPM
+# (location ~ \.php$). Без ^~ запрос /assets/uploads/evil.php ушёл бы
+# в FPM ДО вложенного deny, и шелл бы выполнился.
+location ^~ /data/        { deny all; return 403; }
+location ^~ /assets/uploads/ {
+    location ~* \.(php|phtml|phps|php[0-9]?|phar|pl|py|cgi|asp|sh)$ { deny all; }
 }
 ```
 
@@ -69,7 +74,8 @@ data/
 assets/uploads/       ← сюда летят картинки из админки
   .htaccess           ← запрет исполнения PHP
 setup-<8hex>.php      ← одноразовый: создание админа, удалить после
-.htaccess             ← общие правила (no indexes, charset)
+.htaccess             ← общие правила (no indexes, charset) — Apache
+nginx-snippet.conf    ← эквивалент .htaccess-защиты для Nginx (include в server)
 README.md
 ```
 

@@ -137,7 +137,7 @@ jobs:
 
             **1.** Запусти LM Studio, загрузи модель (рекомендуем `Qwen2.5-Coder-7B-Instruct`), включи Server (порт 1234).
 
-            **2.** Получи tunnel-токен в [nit.vibecoding.by](https://nit.vibecoding.by) → войди в аккаунт → Settings → «Ключ доступа» →  Создать новый.
+            **2.** Получи tunnel-токен в [nitgen.org](https://nitgen.org) → войди в аккаунт → Settings → «Ключ доступа» →  Создать новый.
 
             **3.** Скачай бинарник под твою ОС.
 
@@ -152,7 +152,7 @@ jobs:
             ```powershell
             .\nit-tunnel-windows-x64.exe `
               --token ТВОЙ_ТОКЕН `
-              --server wss://nit.vibecoding.by/api/tunnel `
+              --server wss://nitgen.org/api/tunnel `
               --lm-studio http://localhost:1234/v1
             ```
 
@@ -160,11 +160,11 @@ jobs:
             ```bash
             ./nit-tunnel-macos-arm64 \
               --token ТВОЙ_ТОКЕН \
-              --server wss://nit.vibecoding.by/api/tunnel \
+              --server wss://nitgen.org/api/tunnel \
               --lm-studio http://localhost:1234/v1
             ```
 
-            Когда CLI подключится — в nit.vibecoding.by/app в навбаре загорится зелёный индикатор «Туннель онлайн», генерация пойдёт через твой GPU.
+            Когда CLI подключится — в nitgen.org/app в навбаре загорится зелёный индикатор «Туннель онлайн», генерация пойдёт через твой GPU.
 
             ### Note for macOS users
 
