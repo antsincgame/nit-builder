@@ -356,6 +356,13 @@ export function useGenerationFlow(
           setLoading(false);
           activeRequestIdRef.current = null;
 
+          // ABORTED — это эхо нашего же abort: юзер нажал «отмена», и
+          // cancelGeneration уже показал warning-тост и сбросил вид. Живой
+          // браузер получает ABORTED только так (disconnect/revoke-пути
+          // абортят уже после закрытия сокета). Не плодим второй (к тому же
+          // англоязычный) error-тост и красный чат-бабл.
+          if (event.code === "ABORTED") break;
+
           let msg = event.error;
           if (event.code === "NO_TUNNEL") {
             msg = "Твой туннель не подключён. Запусти NIT Tunnel клиент.";
