@@ -80,6 +80,29 @@ export async function runHttpPipeline(
     signal: params.signal,
   });
 
+  // Не-SSE ошибка ДО старта стрима (429 rate-limit, 400 validation, 401,
+  // 5xx). Тело такого ответа — JSON {error}, а не event-stream: parseSseStream
+  // над ним не даёт ни одного события и не бросает. Без этой проверки caller
+  // получил бы пустой результат (finalHtml="") и молча провалился в editing
+  // с белым экраном — точно как пустой результат на туннельном пути до
+  // isUsableHtml. Достаём message из тела и бросаем — createSite/polishSite
+  // покажут toast.error и вернут в welcome.
+  if (!res.ok) {
+    let detail = `Сервер вернул ошибку (HTTP ${res.status})`;
+    try {
+      const body = (await res.json()) as { error?: string; retryAfter?: number };
+      if (body?.error) {
+        detail = body.error;
+        if (res.status === 429 && typeof body.retryAfter === "number") {
+          detail += `. Повтори через ${body.retryAfter}s.`;
+        }
+      }
+    } catch {
+      // тело не JSON — оставляем generic message
+    }
+    throw new Error(detail);
+  }
+
   let accumulated = "";
   let templateId = "";
   let templateName = "";
