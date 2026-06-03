@@ -245,3 +245,80 @@ describe("runHttpPipeline", () => {
     expect(body.mode).toBe("polish");
   });
 });
+
+describe("runHttpPipeline — не-SSE ошибки ответа", () => {
+  it("429 rate-limit → бросает Error с message из тела + retryAfter", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "Too many requests", retryAfter: 5 }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(
+      runHttpPipeline({
+        mode: "create",
+        projectId: "p-1",
+        prompt: "site",
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toThrow(/Too many requests\. Повтори через 5s\./);
+  });
+
+  it("400 validation → бросает Error с message из тела", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "message too long" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(
+      runHttpPipeline({
+        mode: "create",
+        projectId: "p-1",
+        prompt: "x",
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toThrow(/message too long/);
+  });
+
+  it("5xx с не-JSON телом → generic Error с кодом статуса", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response("Internal Server Error", { status: 500 }),
+    );
+
+    await expect(
+      runHttpPipeline({
+        mode: "create",
+        projectId: "p-1",
+        prompt: "x",
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toThrow(/HTTP 500/);
+  });
+
+  it("не дёргает onEvent при не-SSE ошибке (нет пустого результата)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "nope" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    const onEvent = vi.fn();
+
+    await expect(
+      runHttpPipeline({
+        mode: "create",
+        projectId: "p-1",
+        prompt: "x",
+        signal: new AbortController().signal,
+        onEvent,
+      }),
+    ).rejects.toThrow();
+    expect(onEvent).not.toHaveBeenCalled();
+  });
+});
