@@ -283,6 +283,7 @@ async function handleGenerate(
           fullText: delta.fullText ?? fullText,
           durationMs: delta.durationMs ?? Date.now() - startedAt,
           completionTokens: tokenCount,
+          finishReason: delta.finishReason ?? "stop",
         });
         log.info(
           `✓ Completed ${req.requestId.slice(0, 8)} in ${((Date.now() - startedAt) / 1000).toFixed(1)}s, ${tokenCount} chunks`,
