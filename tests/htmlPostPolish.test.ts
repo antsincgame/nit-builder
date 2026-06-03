@@ -42,4 +42,16 @@ describe("postPolishHtml", () => {
     expect(result.html).toContain("--nit-polish-bg:#f8fafc");
     expect(result.html).not.toContain("#ff2e93");
   });
+
+  it("не триггерит light override на слово 'cybersecurity' в копирайте без реальных neon-токенов", () => {
+    const result = postPolishHtml({
+      html: "<html><head></head><body><h1>Cybersecurity для бизнеса</h1><p>Надёжная защита без лишней суеты.</p></body></html>",
+      presetId: "clean-saas",
+      plan: PLAN,
+    });
+
+    expect(result.fixes).not.toContain("light-style-override");
+    expect(result.fixes).not.toContain("neon-token-rewrite");
+    expect(result.html).not.toContain("nit-post-polish-style");
+  });
 });
