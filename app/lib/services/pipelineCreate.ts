@@ -84,13 +84,27 @@ function resolveArtifactMode(
   return shouldUseCustomArtifactMode(sanitizedUserMessage) ? "custom" : "template";
 }
 
+// Пороги эвристики "тонкого" custom-артефакта. Вынесены в именованные
+// константы чтобы их можно было крутить точечно (раньше были magic numbers
+// внутри функции). Значения сохранены 1-в-1 — это рефактор, не смена поведения.
+const THIN_ARTIFACT = {
+  minHtmlChars: 20_000,
+  minSections: 6,
+  minKeyframes: 2,
+  minCardish: 8,
+} as const;
+
 function customArtifactLooksTooThin(html: string): boolean {
-  if (html.length < 20_000) return true;
+  if (html.length < THIN_ARTIFACT.minHtmlChars) return true;
   if (/<!--\s*(add|todo|здесь|placeholder)/i.test(html)) return true;
   const sectionCount = (html.match(/<section\b/gi) ?? []).length;
   const keyframesCount = (html.match(/@keyframes\b/gi) ?? []).length;
   const cardishCount = (html.match(/class=["'][^"']*(card|panel|tile|widget|stat|feature)/gi) ?? []).length;
-  return sectionCount < 6 || keyframesCount < 2 || cardishCount < 8;
+  return (
+    sectionCount < THIN_ARTIFACT.minSections ||
+    keyframesCount < THIN_ARTIFACT.minKeyframes ||
+    cardishCount < THIN_ARTIFACT.minCardish
+  );
 }
 
 function normalizeBackendPlanForPrompt(plan: Plan, prompt: string): Plan {
@@ -254,7 +268,7 @@ export async function* executeHtmlSimple(
       templateId: "php-sqlite-app",
       planCached: planCachedFlag,
       injectMethod: "skeleton",
-      errorReason: "php-sqlite-artifact",
+      note: "php-sqlite-artifact",
     });
 
     yield { type: "text", text: fullHtml };
@@ -557,7 +571,7 @@ export async function* executeHtmlSimple(
         templateId: template.id,
         planCached: planCachedFlag,
         injectMethod: "coder",
-        errorReason: "truncated",
+        note: "truncated",
       });
       yield {
         type: "truncated",
