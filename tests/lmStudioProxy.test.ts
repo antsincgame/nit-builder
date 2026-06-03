@@ -133,6 +133,46 @@ describe("streamFromLmStudio", () => {
     expect(events[3]?.fullText).toBe("Hello world");
   });
 
+  it("проставляет finishReason=length когда модель упёрлась в лимит", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseStream([
+        JSON.stringify({ choices: [{ delta: { content: "abc" } }] }),
+        JSON.stringify({ choices: [{ delta: {}, finish_reason: "length" }] }),
+      ]),
+    );
+
+    const events: Array<{ type: string; finishReason?: string }> = [];
+    for await (const ev of streamFromLmStudio(
+      { baseUrl: "http://x/v1", model: "m", timeoutMs: 1000 },
+      { system: "s", prompt: "p", maxTokens: 10, temperature: 0.5 },
+    )) {
+      events.push(ev);
+    }
+
+    const done = events.find((e) => e.type === "done");
+    expect(done?.finishReason).toBe("length");
+  });
+
+  it("finishReason=stop при нормальном завершении (finish_reason=stop)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseStream([
+        JSON.stringify({ choices: [{ delta: { content: "abc" } }] }),
+        JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }] }),
+      ]),
+    );
+
+    const events: Array<{ type: string; finishReason?: string }> = [];
+    for await (const ev of streamFromLmStudio(
+      { baseUrl: "http://x/v1", model: "m", timeoutMs: 1000 },
+      { system: "s", prompt: "p", maxTokens: 100, temperature: 0.5 },
+    )) {
+      events.push(ev);
+    }
+
+    const done = events.find((e) => e.type === "done");
+    expect(done?.finishReason).toBe("stop");
+  });
+
   it("шлёт правильный POST body на /chat/completions", async () => {
     const fetchMock = vi.fn().mockResolvedValue(makeSseStream([]));
     globalThis.fetch = fetchMock;
