@@ -55,6 +55,14 @@ export type TunnelToServer =
       durationMs: number;
       promptTokens?: number;
       completionTokens?: number;
+      /**
+       * Причина остановки генерации у локальной модели. "length" означает что
+       * модель упёрлась в maxOutputTokens и HTML оборван — сервер запустит
+       * server-driven continuation (см. tunnelRegistry). Optional: старые
+       * клиенты туннеля поле не шлют → сервер трактует как "stop" (без докрутки),
+       * поэтому добавление backward-compatible и не требует bump PROTOCOL_VERSION.
+       */
+      finishReason?: "stop" | "length" | "unknown";
     }
   | { type: "response_error"; requestId: string; error: string };
 
@@ -138,7 +146,8 @@ export type ServerToBrowser =
         | "TUNNEL_DISCONNECTED"
         | "LLM_ERROR"
         | "TIMEOUT"
-        | "RATE_LIMITED";
+        | "RATE_LIMITED"
+        | "ABORTED";
     }
   | { type: "heartbeat_ack" };
 
