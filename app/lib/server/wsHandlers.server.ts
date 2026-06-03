@@ -39,6 +39,11 @@ import {
 } from "./appwrite.server";
 import { parseSessionCookie, verifySessionToken } from "./sessionCookie.server";
 import { analyzePrompt, buildEnrichedSystemPrompt } from "~/lib/services/promptAnalyzer";
+import {
+  buildTunnelPlanPrompt,
+  TUNNEL_PLAN_MAX_TOKENS,
+  TUNNEL_CODE_MAX_TOKENS,
+} from "~/lib/services/tunnelPipeline.server";
 import { inferStylePresetId, injectStylePreset } from "~/lib/llm/style-presets";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
 import {
@@ -337,6 +342,7 @@ export function handleTunnelConnection(ws: WebSocket, req: IncomingMessage): voi
             type: "done",
             fullText: msg.fullText,
             durationMs: msg.durationMs,
+            finishReason: msg.finishReason,
           });
         } else {
           handleTunnelResponse(requestId, { type: "error", error: msg.error });
@@ -532,35 +538,65 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
           return;
         }
 
-        const system = injectStylePreset(
-          buildEnrichedSystemPrompt(msg.prompt, analysis),
-          msg.stylePresetId ?? inferStylePresetId(msg.prompt),
-        );
+        const presetId = msg.stylePresetId ?? inferStylePresetId(msg.prompt);
+        const reqId = msg.requestId;
+        const userPrompt = msg.prompt;
+        const uid = authed.userId;
 
-        const routed = routeRequest({
-          requestId: msg.requestId,
-          userId: authed.userId,
-          browserSessionId: sessionId,
-          system,
-          prompt: msg.prompt,
-          maxOutputTokens: 8000,
-          temperature: 0.4,
-        });
+        // Двухфазный планировщик: planner-промпт строим на сервере (RAG few-shot
+        // + retriever shortlist), его JSON-план генерит модель юзера за туннелем
+        // (фаза 1); затем сервер делает skeleton/prune/post-polish и при
+        // необходимости шлёт coder-промпт (фаза 2). Fallback на одношаговый
+        // enriched-промпт если planner-промпт построить не удалось.
+        void (async () => {
+          let routed = false;
+          try {
+            const planPrompt = await buildTunnelPlanPrompt(userPrompt);
+            routed = routeRequest({
+              requestId: reqId,
+              userId: uid,
+              browserSessionId: sessionId,
+              system: planPrompt.system,
+              prompt: planPrompt.prompt,
+              maxOutputTokens: TUNNEL_PLAN_MAX_TOKENS,
+              temperature: 0.3,
+              phase: "plan",
+              originalPrompt: userPrompt,
+              stylePresetId: presetId,
+              codeMaxOutputTokens: TUNNEL_CODE_MAX_TOKENS,
+            });
+          } catch {
+            // planner-промпт не построился — одношаговый enriched fallback
+            const system = injectStylePreset(
+              buildEnrichedSystemPrompt(userPrompt, analysis),
+              presetId,
+            );
+            routed = routeRequest({
+              requestId: reqId,
+              userId: uid,
+              browserSessionId: sessionId,
+              system,
+              prompt: userPrompt,
+              maxOutputTokens: TUNNEL_CODE_MAX_TOKENS,
+              temperature: 0.4,
+              originalPrompt: userPrompt,
+              stylePresetId: presetId,
+            });
+            if (routed) setRequestTemplate(reqId, analysis.template.id, analysis.template.name);
+          }
 
-        if (!routed) {
-          const hasTunnel = hasTunnelForUser(authed.userId);
-          send({
-            type: "generate_error",
-            requestId: msg.requestId,
-            error: hasTunnel
-              ? "Слишком много параллельных генераций. Дождись завершения текущих."
-              : "No tunnel connected. Install NIT Tunnel on a device with a GPU.",
-            code: hasTunnel ? "RATE_LIMITED" : "NO_TUNNEL",
-          });
-          return;
-        }
-
-        setRequestTemplate(msg.requestId, analysis.template.id, analysis.template.name);
+          if (!routed) {
+            const hasTunnel = hasTunnelForUser(uid);
+            send({
+              type: "generate_error",
+              requestId: reqId,
+              error: hasTunnel
+                ? "Слишком много параллельных генераций. Дождись завершения текущих."
+                : "No tunnel connected. Install NIT Tunnel on a device with a GPU.",
+              code: hasTunnel ? "RATE_LIMITED" : "NO_TUNNEL",
+            });
+          }
+        })();
         break;
       }
 
