@@ -56,6 +56,14 @@ export type FeedbackRecord = {
   cssPatchRuleCount?: number;
   /** Только при outcome="error". */
   errorReason?: string;
+  /**
+   * Произвольный тег для НЕ-ошибочных исходов (outcome="success"): например
+   * "truncated", "php-sqlite-artifact", "tunnel-continued". Раньше для этого
+   * переиспользовался errorReason при success — это загрязняло аналитику
+   * ошибок (success-записи попадали в выборку по errorReason). Теперь errorReason
+   * строго про ошибки, note — про пометки успешных генераций.
+   */
+  note?: string;
   /** План был возвращён из кеша. */
   planCached?: boolean;
   /**
