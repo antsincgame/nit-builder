@@ -551,4 +551,147 @@ describe("tunnelRegistry", () => {
       expect(stats.maxConcurrentPerUser).toBeGreaterThan(0);
     });
   });
+  describe("requestId dedup / abort notify / done validation / continuation", () => {
+    it("ignores duplicate routeRequest with the same requestId", () => {
+      const { conn, ws: tws } = makeTunnel("alice", "t-dup");
+      const { session } = makeBrowser("alice", "s-dup");
+      registerTunnel(conn);
+      registerBrowser(session);
+
+      const first = routeRequest({
+        requestId: "dup-1",
+        userId: "alice",
+        browserSessionId: "s-dup",
+        system: "",
+        prompt: "p",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+      const second = routeRequest({
+        requestId: "dup-1",
+        userId: "alice",
+        browserSessionId: "s-dup",
+        system: "",
+        prompt: "p",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+
+      expect(first).toBe(true);
+      expect(second).toBe(false);
+      // только один generate ушёл в туннель, routed-счётчик == 1
+      const generates = tws.sent.filter((m) => (m as { type: string }).type === "generate");
+      expect(generates.length).toBe(1);
+      expect(getStats().totalRequestsRouted).toBe(1);
+    });
+
+    it("abort notifies the browser and increments totalRequestsAborted", () => {
+      const { conn } = makeTunnel("alice", "t-abrt");
+      const { session, ws: bws } = makeBrowser("alice", "s-abrt");
+      registerTunnel(conn);
+      registerBrowser(session);
+      routeRequest({
+        requestId: "abrt-1",
+        userId: "alice",
+        browserSessionId: "s-abrt",
+        system: "",
+        prompt: "p",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+      bws.sent.length = 0;
+
+      abortRequest("abrt-1");
+
+      const err = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_error",
+      ) as { code: string } | undefined;
+      expect(err).toBeDefined();
+      expect(err!.code).toBe("ABORTED");
+      expect(getStats().totalRequestsAborted).toBe(1);
+    });
+
+    it("treats empty/garbage done as an error, not a finished site", () => {
+      const { conn } = makeTunnel("alice", "t-empty");
+      const { session, ws: bws } = makeBrowser("alice", "s-empty");
+      registerTunnel(conn);
+      registerBrowser(session);
+      routeRequest({
+        requestId: "empty-1",
+        userId: "alice",
+        browserSessionId: "s-empty",
+        system: "",
+        prompt: "p",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+      bws.sent.length = 0;
+
+      handleTunnelResponse("empty-1", {
+        type: "done",
+        fullText: "   ",
+        durationMs: 50,
+      });
+
+      expect(bws.sent.some((m) => (m as { type: string }).type === "generate_done")).toBe(false);
+      const err = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_error",
+      ) as { code: string } | undefined;
+      expect(err).toBeDefined();
+      expect(err!.code).toBe("LLM_ERROR");
+      expect(getStats().totalRequestsFailed).toBe(1);
+      expect(getStats().totalRequestsCompleted).toBe(0);
+    });
+
+    it("auto-continues when the model stops on length, then finalizes", () => {
+      const { conn, ws: tws } = makeTunnel("alice", "t-cont");
+      const { session, ws: bws } = makeBrowser("alice", "s-cont");
+      registerTunnel(conn);
+      registerBrowser(session);
+      routeRequest({
+        requestId: "cont-1",
+        userId: "alice",
+        browserSessionId: "s-cont",
+        system: "",
+        prompt: "сделай лендинг",
+        maxOutputTokens: 1000,
+        temperature: 0.4,
+      });
+      tws.sent.length = 0;
+      bws.sent.length = 0;
+
+      // Раунд 1: модель оборвалась на длине → должен уйти continuation-generate
+      handleTunnelResponse("cont-1", {
+        type: "done",
+        fullText: "<!DOCTYPE html><html><body><div>part 1",
+        durationMs: 100,
+        finishReason: "length",
+      });
+
+      const contGen = tws.sent.find(
+        (m) => (m as { type: string }).type === "generate",
+      ) as { system: string; requestId: string } | undefined;
+      expect(contGen).toBeDefined();
+      expect(contGen!.requestId).toBe("cont-1");
+      // браузеру ещё НЕ финализировали
+      expect(bws.sent.some((m) => (m as { type: string }).type === "generate_done")).toBe(false);
+      expect(getStats().totalRequestsCompleted).toBe(0);
+
+      // Раунд 2: докрутка завершилась нормально → финал
+      handleTunnelResponse("cont-1", {
+        type: "done",
+        fullText: "</div></body></html>",
+        durationMs: 80,
+        finishReason: "stop",
+      });
+
+      const done = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_done",
+      ) as { html: string } | undefined;
+      expect(done).toBeDefined();
+      expect(done!.html).toContain("part 1");
+      expect(done!.html.toLowerCase()).toContain("</html>");
+      expect(getStats().totalRequestsCompleted).toBe(1);
+    });
+  });
 });
