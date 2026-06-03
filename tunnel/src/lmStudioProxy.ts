@@ -9,6 +9,8 @@ export type StreamDelta = {
   fullText?: string;
   error?: string;
   durationMs?: number;
+  /** Только для type==="done": причина остановки от OpenAI-совместимого API. */
+  finishReason?: "stop" | "length" | "unknown";
 };
 
 export type ProxyConfig = {
@@ -51,6 +53,7 @@ export async function* streamFromLmStudio(
   }
 
   let fullText = "";
+  let finishReason: "stop" | "length" | "unknown" = "unknown";
 
   try {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
@@ -95,13 +98,21 @@ export async function* streamFromLmStudio(
 
           try {
             const parsed = JSON.parse(data) as {
-              choices?: Array<{ delta?: { content?: string } }>;
+              choices?: Array<{
+                delta?: { content?: string };
+                finish_reason?: string | null;
+              }>;
             };
-            const delta = parsed.choices?.[0]?.delta?.content;
+            const choice = parsed.choices?.[0];
+            const delta = choice?.delta?.content;
             if (delta) {
               fullText += delta;
               yield { type: "text", text: delta };
             }
+            // finish_reason приходит в последнем чанке (delta пустой). "length" —
+            // упёрлись в max_tokens, остальное (stop/null) — нормальное завершение.
+            const fr = choice?.finish_reason;
+            if (fr) finishReason = fr === "length" ? "length" : "stop";
           } catch {
             // Skip malformed chunks
           }
@@ -113,6 +124,7 @@ export async function* streamFromLmStudio(
       type: "done",
       fullText,
       durationMs: Date.now() - startedAt,
+      finishReason,
     };
   } catch (err) {
     if ((err as Error).name === "AbortError") {
