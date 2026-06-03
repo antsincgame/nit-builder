@@ -251,7 +251,18 @@ describe("streamFromLmStudio", () => {
   });
 
   it("AbortSignal от пользователя → error 'Request aborted'", async () => {
-    // Симулируем висящий response — никогда не резолвится сам, только при abort
+    // Детерминированно: fetch-mock резолвит fetchAttached РОВНО когда повесил
+    // abort-listener и завис на pending-промисе. Только тогда дёргаем abort.
+    // Раньше тут был `setTimeout(r, 10)` — под нагрузкой CI генератор мог не
+    // успеть дойти до fetch (повесить listener) за 10ms; abort прилетал раньше,
+    // mock вешал listener на уже-aborted signal (он не реджектит на уже
+    // отменённом сигнале, в отличие от настоящего fetch), промис не
+    // разрешался → тест висел до vitest-таймаута. Это и был флаки-тест.
+    let resolveAttached: () => void = () => {};
+    const fetchAttached = new Promise<void>((resolve) => {
+      resolveAttached = resolve;
+    });
+
     globalThis.fetch = vi.fn().mockImplementation(
       (_url, init: RequestInit) => {
         return new Promise((_, reject) => {
@@ -260,6 +271,8 @@ describe("streamFromLmStudio", () => {
             err.name = "AbortError";
             reject(err);
           });
+          // listener повешен, генератор сейчас висит на этом await fetch
+          resolveAttached();
         });
       },
     );
@@ -282,8 +295,7 @@ describe("streamFromLmStudio", () => {
       }
     })();
 
-    // Дадим start выйти, потом abort
-    await new Promise((r) => setTimeout(r, 10));
+    await fetchAttached;
     userSignal.abort();
     await promise;
 
