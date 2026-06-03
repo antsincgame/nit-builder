@@ -30,6 +30,13 @@ import {
   MAX_CONTINUATION_ATTEMPTS,
 } from "~/lib/services/continuation";
 import { recordGeneration } from "~/lib/services/feedbackStore";
+import {
+  parseTunnelPlan,
+  resolveTunnelPlan,
+  finalizeTunnelHtml,
+} from "~/lib/services/tunnelPipeline.server";
+import type { Plan } from "~/lib/utils/planSchema";
+import type { StylePresetId } from "~/lib/llm/style-presets";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -95,6 +102,20 @@ export type PendingRequest = {
   accumulatedHtml?: string;
   /** Сколько раз уже до-генерировали из-за обрыва по длине. */
   continuationAttempts?: number;
+  // ─── Двухфазный планировщик (tunnelPipeline) ───
+  /**
+   * Фаза запроса. "plan" — туннель генерит JSON-план (фаза 1), его текст НЕ
+   * показывается браузеру; по done сервер парсит план, пробует skeleton и
+   * либо финализирует, либо шлёт coder-промпт фазы 2. "code" — туннель генерит
+   * HTML (фаза 2 или legacy одношаговый путь). Отсутствие = "code".
+   */
+  phase?: "plan" | "code";
+  /** Стиль-пресет (для resolveTunnelPlan и post-polish финализации). */
+  stylePresetId?: StylePresetId;
+  /** План, полученный в фазе 1 — нужен для post-polish финализации HTML. */
+  plan?: Plan;
+  /** Пресет, выбранный при резолюции плана — для финализации фазы code. */
+  presetId?: StylePresetId;
   /** Called when request completes or errors */
   onComplete?: (html: string) => void;
   onError?: (error: string) => void;
@@ -447,6 +468,15 @@ export type RouteRequestParams = {
   prompt: string;
   maxOutputTokens: number;
   temperature: number;
+  // ─── Двухфазный планировщик ───
+  /** "plan" — первый generate это планировщик; "code"/отсутствие — legacy. */
+  phase?: "plan" | "code";
+  /** Исходное сообщение юзера (в plan-фазе prompt = planner-промпт, не оно). */
+  originalPrompt?: string;
+  /** Стиль-пресет для резолюции плана + post-polish. */
+  stylePresetId?: StylePresetId;
+  /** Бюджет токенов фазы кодера/continuation (initial send юзает maxOutputTokens). */
+  codeMaxOutputTokens?: number;
 };
 
 /**
@@ -475,14 +505,22 @@ export function routeRequest(params: RouteRequestParams): boolean {
     tunnelConnectionId: tunnel.connectionId,
     startedAt: now,
     lastActivityAt: now,
-    currentStep: "plan",
-    userMessage: params.prompt,
-    maxOutputTokens: params.maxOutputTokens,
+    currentStep: params.phase === "plan" ? "plan" : "code",
+    // userMessage — всегда исходное сообщение юзера (в plan-фазе params.prompt
+    // это planner-промпт, поэтому берём originalPrompt). Нужен для coder-фазы,
+    // continuation и feedback.
+    userMessage: params.originalPrompt ?? params.prompt,
+    // maxOutputTokens хранится как бюджет ФАЗЫ КОДЕРА (и continuation). Первый
+    // send ниже использует params.maxOutputTokens (в plan-фазе — короткий
+    // plan-бюджет), а на фазу code переключаемся уже с code-бюджетом.
+    maxOutputTokens: params.codeMaxOutputTokens ?? params.maxOutputTokens,
     temperature: params.temperature,
     model: tunnel.capabilities.model,
     provider: `tunnel:${tunnel.capabilities.runtime}`,
     accumulatedHtml: "",
     continuationAttempts: 0,
+    phase: params.phase ?? "code",
+    stylePresetId: params.stylePresetId,
   };
   pendingRequests.set(params.requestId, pending);
   stats.totalRequestsRouted++;
@@ -583,19 +621,20 @@ export function handleTunnelResponse(
 
   switch (event.type) {
     case "start":
-      req.currentStep = "code";
-      sendToBrowser(browser.ws, {
-        type: "generate_step",
-        requestId,
-        step: "code",
-      });
+      if (req.phase === "plan") {
+        req.currentStep = "plan";
+        sendToBrowser(browser.ws, { type: "generate_step", requestId, step: "plan" });
+      } else {
+        req.currentStep = "code";
+        sendToBrowser(browser.ws, { type: "generate_step", requestId, step: "code" });
+      }
       break;
 
     case "text":
-      // Раньше тут аккумулировался accumulatedText в req — но done event
-      // приходит с полным fullText от туннеля, а accumulated нигде не
-      // использовался. Удалено чтобы не плодить мёртвую память на каждый
-      // active request (32+ KB on average per long generation).
+      // В plan-фазе туннель стримит JSON-план — его НЕ показываем браузеру
+      // (иначе сырой JSON попадёт в превью как «сайт»). Глотаем; HTML потечёт
+      // в фазе code.
+      if (req.phase === "plan") break;
       sendToBrowser(browser.ws, {
         type: "generate_text",
         requestId,
@@ -605,6 +644,93 @@ export function handleTunnelResponse(
 
     case "done": {
       const piece = event.fullText ?? "";
+
+      // ─── Фаза 1 (planner) ───
+      // Туннель вернул JSON-план. Парсим, выбираем шаблон. Если skeleton-
+      // injection заполнила слоты — отдаём готовый HTML без второго LLM-вызова.
+      // Иначе шлём coder-промпт фазы 2 в туннель.
+      if (req.phase === "plan") {
+        const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
+        try {
+          const plan = parseTunnelPlan(piece, req.userMessage ?? "");
+          const resolution = resolveTunnelPlan(plan, req.userMessage ?? "", req.stylePresetId);
+          req.plan = plan;
+          req.templateId = resolution.templateId;
+          req.templateName = resolution.templateName;
+          sendToBrowser(browser.ws, {
+            type: "generate_step",
+            requestId,
+            step: "template",
+            templateId: resolution.templateId,
+            templateName: resolution.templateName,
+          });
+
+          if (resolution.kind === "skeleton") {
+            // HTML уже финальный (stripCodeFences внутри resolveTunnelPlan).
+            sendToBrowser(browser.ws, {
+              type: "generate_done",
+              requestId,
+              html: resolution.html,
+              templateId: resolution.templateId,
+              templateName: resolution.templateName,
+              durationMs: event.durationMs,
+            });
+            if (req.onComplete) req.onComplete(resolution.html);
+            recordTunnelOutcome(req, "success", "tunnel-skeleton", "skeleton");
+            pendingRequests.delete(requestId);
+            stats.totalRequestsCompleted++;
+            break;
+          }
+
+          // Coder-фаза: нужен второй generate в туннель.
+          if (!tunnel) {
+            sendToBrowser(browser.ws, {
+              type: "generate_error",
+              requestId,
+              error: "Tunnel disconnected during generation",
+              code: "TUNNEL_DISCONNECTED",
+            });
+            if (req.onError) req.onError("tunnel_gone_after_plan");
+            recordTunnelOutcome(req, "error", "tunnel_gone_after_plan");
+            pendingRequests.delete(requestId);
+            stats.totalRequestsFailed++;
+            break;
+          }
+
+          req.phase = "code";
+          req.presetId = resolution.presetId;
+          req.accumulatedHtml = "";
+          req.continuationAttempts = 0;
+          req.currentStep = "code";
+          sendToBrowser(browser.ws, { type: "generate_step", requestId, step: "code" });
+          tunnel.ws.send(
+            JSON.stringify({
+              type: "generate",
+              requestId,
+              system: resolution.system,
+              prompt: resolution.prompt,
+              maxOutputTokens: req.maxOutputTokens ?? 8000,
+              temperature: req.temperature ?? 0.4,
+            } satisfies ServerToTunnel),
+          );
+          return; // ждём response_done фазы code
+        } catch (err) {
+          // Резолюция плана упала (редко) — честная ошибка вместо зависания.
+          sendToBrowser(browser.ws, {
+            type: "generate_error",
+            requestId,
+            error: `Ошибка планировщика: ${(err as Error).message}`,
+            code: "LLM_ERROR",
+          });
+          if (req.onError) req.onError("plan_resolution_failed");
+          recordTunnelOutcome(req, "error", `plan_resolution: ${(err as Error).message}`);
+          pendingRequests.delete(requestId);
+          stats.totalRequestsFailed++;
+          break;
+        }
+      }
+
+      // ─── Фаза code (continuation + финализация) ───
       const attempts = req.continuationAttempts ?? 0;
       const merged =
         attempts > 0 ? joinPartialAndContinuation(req.accumulatedHtml ?? "", piece) : piece;
@@ -715,6 +841,7 @@ function recordTunnelOutcome(
   req: PendingRequest,
   outcome: "success" | "error",
   note?: string,
+  injectMethod: "skeleton" | "coder" = "coder",
 ): void {
   recordGeneration({
     sessionId: req.browserSessionId,
@@ -725,7 +852,7 @@ function recordTunnelOutcome(
     durationMs: Date.now() - req.startedAt,
     userMessage: req.userMessage ?? "",
     templateId: req.templateId,
-    injectMethod: "coder",
+    injectMethod,
     ...(outcome === "error" ? { errorReason: note } : note ? { note } : {}),
   });
 }
@@ -741,7 +868,12 @@ function finalizeTunnelDone(
   rawHtml: string,
   durationMs: number,
 ): void {
-  const html = stripCodeFences(rawHtml);
+  // Двухфазный путь: есть план+пресет → stripCodeFences + post-polish (как
+  // серверный путь). Legacy одношаговый путь → только stripCodeFences.
+  const html =
+    req.plan && req.presetId
+      ? finalizeTunnelHtml(rawHtml, req.plan, req.presetId)
+      : stripCodeFences(rawHtml);
 
   if (!isUsableHtml(html)) {
     // Локальная модель вернула пустоту/мусор/отказ — раньше это уходило
