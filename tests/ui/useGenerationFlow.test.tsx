@@ -1039,3 +1039,46 @@ describe("useGenerationFlow > versions / undo / redo", () => {
     expect(hook.result.current.canUndo).toBe(false);
   });
 });
+
+// ─── handleWsEvent: generate_error ABORTED — тихая обработка ──────────
+
+describe("useGenerationFlow > handleWsEvent ABORTED", () => {
+  it("ABORTED не плодит error-тост и чат-бабл (это эхо своего abort)", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({ projectId: "p-1", auth: guestAuth, getSocket: () => socket }),
+    );
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_error",
+        requestId: "req-abort",
+        error: "Generation aborted",
+        code: "ABORTED",
+      });
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(result.current.chatMessages.some((m) => m.text.startsWith("❌"))).toBe(false);
+  });
+
+  it("прочие коды ошибок (LLM_ERROR) показывают тост и чат-бабл", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({ projectId: "p-1", auth: guestAuth, getSocket: () => socket }),
+    );
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_error",
+        requestId: "req-err",
+        error: "boom",
+        code: "LLM_ERROR",
+      });
+    });
+
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(result.current.chatMessages.some((m) => m.text.startsWith("❌"))).toBe(true);
+  });
+});
