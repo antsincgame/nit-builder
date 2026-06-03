@@ -694,4 +694,85 @@ describe("tunnelRegistry", () => {
       expect(getStats().totalRequestsCompleted).toBe(1);
     });
   });
+  describe("two-phase planner", () => {
+    it("plan-фаза: токены плана не текут в браузер, по done уходит coder-generate", () => {
+      const { conn, ws: tws } = makeTunnel("alice", "t-2p");
+      const { session, ws: bws } = makeBrowser("alice", "s-2p");
+      registerTunnel(conn);
+      registerBrowser(session);
+
+      const ok = routeRequest({
+        requestId: "tp-1",
+        userId: "alice",
+        browserSessionId: "s-2p",
+        system: "PLANNER_SYSTEM",
+        prompt: "кофейня",
+        maxOutputTokens: 2500,
+        temperature: 0.3,
+        phase: "plan",
+        originalPrompt: "кофейня в москве",
+        stylePresetId: "neon-cyber",
+        codeMaxOutputTokens: 8000,
+      });
+      expect(ok).toBe(true);
+
+      // initial generate — это планировщик, с plan-бюджетом
+      const planner = tws.sent.find((m) => (m as { type: string }).type === "generate") as {
+        maxOutputTokens: number;
+      };
+      expect(planner.maxOutputTokens).toBe(2500);
+      tws.sent.length = 0;
+      bws.sent.length = 0;
+
+      // start в plan-фазе → шаг plan
+      handleTunnelResponse("tp-1", { type: "start" });
+      const planStep = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_step",
+      ) as { step: string };
+      expect(planStep.step).toBe("plan");
+      bws.sent.length = 0;
+
+      // токены плана НЕ показываем браузеру
+      handleTunnelResponse("tp-1", { type: "text", text: '{"business_type":"кофейня"' });
+      expect(bws.sent.length).toBe(0);
+
+      // done plan-фазы → парс плана, coder-generate в туннель, шаги template+code
+      handleTunnelResponse("tp-1", {
+        type: "done",
+        fullText:
+          '{"business_type":"кофейня","sections":["hero","menu","contact"],"suggested_template_id":"coffee-shop"}',
+        durationMs: 100,
+        finishReason: "stop",
+      });
+
+      const coderGen = tws.sent.find((m) => (m as { type: string }).type === "generate") as {
+        maxOutputTokens: number;
+      };
+      expect(coderGen).toBeDefined();
+      expect(coderGen.maxOutputTokens).toBe(8000); // code-бюджет
+      const steps = bws.sent
+        .filter((m) => (m as { type: string }).type === "generate_step")
+        .map((m) => (m as { step: string }).step);
+      expect(steps).toContain("template");
+      expect(steps).toContain("code");
+      expect(bws.sent.some((m) => (m as { type: string }).type === "generate_done")).toBe(false);
+      expect(getStats().totalRequestsCompleted).toBe(0);
+      tws.sent.length = 0;
+      bws.sent.length = 0;
+
+      // done code-фазы → финализация и generate_done
+      handleTunnelResponse("tp-1", {
+        type: "done",
+        fullText: "<!DOCTYPE html><html><body><h1>Кофейня</h1></body></html>",
+        durationMs: 80,
+        finishReason: "stop",
+      });
+      const done = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_done",
+      ) as { html: string } | undefined;
+      expect(done).toBeDefined();
+      expect(done!.html.toLowerCase()).toContain("</html>");
+      expect(getStats().totalRequestsCompleted).toBe(1);
+    });
+  });
 });
