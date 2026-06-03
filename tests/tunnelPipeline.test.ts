@@ -50,6 +50,26 @@ describe("tunnelPipeline", () => {
         expect(res.presetId).toBe("neon-cyber");
       }
     });
+
+    it("без явного пресета выводит стиль ИЗ ПЛАНА (color_mood → neon-cyber)", () => {
+      // План с vibrant-neon; в сообщении нет стилевых слов и явный пресет не
+      // передан → пресет должен прийти из плана (как на серверном пути), а не
+      // схлопнуться в generic (что увело бы в skeleton вместо neon-coder).
+      const plan = parseTunnelPlan(
+        JSON.stringify({
+          business_type: "клуб",
+          sections: ["hero", "contact"],
+          suggested_template_id: "blank-landing",
+          color_mood: "vibrant-neon",
+        }),
+        "клуб",
+      );
+      const res = resolveTunnelPlan(plan, "клуб"); // stylePresetIdInput НЕ передаём
+      expect(res.kind).toBe("coder");
+      if (res.kind === "coder") {
+        expect(res.presetId).toBe("neon-cyber");
+      }
+    });
   });
 
   describe("finalizeTunnelHtml", () => {
