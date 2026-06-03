@@ -538,7 +538,8 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
           return;
         }
 
-        const presetId = msg.stylePresetId ?? inferStylePresetId(msg.prompt);
+        // Только явный выбор пользователя из UI (может быть undefined).
+        const explicitPresetId = msg.stylePresetId;
         const reqId = msg.requestId;
         const userPrompt = msg.prompt;
         const uid = authed.userId;
@@ -562,14 +563,21 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
               temperature: 0.3,
               phase: "plan",
               originalPrompt: userPrompt,
-              stylePresetId: presetId,
+              // Передаём только явный UI-выбор. Если его нет — resolveTunnelPlan
+              // выведет пресет С УЧЁТОМ плана (color_mood/style_hints), как
+              // серверный путь; message-only пресет здесь игнорировал бы стиль
+              // из плана.
+              stylePresetId: explicitPresetId,
               codeMaxOutputTokens: TUNNEL_CODE_MAX_TOKENS,
             });
           } catch {
-            // planner-промпт не построился — одношаговый enriched fallback
+            // planner-промпт не построился — одношаговый enriched fallback.
+            // Плана здесь нет, поэтому пресет выводим из сообщения (или берём
+            // явный UI-выбор, если он был).
+            const fallbackPreset = explicitPresetId ?? inferStylePresetId(userPrompt);
             const system = injectStylePreset(
               buildEnrichedSystemPrompt(userPrompt, analysis),
-              presetId,
+              fallbackPreset,
             );
             routed = routeRequest({
               requestId: reqId,
@@ -580,7 +588,7 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
               maxOutputTokens: TUNNEL_CODE_MAX_TOKENS,
               temperature: 0.4,
               originalPrompt: userPrompt,
-              stylePresetId: presetId,
+              stylePresetId: explicitPresetId,
             });
             if (routed) setRequestTemplate(reqId, analysis.template.id, analysis.template.name);
           }
