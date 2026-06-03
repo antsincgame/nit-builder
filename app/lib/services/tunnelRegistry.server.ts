@@ -21,6 +21,15 @@ import type {
   TunnelCapabilities,
   PipelineStep,
 } from "@nit/shared";
+import { stripCodeFences } from "~/lib/services/htmlOrchestrator.helpers";
+import {
+  CONTINUATION_SYSTEM_PROMPT,
+  buildContinuationUserMessage,
+  extractTail,
+  joinPartialAndContinuation,
+  MAX_CONTINUATION_ATTEMPTS,
+} from "~/lib/services/continuation";
+import { recordGeneration } from "~/lib/services/feedbackStore";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -71,6 +80,21 @@ export type PendingRequest = {
   /** Template info set after template_selected event */
   templateId?: string;
   templateName?: string;
+  // ─── Контекст для server-driven continuation и feedback ───
+  // Сохраняем то, что нужно чтобы (а) переотправить продолжение в туннель
+  // если модель оборвалась на maxOutputTokens, (б) записать исход в
+  // feedbackStore (раньше туннельные генерации мимо корпуса не попадали).
+  /** Исходный промпт пользователя (для continuation prompt + feedback). */
+  userMessage?: string;
+  maxOutputTokens?: number;
+  temperature?: number;
+  /** Модель/рантайм туннеля (из capabilities) — для feedback-записи. */
+  model?: string;
+  provider?: string;
+  /** Накопленный HTML по всем раундам continuation (склейка без дублей). */
+  accumulatedHtml?: string;
+  /** Сколько раз уже до-генерировали из-за обрыва по длине. */
+  continuationAttempts?: number;
   /** Called when request completes or errors */
   onComplete?: (html: string) => void;
   onError?: (error: string) => void;
@@ -98,6 +122,17 @@ const MAX_CONCURRENT_PER_USER = (() => {
 
 const PENDING_TIMEOUT_MS = 5 * 60_000;
 const PENDING_SWEEP_INTERVAL_MS = 30_000;
+
+// Сколько раз сервер сам до-генерирует HTML если локальная модель оборвалась
+// на maxOutputTokens (finishReason==="length"). По умолчанию — общий лимит
+// continuation-пайплайна (3). Конфигурируется через NIT_TUNNEL_MAX_CONTINUATIONS.
+// 0 — отключить авто-докрутку (отдавать оборванный результат как раньше).
+const TUNNEL_MAX_CONTINUATIONS = (() => {
+  const raw = process.env.NIT_TUNNEL_MAX_CONTINUATIONS;
+  if (raw === undefined) return MAX_CONTINUATION_ATTEMPTS;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 && n <= 10 ? n : MAX_CONTINUATION_ATTEMPTS;
+})();
 
 // ─── State ───────────────────────────────────────────────────────
 
@@ -127,6 +162,7 @@ type RegistryState = {
     totalRequestsRouted: number;
     totalRequestsCompleted: number;
     totalRequestsFailed: number;
+    totalRequestsAborted: number;
   };
 };
 
@@ -145,6 +181,7 @@ function getState(): RegistryState {
         totalRequestsRouted: 0,
         totalRequestsCompleted: 0,
         totalRequestsFailed: 0,
+        totalRequestsAborted: 0,
       },
     };
   }
@@ -417,6 +454,12 @@ export type RouteRequestParams = {
  * Returns false if no tunnel is available or user hit concurrent cap.
  */
 export function routeRequest(params: RouteRequestParams): boolean {
+  // Дедуп: повторный generate с тем же requestId (ретрай / дабл-клик / баг
+  // клиента) раньше перезаписывал pendingRequests[requestId] — первый запрос
+  // осиротевал на туннеле (GPU продолжал жечь), и sweeper его не подбирал
+  // (ключ был перетёрт). Игнорируем дубликат: запрос уже в полёте.
+  if (pendingRequests.has(params.requestId)) return false;
+
   // Cap: сколько одновременных generate в полёте у юзера.
   const active = countPendingByUser(params.userId);
   if (active >= MAX_CONCURRENT_PER_USER) return false;
@@ -433,6 +476,13 @@ export function routeRequest(params: RouteRequestParams): boolean {
     startedAt: now,
     lastActivityAt: now,
     currentStep: "plan",
+    userMessage: params.prompt,
+    maxOutputTokens: params.maxOutputTokens,
+    temperature: params.temperature,
+    model: tunnel.capabilities.model,
+    provider: `tunnel:${tunnel.capabilities.runtime}`,
+    accumulatedHtml: "",
+    continuationAttempts: 0,
   };
   pendingRequests.set(params.requestId, pending);
   stats.totalRequestsRouted++;
@@ -478,7 +528,23 @@ export function abortRequest(requestId: string): void {
     }
   }
 
+  // Уведомляем браузер (если ещё на связи). Раньше abortRequest молча удалял
+  // pending — если отмена пришла не от самого браузера, его UI оставался в
+  // состоянии "генерация идёт" навсегда. Если браузер уже отключился
+  // (unregisterBrowser удалил его ДО вызова abortRequest) — get вернёт
+  // undefined и мы ничего не шлём, что корректно.
+  const browser = browsers.get(req.browserSessionId);
+  if (browser) {
+    sendToBrowser(browser.ws, {
+      type: "generate_error",
+      requestId,
+      error: "Generation aborted",
+      code: "ABORTED",
+    });
+  }
+
   pendingRequests.delete(requestId);
+  stats.totalRequestsAborted++;
 }
 
 function findTunnelByConnectionId(connectionId: string): TunnelConnection | null {
@@ -501,7 +567,7 @@ export function handleTunnelResponse(
   event:
     | { type: "start" }
     | { type: "text"; text: string }
-    | { type: "done"; fullText: string; durationMs: number }
+    | { type: "done"; fullText: string; durationMs: number; finishReason?: "stop" | "length" | "unknown" }
     | { type: "error"; error: string },
 ): void {
   const req = pendingRequests.get(requestId);
@@ -538,18 +604,47 @@ export function handleTunnelResponse(
       break;
 
     case "done": {
-      const html = event.fullText;
-      sendToBrowser(browser.ws, {
-        type: "generate_done",
-        requestId,
-        html,
-        templateId: req.templateId ?? "unknown",
-        templateName: req.templateName ?? "Unknown",
-        durationMs: event.durationMs,
-      });
-      if (req.onComplete) req.onComplete(html);
-      pendingRequests.delete(requestId);
-      stats.totalRequestsCompleted++;
+      const piece = event.fullText ?? "";
+      const attempts = req.continuationAttempts ?? 0;
+      const merged =
+        attempts > 0 ? joinPartialAndContinuation(req.accumulatedHtml ?? "", piece) : piece;
+
+      // Server-driven continuation: модель оборвалась на maxOutputTokens
+      // (finishReason==="length") и есть бюджет докрутки → копим хвост и
+      // шлём в туннель запрос "продолжи с точки обрыва". Для браузера это
+      // прозрачно (доп. generate_text + финальный generate_done с целым HTML).
+      // Старые клиенты туннеля finishReason не шлют → ветка не срабатывает,
+      // поведение прежнее.
+      if (event.finishReason === "length" && attempts < TUNNEL_MAX_CONTINUATIONS) {
+        const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
+        if (tunnel) {
+          req.accumulatedHtml = merged;
+          req.continuationAttempts = attempts + 1;
+          req.currentStep = "code";
+          const tail = extractTail(merged);
+          try {
+            tunnel.ws.send(
+              JSON.stringify({
+                type: "generate",
+                requestId,
+                system: CONTINUATION_SYSTEM_PROMPT,
+                prompt: buildContinuationUserMessage({
+                  userMessage: req.userMessage ?? "",
+                  tail,
+                }),
+                maxOutputTokens: req.maxOutputTokens ?? 8000,
+                temperature: req.temperature ?? 0.4,
+              } satisfies ServerToTunnel),
+            );
+            return; // ждём следующий response_done, не финализируем
+          } catch {
+            // туннель отвалился при отправке — финализируем тем что накопили
+          }
+        }
+        // туннеля нет — финализируем накопленным (ниже)
+      }
+
+      finalizeTunnelDone(req, browser.ws, merged, event.durationMs);
       break;
     }
 
@@ -561,6 +656,7 @@ export function handleTunnelResponse(
         code: "LLM_ERROR",
       });
       if (req.onError) req.onError(event.error);
+      recordTunnelOutcome(req, "error", `tunnel: ${event.error}`);
       pendingRequests.delete(requestId);
       stats.totalRequestsFailed++;
       break;
@@ -600,6 +696,88 @@ function sendToBrowser(ws: WebSocket, msg: ServerToBrowser): void {
   }
 }
 
+// ─── Tunnel done finalization ─────────────────────────────────────
+
+/** Базовая проверка что туннель вернул осмысленный HTML, а не пустоту/отказ. */
+function isUsableHtml(html: string): boolean {
+  const t = html.trim();
+  if (t.length === 0) return false;
+  return t.includes("<"); // есть хоть какая-то разметка
+}
+
+/**
+ * Записывает исход туннельной генерации в feedbackStore. Раньше туннельный
+ * путь (основной для BYO-GPU) мимо корпуса не попадал — петля самообучения
+ * RAG и метрики видели только серверные/HTTP генерации. Fire-and-forget,
+ * gated через NIT_FEEDBACK_ENABLED.
+ */
+function recordTunnelOutcome(
+  req: PendingRequest,
+  outcome: "success" | "error",
+  note?: string,
+): void {
+  recordGeneration({
+    sessionId: req.browserSessionId,
+    mode: "create",
+    outcome,
+    provider: req.provider ?? "tunnel",
+    model: req.model ?? "unknown",
+    durationMs: Date.now() - req.startedAt,
+    userMessage: req.userMessage ?? "",
+    templateId: req.templateId,
+    injectMethod: "coder",
+    ...(outcome === "error" ? { errorReason: note } : note ? { note } : {}),
+  });
+}
+
+/**
+ * Финализирует туннельную генерацию: чистит markdown-обёртки через
+ * stripCodeFences (как серверный путь), валидирует, шлёт браузеру
+ * generate_done либо generate_error, пишет feedback.
+ */
+function finalizeTunnelDone(
+  req: PendingRequest,
+  browserWs: WebSocket,
+  rawHtml: string,
+  durationMs: number,
+): void {
+  const html = stripCodeFences(rawHtml);
+
+  if (!isUsableHtml(html)) {
+    // Локальная модель вернула пустоту/мусор/отказ — раньше это уходило
+    // юзеру «как готовый сайт». Теперь — честная ошибка.
+    sendToBrowser(browserWs, {
+      type: "generate_error",
+      requestId: req.requestId,
+      error:
+        "Модель вернула пустой или невалидный результат. Попробуй ещё раз или уточни запрос.",
+      code: "LLM_ERROR",
+    });
+    if (req.onError) req.onError("empty_or_invalid_html");
+    recordTunnelOutcome(req, "error", "empty_or_invalid_html");
+    pendingRequests.delete(req.requestId);
+    stats.totalRequestsFailed++;
+    return;
+  }
+
+  sendToBrowser(browserWs, {
+    type: "generate_done",
+    requestId: req.requestId,
+    html,
+    templateId: req.templateId ?? "unknown",
+    templateName: req.templateName ?? "Unknown",
+    durationMs,
+  });
+  if (req.onComplete) req.onComplete(html);
+  recordTunnelOutcome(
+    req,
+    "success",
+    (req.continuationAttempts ?? 0) > 0 ? "tunnel-continued" : undefined,
+  );
+  pendingRequests.delete(req.requestId);
+  stats.totalRequestsCompleted++;
+}
+
 export function getStats() {
   return {
     ...stats,
@@ -621,6 +799,7 @@ export function resetRegistry(): void {
   stats.totalRequestsRouted = 0;
   stats.totalRequestsCompleted = 0;
   stats.totalRequestsFailed = 0;
+  stats.totalRequestsAborted = 0;
 }
 
 // ─── Stale-pending sweeper ────────────────────────────────────────
