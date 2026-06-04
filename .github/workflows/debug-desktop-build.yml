@@ -1,8 +1,9 @@
 name: Debug Desktop Build
 
 # Финальная миссия временного workflow: сгенерировать Cargo.lock для
-# tunnel/desktop/src-tauri и закоммитить его в main через REST.
-# После успешного прогона файл workflow удаляется.
+# tunnel/desktop/src-tauri и выложить его через REST в ветку
+# debug-logs-macos-latest (пуши в main с GITHUB_TOKEN блокируются
+# branch protection). Перенос в main делается снаружи. После — удалить.
 
 on:
   workflow_dispatch: {}
@@ -12,7 +13,7 @@ permissions:
 
 jobs:
   lockfile:
-    name: Generate and commit Cargo.lock
+    name: Generate Cargo.lock
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,12 +26,12 @@ jobs:
         working-directory: tunnel/desktop/src-tauri
         run: cargo generate-lockfile
 
-      - name: Commit Cargo.lock to main
+      - name: Upload Cargo.lock via REST
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/tunnel/desktop/src-tauri/Cargo.lock" \
-            -f message="chore(desktop): фиксируем Cargo.lock — воспроизводимые сборки без плавающих версий" \
-            -f branch="main" \
+            -f message="chore(desktop): Cargo.lock с раннера (для переноса в main)" \
+            -f branch="debug-logs-macos-latest" \
             -f content="$(base64 -w0 < tunnel/desktop/src-tauri/Cargo.lock)"
