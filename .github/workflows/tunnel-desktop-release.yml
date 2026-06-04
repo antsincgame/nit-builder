@@ -16,10 +16,15 @@ name: Tunnel Desktop Release
 # Артефакты автоматически прикрепляются к GitHub Release (для тег/release-событий).
 # При ручном запуске (workflow_dispatch) — кладутся как artifacts прогона.
 #
-# ВАЖНО: updater убран из приложения, поэтому TAURI_SIGNING_* НЕ передаём —
-# пустой/отсутствующий ключ подписи updater'а раньше ронял `tauri build` с
-# exit code 1 на всех платформах. Code-signing (Apple/Windows) тоже опционален
-# и здесь не настроен — бинари без подписи (юзеру "Open Anyway").
+# ВАЖНО: code-signing env (APPLE_*, WINDOWS_*, TAURI_SIGNING_*) НЕ передаём
+# вообще. Секретов нет → ${{ secrets.X }} раскрывается в ПУСТУЮ строку, а
+# установленная пустая переменная для Tauri ≠ отсутствующая: он пытается
+# импортировать пустой сертификат и роняет build (та же история была с
+# TAURI_SIGNING_PRIVATE_KEY). Когда купите сертификаты — верните env-блок
+# на шаг Build Tauri app, но только с реально заполненными секретами:
+#   APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD / APPLE_SIGNING_IDENTITY
+#   APPLE_ID / APPLE_TEAM_ID / APPLE_PASSWORD
+#   WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD
 #
 # apt: ставим ТОЛЬКО libayatana-appindicator3-dev. В jammy он объявляет
 # Conflicts/Replaces на legacy libappindicator3-dev (и Provides его же) —
@@ -117,21 +122,10 @@ jobs:
         working-directory: tunnel/desktop/ui
         run: npm run build
 
+      # Без code-signing env — см. шапку файла. Пустые APPLE_*/WINDOWS_*
+      # переменные роняли tauri build на Win/mac за ~2 минуты.
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
-        env:
-          # Code signing — опционально, секреты могут отсутствовать.
-          # Если есть — Tauri их подхватит автоматически из env.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          # NB: TAURI_SIGNING_PRIVATE_KEY НЕ передаём — updater убран, а пустой
-          # ключ подписи ломал `tauri build` (exit code 1) на всех платформах.
         with:
           projectPath: tunnel/desktop
           # Указываем target для cross-build (важно для macOS Intel на отдельном раннере)
