@@ -1,9 +1,10 @@
 name: Debug Desktop Build
 
-# Временный диагностический workflow: настоящий `tauri build --bundles none`
-# (как tauri-action, но напрямую) на падающих платформах с выгрузкой хвоста
-# лога через gh api PUT в ветку debug-logs-<os> (git push из раннера и логи
-# ранов через API не работают). Удалить после диагностики.
+# Временный диагностический workflow: настоящий `tauri build --no-bundle`
+# (компиляция + линковка release без бандлеров) на падающих платформах
+# с выгрузкой хвоста лога через gh api PUT в ветку debug-logs-<os>
+# (git push из раннера и логи ранов через API не работают).
+# Удалить после диагностики.
 
 on:
   workflow_dispatch: {}
@@ -39,14 +40,13 @@ jobs:
         working-directory: tunnel/desktop/ui
         run: npm run build
 
-      - name: Tauri build (no bundles)
+      - name: Tauri build (no bundle)
         shell: bash
         continue-on-error: true
         working-directory: tunnel/desktop
         run: |
-          set -o pipefail
-          npx --yes @tauri-apps/cli build --bundles none 2>&1 | tee "$RUNNER_TEMP/build-full.log"
-          echo "EXIT_CODE=$?" | tee -a "$RUNNER_TEMP/build-full.log"
+          npx --yes @tauri-apps/cli build --no-bundle 2>&1 | tee "$RUNNER_TEMP/build-full.log" || true
+          echo "EXIT_CODE=${PIPESTATUS[0]}" | tee -a "$RUNNER_TEMP/build-full.log"
 
       - name: Upload log tail via REST
         if: always()
