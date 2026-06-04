@@ -1,0 +1,53 @@
+name: Debug Desktop Build
+
+# Временный диагностический workflow: cargo check на падающих платформах
+# с выгрузкой хвоста лога в ветку debug-logs-<платформа> (логи ранов через
+# API недоступны — Azure-redirect баг). Удалить после диагностики.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    name: Probe ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # generate_context! читает frontendDist (../ui/dist) на компиляции —
+      # заглушки достаточно, UI для check не нужен.
+      - name: Stub UI dist
+        shell: bash
+        run: |
+          mkdir -p tunnel/desktop/ui/dist
+          echo '<html></html>' > tunnel/desktop/ui/dist/index.html
+
+      - name: Cargo check
+        shell: bash
+        continue-on-error: true
+        working-directory: tunnel/desktop/src-tauri
+        run: |
+          cargo check 2>&1 | tee /tmp/build-full.log
+          echo "EXIT_CODE=${PIPESTATUS[0]}" | tee -a /tmp/build-full.log
+
+      - name: Push log tail to debug branch
+        shell: bash
+        run: |
+          tail -c 80000 /tmp/build-full.log > debug-build.log
+          git config user.name "debug-bot"
+          git config user.email "debug-bot@users.noreply.github.com"
+          git checkout -B debug-logs-${{ matrix.os }}
+          git add debug-build.log
+          git commit -m "debug: cargo check log ${{ matrix.os }}"
+          git push -f origin debug-logs-${{ matrix.os }}
