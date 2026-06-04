@@ -29,9 +29,22 @@ on:
 permissions:
   contents: write
 
+# Не плодим параллельные прогоны на один и тот же ref — новый отменяет старый
+# (заодно гасит дубль от пары событий created+published у одного релиза).
+concurrency:
+  group: tunnel-cli-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build ${{ matrix.output }}
+    # Условие на release — реагируем только на tunnel-v* теги. Для push тега
+    # и workflow_dispatch — всегда. Без этого build гонялся на ЛЮБОЙ release,
+    # включая tunnel-desktop-v* (desktop-релизы): 4 бинарника впустую × 2 рана.
+    # 'tunnel-desktop-v*' НЕ начинается с 'tunnel-v' — фильтр их отсекает.
+    if: |
+      github.event_name != 'release' ||
+      startsWith(github.event.release.tag_name, 'tunnel-v')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
