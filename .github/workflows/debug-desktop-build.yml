@@ -1,10 +1,8 @@
 name: Debug Desktop Build
 
-# Временный диагностический workflow: настоящий `tauri build --no-bundle`
-# (компиляция + линковка release без бандлеров) на падающих платформах
-# с выгрузкой хвоста лога через gh api PUT в ветку debug-logs-<os>
-# (git push из раннера и логи ранов через API не работают).
-# Удалить после диагностики.
+# Финальная миссия временного workflow: сгенерировать Cargo.lock для
+# tunnel/desktop/src-tauri и закоммитить его в main через REST.
+# После успешного прогона файл workflow удаляется.
 
 on:
   workflow_dispatch: {}
@@ -13,49 +11,26 @@ permissions:
   contents: write
 
 jobs:
-  probe:
-    name: Probe ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  lockfile:
+    name: Generate and commit Cargo.lock
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install UI dependencies
-        working-directory: tunnel/desktop/ui
-        run: npm install
+      - name: Generate Cargo.lock
+        working-directory: tunnel/desktop/src-tauri
+        run: cargo generate-lockfile
 
-      - name: Build UI
-        working-directory: tunnel/desktop/ui
-        run: npm run build
-
-      - name: Tauri build (no bundle)
-        shell: bash
-        continue-on-error: true
-        working-directory: tunnel/desktop
-        run: |
-          npx --yes @tauri-apps/cli build --no-bundle 2>&1 | tee "$RUNNER_TEMP/build-full.log" || true
-          echo "EXIT_CODE=${PIPESTATUS[0]}" | tee -a "$RUNNER_TEMP/build-full.log"
-
-      - name: Upload log tail via REST
-        if: always()
+      - name: Commit Cargo.lock to main
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tail -c 45000 "$RUNNER_TEMP/build-full.log" > tail.log
-          gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/debug-${{ github.run_id }}.log" \
-            -f message="debug: tauri build log ${{ matrix.os }}" \
-            -f branch="debug-logs-${{ matrix.os }}" \
-            -f content="$(base64 < tail.log | tr -d '\n')"
+          gh api -X PUT "repos/${GITHUB_REPOSITORY}/contents/tunnel/desktop/src-tauri/Cargo.lock" \
+            -f message="chore(desktop): фиксируем Cargo.lock — воспроизводимые сборки без плавающих версий" \
+            -f branch="main" \
+            -f content="$(base64 -w0 < tunnel/desktop/src-tauri/Cargo.lock)"
