@@ -166,9 +166,10 @@ export function resolveTunnelPlan(
   const presetId: StylePresetId =
     stylePresetIdInput ?? inferStylePresetId(sanitizedMessage, plan);
 
-  // Skeleton-injection пробуем только для generic-пресета (как в pipelineCreate):
-  // стилевые пресеты требуют генерации кодером.
-  if (presetId === "generic") {
+  // Skeleton-injection пробуем только для generic-пресета (как в pipelineCreate)
+  // и только для русских планов: шаблоны lang="ru", без Кодера их статичные
+  // тексты не переводятся. Стилевые пресеты требуют генерации кодером.
+  if (presetId === "generic" && plan.language === "ru") {
     const cleanTemplateHtml = loadTemplateHtml(template.id);
     const injection = injectPlanIntoTemplate(cleanTemplateHtml, plan);
     if (injection.ok && htmlContainsPrimaryCta(injection.html, plan)) {

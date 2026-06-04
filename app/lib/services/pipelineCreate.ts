@@ -389,7 +389,10 @@ export async function* executeHtmlSimple(
     }
   }
 
-  const shouldTrySkeleton = stylePresetId === "generic";
+  // Skeleton только для русских планов: все шаблоны написаны на русском
+  // (lang="ru"), и без прохода Кодера статичные тексты шаблона (навигация,
+  // меню, футер) остались бы русскими внутри en/by сайта.
+  const shouldTrySkeleton = stylePresetId === "generic" && currentPlan.language === "ru";
   const cleanTemplateHtml = shouldTrySkeleton ? loadTemplateHtml(template.id) : "";
   const injection = shouldTrySkeleton
     ? injectPlanIntoTemplate(cleanTemplateHtml, currentPlan)
