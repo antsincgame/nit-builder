@@ -1,0 +1,4 @@
+error: invalid value 'none' for '--bundles [<BUNDLES>...]'
+  [possible values: ios, app, dmg]
+
+For more information, try '--help'.
