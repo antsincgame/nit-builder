@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub const PROTOCOL_VERSION: &str = "1.0";
 pub const CLIENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-// ─── Capabilities ────────────────────────────────────────────────
+// ─── Capabilities ──────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -82,6 +82,8 @@ pub enum TunnelToServer {
         prompt_tokens: Option<u32>,
         #[serde(rename = "completionTokens", skip_serializing_if = "Option::is_none")]
         completion_tokens: Option<u32>,
+        #[serde(rename = "finishReason", skip_serializing_if = "Option::is_none")]
+        finish_reason: Option<String>,
     },
     ResponseError {
         #[serde(rename = "requestId")]

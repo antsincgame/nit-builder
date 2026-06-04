@@ -379,6 +379,7 @@ async fn connect_and_serve(
                                             StreamEvent::Done {
                                                 full_text,
                                                 duration_ms,
+                                                finish_reason,
                                             } => {
                                                 let _ = outgoing_for_task.send(
                                                     TunnelToServer::ResponseDone {
@@ -389,6 +390,7 @@ async fn connect_and_serve(
                                                         completion_tokens: Some(
                                                             tokens as u32,
                                                         ),
+                                                        finish_reason: Some(finish_reason),
                                                     },
                                                 );
                                                 let _ = events_for_task.send(
