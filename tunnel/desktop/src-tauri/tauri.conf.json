@@ -32,7 +32,7 @@
       "id": "main",
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true,
-      "menuOnLeftClick": false,
+      "showMenuOnLeftClick": false,
       "tooltip": "NIT Tunnel"
     }
   },

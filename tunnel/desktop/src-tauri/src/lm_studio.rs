@@ -17,7 +17,7 @@ const LLM_TIMEOUT_SECS: u64 = 300; // 5 minutes
 pub enum StreamEvent {
     Start,
     Text(String),
-    Done { full_text: String, duration_ms: u64 },
+    Done { full_text: String, duration_ms: u64, finish_reason: String },
     Error(String),
 }
 
@@ -44,6 +44,9 @@ struct StreamChunk {
 #[derive(Debug, Deserialize)]
 struct StreamChoice {
     delta: Option<StreamDelta>,
+    /// finish_reason приходит в последнем чанке (delta пустой). "length" —
+    /// модель упёрлась в max_tokens, серверу нужен этот сигнал для continuation.
+    finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,6 +173,7 @@ impl LmStudioProxy {
         let mut stream = response.bytes_stream();
         let mut buffer = String::new();
         let mut full_text = String::new();
+        let mut finish_reason = String::from("unknown");
 
         loop {
             tokio::select! {
@@ -208,6 +212,18 @@ impl LmStudioProxy {
                                         continue;
                                     }
                                     if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data) {
+                                        if let Some(fr) = chunk
+                                            .choices
+                                            .as_ref()
+                                            .and_then(|c| c.first())
+                                            .and_then(|c| c.finish_reason.as_ref())
+                                        {
+                                            finish_reason = if fr == "length" {
+                                                "length".to_string()
+                                            } else {
+                                                "stop".to_string()
+                                            };
+                                        }
                                         if let Some(delta_text) = chunk
                                             .choices
                                             .as_ref()
@@ -238,6 +254,7 @@ impl LmStudioProxy {
             .send(StreamEvent::Done {
                 full_text,
                 duration_ms,
+                finish_reason,
             })
             .await;
     }

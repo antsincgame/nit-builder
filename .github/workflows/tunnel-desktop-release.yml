@@ -20,6 +20,10 @@ name: Tunnel Desktop Release
 # пустой/отсутствующий ключ подписи updater'а раньше ронял `tauri build` с
 # exit code 1 на всех платформах. Code-signing (Apple/Windows) тоже опционален
 # и здесь не настроен — бинари без подписи (юзеру "Open Anyway").
+#
+# apt: ставим ТОЛЬКО libayatana-appindicator3-dev. В jammy он объявляет
+# Conflicts/Replaces на legacy libappindicator3-dev (и Provides его же) —
+# установка обоих в одной команде валила шаг с unresolvable conflict.
 
 on:
   push:
@@ -94,7 +98,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
             librsvg2-dev \
             patchelf \
             libssl-dev \
