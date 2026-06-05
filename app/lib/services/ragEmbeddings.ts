@@ -26,6 +26,7 @@
  *   NIT_EMBEDDING_QUERY_PREFIX="" NIT_EMBEDDING_PASSAGE_PREFIX=""  # symmetric
  */
 
+import { createHash } from "node:crypto";
 import { logger } from "~/lib/utils/logger";
 import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 
@@ -40,12 +41,16 @@ export type EmbeddingKind = "query" | "passage";
 let disabled = false;
 const cache = new Map<string, number[]>();
 
-function cacheKey(text: string, kind: EmbeddingKind | "none"): string {
-  // Кеш-ключ включает размерность и kind — иначе при изменении ENV
-  // летят векторы от прошлой конфигурации.
+function cacheKey(payload: string, kind: EmbeddingKind | "none"): string {
+  // Ключ = sha1 от ФАКТИЧЕСКОГО payload (уже обрезанного до MAX_TEXT_LEN) +
+  // размерность + kind. Раньше ключ строился из length + первых 200 символов —
+  // тексты одной длины с общим префиксом (типовой кейс feedbackIngest-доков)
+  // коллизировали и получали чужой вектор. sha1 исключает коллизии, а хеш от
+  // payload (не от полного текста) гарантирует, что ключ соответствует тому,
+  // что реально уходит в embeddings API.
   const dims = getTargetEmbeddingDims() ?? "full";
-  const base = text.length > 200 ? `${text.length}:${text.slice(0, 200)}` : text;
-  return `d${dims}:k${kind}:${base}`;
+  const digest = createHash("sha1").update(payload).digest("hex");
+  return `d${dims}:k${kind}:${digest}`;
 }
 
 export function isRagDisabled(): boolean {
@@ -110,7 +115,9 @@ export async function embedText(
 
   const kind = opts.kind ?? "none";
   const prefixed = kind !== "none" ? applyEmbeddingPrefix(text, kind) : text;
-  const key = cacheKey(prefixed, kind);
+  // Обрезаем ДО вычисления ключа: кешируем ровно то, что отправляем в API.
+  const payload = prefixed.slice(0, MAX_TEXT_LEN);
+  const key = cacheKey(payload, kind);
   const cached = cache.get(key);
   if (cached) return cached;
 
@@ -120,7 +127,7 @@ export async function embedText(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: EMBED_MODEL,
-        input: prefixed.slice(0, MAX_TEXT_LEN),
+        input: payload,
       }),
       signal,
     });

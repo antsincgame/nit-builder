@@ -1,12 +1,17 @@
 /**
  * Защита от prompt injection. Удаляет/экранирует попытки управления моделью
  * через user input: "ignore previous instructions", fake system tags, и т.д.
+ *
+ * Паттерн `system:` ловится ТОЛЬКО в начале строки (флаг m): инлайн-упоминания
+ * вроде «solar system: планеты» — легитимный текст и не должны превращаться
+ * в [filtered]. Реальные role-инъекции для локальных моделей идут отдельной
+ * строкой, так что начало строки покрывает атакующий кейс без ложняков.
  */
 
 const INJECTION_PATTERNS = [
   /\bignore\s+(previous|all|above)\s+(instructions|prompts)\b/gi,
   /\bforget\s+(everything|all)\b/gi,
-  /\bsystem\s*:\s*/gi,
+  /^[ \t]*system\s*:\s*/gim,
   /<\|system\|>/gi,
   /<\|im_start\|>/gi,
   /<\|im_end\|>/gi,
