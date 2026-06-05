@@ -6,6 +6,11 @@
  * - ensureEmbedding/addDocument используют {kind: 'passage'} для индексируемых доков
  * Для symmetric моделей (nomic, default) префиксы пусты в ENV — поведение как раньше.
  *
+ * Производительность search(): доки с готовым эмбеддингом скорятся синхронно,
+ * недостающие эмбеддинги тянутся пачками (EMBED_BATCH_SIZE параллельно),
+ * а не последовательным await в цикле — важно когда feedbackIngest наливает
+ * сотни доков без векторов.
+ *
  * Categories:
  * - plan_example     — (query → полный Plan) для few-shot планировщика
  * - hero_headline    — готовые hero-фразы по нишам
@@ -26,6 +31,9 @@ import { BM25Index, type BM25Result } from "~/lib/services/bm25";
 
 const SCOPE = "ragStore";
 const STORE_DEFAULT_PATH = "/tmp/nit-rag.jsonl";
+// Сколько недостающих эмбеддингов тянем одновременно. LM Studio спокойно
+// держит небольшой параллелизм; 4 — консервативно, без риска задушить GPU.
+const EMBED_BATCH_SIZE = 4;
 
 export type RagCategory =
   | "plan_example"
@@ -274,15 +282,43 @@ export async function search(
   }
   if (!qVec) return [];
 
-  const scored: SearchResult[] = [];
+  // Шаг 1: дешёвые синхронные фильтры.
+  const candidates: RagDocument[] = [];
   for (const doc of documents.values()) {
     if (opts.category && doc.category !== opts.category) continue;
     if (opts.filter && !opts.filter(doc)) continue;
     if (doc.metadata.isSentinel) continue;
+    candidates.push(doc);
+  }
 
-    const vec = await ensureEmbedding(doc, opts.signal);
-    if (!vec) continue;
-    scored.push({ doc, score: cosine(qVec, vec) });
+  // Шаг 2: доки с готовым вектором скорим сразу (без await), остальные — в очередь.
+  const scored: SearchResult[] = [];
+  const missing: RagDocument[] = [];
+  const targetDims = getTargetEmbeddingDims();
+  for (const doc of candidates) {
+    const vec = doc.embedding;
+    if (vec && vec.length > 0 && (!targetDims || vec.length === targetDims)) {
+      scored.push({ doc, score: cosine(qVec, vec) });
+    } else {
+      missing.push(doc);
+    }
+  }
+
+  // Шаг 3: недостающие эмбеддинги — пачками с ограниченным параллелизмом.
+  // Раньше здесь был строго последовательный await: N доков = N*RTT.
+  for (let i = 0; i < missing.length; i += EMBED_BATCH_SIZE) {
+    const batch = missing.slice(i, i + EMBED_BATCH_SIZE);
+    const vecs = await Promise.all(
+      batch.map((doc) => ensureEmbedding(doc, opts.signal)),
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const vec = vecs[j];
+      if (!vec) continue;
+      scored.push({ doc: batch[j]!, score: cosine(qVec, vec) });
+    }
+    // embedText при первом фейле выставляет disabled — дальше все вернут null,
+    // нет смысла гонять пустые пачки.
+    if (isRagDisabled()) break;
   }
 
   scored.sort((a, b) => b.score - a.score);
