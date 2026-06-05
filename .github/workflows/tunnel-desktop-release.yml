@@ -64,8 +64,12 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
             bundles: dmg
+          # Intel-DMG собираем КРОСС-компиляцией на arm64-раннере: пул
+          # macos-13 (Intel) у GitHub выведен из эксплуатации — джобы висят
+          # в queued вечно. Rust/Xcode штатно собирают x86_64-apple-darwin
+          # на Apple Silicon (target ставится в Setup Rust toolchain).
           - name: macos-x64
-            os: macos-13
+            os: macos-latest
             target: x86_64-apple-darwin
             bundles: dmg
           - name: linux-x64
