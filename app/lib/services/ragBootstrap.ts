@@ -6,14 +6,19 @@
  *   - добавляет plan_example seeds из planExamples.ts (24 базовых)
  *   - добавляет extended seeds из planExamplesExtended.ts (8 с pricing/faq/hours/contact)
  *   - добавляет v8 seeds из planExamplesV8.ts (6 новых ниш)
- *   - добавляет admin seeds из planExamplesAdmin.ts (3 вида админки:
- *     needs_admin + editable_zones)
+ *   - добавляет admin seeds из planExamplesAdmin.ts (3 с needs_admin/editable_zones)
  *   - добавляет hero_headline / benefits / social_proof / cta_microcopy
  *     из copywritingBank.ts
  *   - пишет sentinel
  *
  * Старые seed:plan:* из предыдущей версии остаются в JSONL — id-дедупликация
  * в addDocument гарантирует что повторно они не зальются. Новые добавятся.
+ *
+ * Доливка сидов БЕЗ бампа версии (как admin-сиды): repair-ветка ниже видит
+ * totalPlanSeeds < EXPECTED_PLAN_SEEDS и прогоняет все сиды заново: существующие
+ * дедупятся мгновенно (addDocument возвращает existing с эмбеддингом),
+ * новые встают в корпус без дублей контента. Бамп нужен только при ИЗМЕНЕНИИ
+ * текста/плана существующего сида (иначе старая версия останется в Map).
  *
  * Tier 2 (since v3): plan_example seeds индексируются с contextual prefix
  * `[niche | tone | mood] query` — это даёт +30-50% recall на medium queries
@@ -29,9 +34,9 @@
  * v8: 6 новых ниш в planExamplesV8.ts — vet, home-services, digital-agency,
  *     moving, renovation, hotel. Все с extended-полями и копирайтом по планке
  *     planQuality (цифры в benefits, без штампов).
- * v8 admin-доп (без бампа версии): сиды needs_admin + editable_zones в
- *     planExamplesAdmin.ts — заливаются repair-веткой doBootstrap
- *     (totalPlanSeeds < EXPECTED), существующие дедупятся по id.
+ * v8 (доливка): 3 admin-сида в planExamplesAdmin.ts — needs_admin=true,
+ *     editable_zones разных структур (прайс услуг / richtext-программы /
+ *     мини-каталог с image-зонами), explicit и inferred confidence.
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -95,8 +100,8 @@ async function doBootstrap(): Promise<void> {
   let missingPlanEmbeddings = 0;
   let optionalFailed = 0;
 
-  // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact)
-  // + v8 (6 новых ниш) + admin (3 вида админки с editable_zones)
+  // Base (24 ниши) + extended (8 с pricing/faq/hours/contact) + v8 (6 новых ниш)
+  // + admin (3 с needs_admin/editable_zones)
   const allPlanSeeds = [
     ...PLAN_EXAMPLE_SEEDS,
     ...PLAN_EXAMPLE_SEEDS_EXTENDED,
