@@ -13,7 +13,7 @@
 
 export const PROTOCOL_VERSION = "1.0" as const;
 
-// ─── Common ──────────────────────────────────────────────────────
+// ─── Common ──────────────────────────────────────────────────────────────────
 
 export type TunnelCapabilities = {
   /** "lmstudio_proxy" — forwards to user's LM Studio. "embedded" — built-in llama.cpp. */
@@ -34,7 +34,7 @@ export type PipelineStep = "plan" | "template" | "code" | "polish" | "done";
 
 export type GenerationMode = "create" | "polish";
 
-// ─── Tunnel client ↔ Server ──────────────────────────────────────
+// ─── Tunnel client ↔ Server ──────────────────────────────────
 
 /** Messages sent from tunnel client to the server */
 export type TunnelToServer =
@@ -92,7 +92,7 @@ export type ServerToTunnel =
       message: string;
     };
 
-// ─── Browser ↔ Server ────────────────────────────────────────────
+// ─── Browser ↔ Server ────────────────────────────────────────
 
 /** Messages sent from the browser (control WS) to the server */
 export type BrowserToServer =
@@ -103,7 +103,22 @@ export type BrowserToServer =
       mode: GenerationMode;
       prompt: string;
       artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
- stylePresetId?: "generic" | "neon-cyber" | "clean-saas" | "warm-premium" | "editorial" | "tech-terminal";
+      /**
+       * Должен покрывать все id из app/lib/llm/style-presets (shared-пакет не может
+       * импортировать из app, поэтому union дублируется вручную). Расширение
+       * списка — backward-compatible (optional поле browser↔server, туннель его
+       * не читает), bump PROTOCOL_VERSION не требуется.
+       */
+      stylePresetId?:
+        | "generic"
+        | "neon-cyber"
+        | "clean-saas"
+        | "warm-premium"
+        | "editorial"
+        | "tech-terminal"
+        | "dark-luxe"
+        | "earth-craft"
+        | "bold-pop";
       /** Previous site HTML if mode === "polish" */
       previousHtml?: string;
     }
@@ -151,7 +166,7 @@ export type ServerToBrowser =
     }
   | { type: "heartbeat_ack" };
 
-// ─── Type guards ─────────────────────────────────────────────────
+// ─── Type guards ───────────────────────────────────────────────
 
 export function isTunnelToServer(msg: unknown): msg is TunnelToServer {
   return typeof msg === "object" && msg !== null && "type" in msg;

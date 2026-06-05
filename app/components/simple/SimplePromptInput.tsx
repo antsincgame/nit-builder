@@ -35,6 +35,9 @@ const STYLE_PRESETS: Array<{
   { id: "neon-cyber", name: "Neon Cyber", hint: "glitch / HUD", accent: "var(--magenta)" },
   { id: "editorial", name: "Editorial", hint: "журнал / luxury", accent: "#d9a06a" },
   { id: "tech-terminal", name: "Terminal", hint: "CLI / devtool", accent: "#39ff88" },
+  { id: "dark-luxe", name: "Dark Luxe", hint: "графит / латунь", accent: "#c6a15b" },
+  { id: "earth-craft", name: "Earth Craft", hint: "бумага / крафт", accent: "#b4652f" },
+  { id: "bold-pop", name: "Bold Pop", hint: "стикеры / поп-арт", accent: "#ffd60a" },
 ];
 
 export function SimplePromptInput({
@@ -103,7 +106,7 @@ export function SimplePromptInput({
           <span className="w-8 h-px bg-white/[0.08]" />
           style preset
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {STYLE_PRESETS.map((preset) => {
             const active = preset.id === selectedStylePresetId;
             return (
