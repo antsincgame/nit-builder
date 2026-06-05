@@ -6,13 +6,18 @@ import { logger } from "~/lib/utils/logger";
 
 // ─── POST /api/bundle/php — ZIP с PHP-админкой ──────────────────
 //
-// Принимает {html, zones?, filename?}, возвращает application/zip с готовым
-// бандлом: index.php (HTML + PHP-вставки), admin/, data/, setup-<hex>.php, README.md.
+// Принимает {html, zones?, collections?, filename?}, возвращает application/zip
+// с готовым бандлом: index.php (HTML + PHP-вставки), admin/, data/,
+// setup-<hex>.php, README.md.
 //
 // zones[] опционально: если передан — используется как есть; если не передан
 // или пустой — извлекается из data-edit-* атрибутов самого HTML. Это позволяет
 // клиенту скачать бандл без знания plan'а — Coder уже разметил всё необходимое
 // прямо в HTML (data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>").
+//
+// collections[] (Tier 6) — только из клиента (из plan.collections): разметка
+// data-collection/data-item/data-field несёт лишь id, типы и подписи колонок
+// живут в плане. Без collections бандл собирается как раньше — статика + зоны.
 //
 // Auth не требуется (как /api/bundle). Compile + bake + zip: CPU-bound,
 // ~150-500ms для типичного лендинга.
@@ -28,9 +33,33 @@ const EditableZoneRequestSchema = z.object({
   section: z.string().min(1).max(50),
 });
 
+// Зеркало CollectionSchema из planSchema — дублируем сознательно, как зоны:
+// контракт API не должен молча дрейфовать вместе с внутренней схемой плана.
+const CollectionFieldRequestSchema = z.object({
+  id: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z][a-z0-9_]*$/, "id — snake_case, только a-z, 0-9, _, начинается с буквы"),
+  label: z.string().min(2).max(80),
+  type: z.enum(["text", "richtext", "image", "price", "number"]),
+});
+
+const CollectionRequestSchema = z.object({
+  id: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z][a-z0-9_]*$/, "id — snake_case, только a-z, 0-9, _, начинается с буквы"),
+  label: z.string().min(2).max(80),
+  fields: z.array(CollectionFieldRequestSchema).min(1).max(10),
+  section: z.string().min(1).max(50),
+});
+
 const BundlePhpSchema = z.object({
   html: z.string().min(1).max(2_000_000),
   zones: z.array(EditableZoneRequestSchema).max(20).optional(),
+  collections: z.array(CollectionRequestSchema).max(5).optional(),
   filename: z.string().min(1).max(120).optional(),
 });
 
@@ -65,12 +94,14 @@ export async function action({ request }: ActionFunctionArgs) {
     zonesSource = "extracted";
   }
 
-  if (zones.length === 0) {
+  const collections = parsed.data.collections ?? [];
+
+  if (zones.length === 0 && collections.length === 0) {
     return Response.json(
       {
         error: "No editable zones",
         message:
-          "В HTML нет ни одной зоны с атрибутом data-edit. Опиши в запросе что нужна возможность редактирования (admin, CMS, «чтобы клиент сам менял контент») — Planner разметит зоны.",
+          "В HTML нет ни одной зоны с атрибутом data-edit и не переданы коллекции. Опиши в запросе что нужна возможность редактирования (admin, CMS, «чтобы клиент сам менял контент») — Planner разметит зоны.",
       },
       { status: 400 },
     );
@@ -81,11 +112,12 @@ export async function action({ request }: ActionFunctionArgs) {
     const result = await bundlePhp({
       html: parsed.data.html,
       zones,
+      collections,
     });
     const tookMs = Date.now() - t0;
     logger.info(
       "api.bundle.php",
-      `ok source=${zonesSource} matched=${result.matchedZones.length} missing=${result.missingZones.length} size=${result.sizeBytes}b setup=${result.setupFilename} took=${tookMs}ms`,
+      `ok source=${zonesSource} matched=${result.matchedZones.length} missing=${result.missingZones.length} col_matched=${result.matchedCollections.length} col_missing=${result.missingCollections.length} col_fields_missing=${result.missingCollectionFields.length} size=${result.sizeBytes}b setup=${result.setupFilename} took=${tookMs}ms`,
     );
 
     const safeName =
@@ -103,6 +135,8 @@ export async function action({ request }: ActionFunctionArgs) {
         "X-Bundle-Took-Ms": String(tookMs),
         "X-Bundle-Matched": String(result.matchedZones.length),
         "X-Bundle-Missing": String(result.missingZones.length),
+        "X-Bundle-Collections-Matched": String(result.matchedCollections.length),
+        "X-Bundle-Collections-Missing": String(result.missingCollections.length),
         "X-Bundle-Size": String(result.sizeBytes),
         "X-Bundle-Zones-Source": zonesSource,
         // setup-файл переименован в setup-<8hex>.php (см. bundle.server.ts).
