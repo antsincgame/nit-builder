@@ -70,8 +70,11 @@ export function inferStylePresetId(
   plan?: StyleIntentPlan,
 ): StylePresetId {
   const userText = userMessage.toLowerCase();
+  // color_mood НАМЕРЕННО не включается в keyword-скан: имена mood'ов
+  // ("dark-premium", "vibrant-neon") содержат подстроки паттернов (premium,
+  // neon) и перехватываются чужим пресетом (dark-premium уходил в
+  // warm-premium по substring). Mood обрабатывается явными маппингами ниже.
   const planText = [
-    plan?.color_mood,
     plan?.style_hints,
     plan?.tone,
     plan?.business_type,
