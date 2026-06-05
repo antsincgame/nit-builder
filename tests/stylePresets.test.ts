@@ -11,7 +11,7 @@ import {
 
 describe("style-presets registry", () => {
   it("содержит все preset'ы в стабильном порядке", () => {
-    expect(STYLE_PRESETS.length).toBe(6);
+    expect(STYLE_PRESETS.length).toBe(9);
     const ids = STYLE_PRESETS.map((p) => p.id);
     expect(ids).toEqual([
       "generic",
@@ -20,6 +20,9 @@ describe("style-presets registry", () => {
       "warm-premium",
       "editorial",
       "tech-terminal",
+      "dark-luxe",
+      "earth-craft",
+      "bold-pop",
     ]);
   });
 
@@ -36,6 +39,9 @@ describe("getStylePreset", () => {
   it("возвращает preset по id", () => {
     expect(getStylePreset("neon-cyber").name).toBe("Neon Cyber");
     expect(getStylePreset("editorial").name).toBe("Editorial");
+    expect(getStylePreset("dark-luxe").id).toBe("dark-luxe");
+    expect(getStylePreset("earth-craft").id).toBe("earth-craft");
+    expect(getStylePreset("bold-pop").id).toBe("bold-pop");
   });
 
   it("fallback к generic для неизвестного id", () => {
@@ -52,6 +58,9 @@ describe("isKnownPresetId", () => {
     expect(isKnownPresetId("warm-premium")).toBe(true);
     expect(isKnownPresetId("editorial")).toBe(true);
     expect(isKnownPresetId("tech-terminal")).toBe(true);
+    expect(isKnownPresetId("dark-luxe")).toBe(true);
+    expect(isKnownPresetId("earth-craft")).toBe(true);
+    expect(isKnownPresetId("bold-pop")).toBe(true);
   });
   it("false для чужих id", () => {
     expect(isKnownPresetId("random")).toBe(false);
@@ -69,6 +78,9 @@ describe("getAvailablePresets", () => {
     expect(ids).toContain("warm-premium");
     expect(ids).toContain("editorial");
     expect(ids).toContain("tech-terminal");
+    expect(ids).toContain("dark-luxe");
+    expect(ids).toContain("earth-craft");
+    expect(ids).toContain("bold-pop");
   });
 });
 
@@ -94,6 +106,14 @@ describe("injectStylePreset", () => {
     expect(injectStylePreset(BASE, "editorial")).toContain("EDITORIAL PREMIUM");
     expect(injectStylePreset(BASE, "tech-terminal")).toContain("TECH TERMINAL");
   });
+
+  it("новые presets (dark-luxe/earth-craft/bold-pop) инжектят непустой addon", () => {
+    for (const id of ["dark-luxe", "earth-craft", "bold-pop"] as const) {
+      const result = injectStylePreset(BASE, id);
+      expect(result).toContain(BASE);
+      expect(result.length).toBeGreaterThan(BASE.length + 100);
+    }
+  });
 });
 
 describe("inferStylePresetId", () => {
@@ -111,6 +131,23 @@ describe("inferStylePresetId", () => {
 
   it("понимает отрицание cyber/neon в светлом запросе", () => {
     expect(inferStylePresetId("warm premium SaaS без неона и glitch")).toBe("warm-premium");
+  });
+
+  it("элитный/нуар → dark-luxe", () => {
+    expect(inferStylePresetId("элитный нуар-лендинг для бутик-отеля")).toBe("dark-luxe");
+  });
+
+  it("крафт/натуральные → earth-craft", () => {
+    expect(inferStylePresetId("крафтовая керамика ручной работы, натуральные тона")).toBe("earth-craft");
+  });
+
+  it("яркий/игривый/стикеры → bold-pop", () => {
+    expect(inferStylePresetId("яркий игривый лендинг детского праздника со стикерами")).toBe("bold-pop");
+  });
+
+  it("старые паттерны выигрывают у новых при пересечении", () => {
+    // "премиум" (WARM) + "люкс" (DARK_LUXE) — warm стоит раньше в очереди
+    expect(inferStylePresetId("премиум люкс отель")).toBe("warm-premium");
   });
 });
 
