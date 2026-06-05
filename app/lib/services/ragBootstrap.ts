@@ -6,6 +6,8 @@
  *   - добавляет plan_example seeds из planExamples.ts (24 базовых)
  *   - добавляет extended seeds из planExamplesExtended.ts (8 с pricing/faq/hours/contact)
  *   - добавляет v8 seeds из planExamplesV8.ts (6 новых ниш)
+ *   - добавляет admin seeds из planExamplesAdmin.ts (3 вида админки:
+ *     needs_admin + editable_zones)
  *   - добавляет hero_headline / benefits / social_proof / cta_microcopy
  *     из copywritingBank.ts
  *   - пишет sentinel
@@ -27,6 +29,9 @@
  * v8: 6 новых ниш в planExamplesV8.ts — vet, home-services, digital-agency,
  *     moving, renovation, hotel. Все с extended-полями и копирайтом по планке
  *     planQuality (цифры в benefits, без штампов).
+ * v8 admin-доп (без бампа версии): сиды needs_admin + editable_zones в
+ *     planExamplesAdmin.ts — заливаются repair-веткой doBootstrap
+ *     (totalPlanSeeds < EXPECTED), существующие дедупятся по id.
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -38,6 +43,7 @@ import { isRagDisabled } from "~/lib/services/ragEmbeddings";
 import { PLAN_EXAMPLE_SEEDS } from "~/lib/rag/seeds/planExamples";
 import { PLAN_EXAMPLE_SEEDS_EXTENDED } from "~/lib/rag/seeds/planExamplesExtended";
 import { PLAN_EXAMPLE_SEEDS_V8 } from "~/lib/rag/seeds/planExamplesV8";
+import { PLAN_EXAMPLE_SEEDS_ADMIN } from "~/lib/rag/seeds/planExamplesAdmin";
 import {
   HERO_HEADLINE_SEEDS,
   BENEFITS_SEEDS,
@@ -52,7 +58,8 @@ const SENTINEL_ID = `__seed_sentinel:${SEED_VERSION}`;
 const EXPECTED_PLAN_SEEDS =
   PLAN_EXAMPLE_SEEDS.length +
   PLAN_EXAMPLE_SEEDS_EXTENDED.length +
-  PLAN_EXAMPLE_SEEDS_V8.length;
+  PLAN_EXAMPLE_SEEDS_V8.length +
+  PLAN_EXAMPLE_SEEDS_ADMIN.length;
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -88,11 +95,13 @@ async function doBootstrap(): Promise<void> {
   let missingPlanEmbeddings = 0;
   let optionalFailed = 0;
 
-  // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact) + v8 (6 новых ниш)
+  // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact)
+  // + v8 (6 новых ниш) + admin (3 вида админки с editable_zones)
   const allPlanSeeds = [
     ...PLAN_EXAMPLE_SEEDS,
     ...PLAN_EXAMPLE_SEEDS_EXTENDED,
     ...PLAN_EXAMPLE_SEEDS_V8,
+    ...PLAN_EXAMPLE_SEEDS_ADMIN,
   ];
 
   for (const seed of allPlanSeeds) {
