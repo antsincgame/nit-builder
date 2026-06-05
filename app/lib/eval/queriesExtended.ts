@@ -13,6 +13,10 @@
  *   - FAQ/вопросы/частые/чаво → expectsFaq
  *   - часы/режим работы/открываем в X → expectsHours
  *   - телефон/адрес/физ. офис → expectsContactPhone
+ *
+ * Ниши v8 (vet/home-services/moving/hotel/renovation/digital-agency)
+ * добавлены вместе с seed-корпусом v8 — измеряют few-shot попадание
+ * и adoption extended-полей на новых нишах.
  */
 
 import type { EvalQuery } from "./types";
@@ -109,5 +113,62 @@ export const EVAL_QUERIES_EXTENDED: EvalQuery[] = [
     expectsHours: true,
     expectsFaq: true,
     expectedKeywordsAny: ["коворкинг", "тариф"],
+  },
+  {
+    id: "ext-vet-stationar",
+    query:
+      "ветеринарная клиника с круглосуточным стационаром цены на приём и вакцинацию режим работы телефон",
+    expectedNiche: "vet",
+    expectsPricing: true,
+    expectsHours: true,
+    expectsContactPhone: true,
+    expectedKeywordsAny: ["ветеринар", "стационар", "вакцинац"],
+  },
+  {
+    id: "ext-home-services-urgent",
+    query:
+      "срочный вызов сантехника и электрика на дом цены на работы частые вопросы работаем круглосуточно",
+    expectedNiche: "home-services",
+    expectsPricing: true,
+    expectsFaq: true,
+    expectsHours: true,
+    expectedKeywordsAny: ["сантехник", "электрик", "вызов"],
+  },
+  {
+    id: "ext-moving-turnkey",
+    query:
+      "квартирный переезд под ключ с грузчиками тарифы газель и под ключ ответы на вопросы про страховку",
+    expectedNiche: "moving",
+    expectsPricing: true,
+    expectsFaq: true,
+    expectedKeywordsAny: ["переезд", "грузчик", "страховк"],
+  },
+  {
+    id: "ext-hotel-boutique",
+    query:
+      "бутик-отель в историческом центре цены на номера частые вопросы про заезд и парковку телефон ресепшн",
+    expectedNiche: "hotel",
+    expectsPricing: true,
+    expectsFaq: true,
+    expectsContactPhone: true,
+    expectedKeywordsAny: ["отель", "номер", "заезд"],
+  },
+  {
+    id: "ext-renovation-fixed",
+    query:
+      "ремонт квартир под ключ прайс за квадратный метр частые вопросы про сроки и гарантию",
+    expectedNiche: "renovation",
+    expectsPricing: true,
+    expectsFaq: true,
+    expectedKeywordsAny: ["ремонт", "под ключ", "гарант"],
+  },
+  {
+    id: "ext-digital-agency-tariffs",
+    query:
+      "веб-студия полного цикла тарифы на лендинг корпоративный сайт и поддержку частые вопросы клиентов",
+    expectedNiche: "digital-agency",
+    expectsPricing: true,
+    expectsFaq: true,
+    expectedKeywordsAny: ["студи", "лендинг", "тариф"],
   },
 ];
