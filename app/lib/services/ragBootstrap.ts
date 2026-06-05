@@ -9,7 +9,7 @@
  *   - добавляет admin seeds из planExamplesAdmin.ts и planExamplesAdmin2.ts
  *     (6 с needs_admin/editable_zones)
  *   - добавляет hero_headline / benefits / social_proof / cta_microcopy
- *     из copywritingBank.ts
+ *     из copywritingBank.ts и copywritingBankV8.ts
  *   - пишет sentinel
  *
  * Старые seed:plan:* из предыдущей версии остаются в JSONL — id-дедупликация
@@ -41,6 +41,9 @@
  * v8 (доливка 2): ещё 3 admin-сида в planExamplesAdmin2.ts — клининг
  *     (редактируемые цены тарифов), кондитерская (каталог тортов:
  *     фото+название+цена), психолог (richtext-статьи и расписание, inferred).
+ * v8 (доливка 3): копирайт-банк для ниш v8 в copywritingBankV8.ts —
+ *     hero/benefits/social_proof/microcopy. Копирайт-доки без явных id
+ *     дедупятся в addDocument по контенту.
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -60,6 +63,12 @@ import {
   SOCIAL_PROOF_SEEDS,
   MICROCOPY_SEEDS,
 } from "~/lib/rag/seeds/copywritingBank";
+import {
+  HERO_HEADLINE_SEEDS_V8,
+  BENEFITS_SEEDS_V8,
+  SOCIAL_PROOF_SEEDS_V8,
+  MICROCOPY_SEEDS_V8,
+} from "~/lib/rag/seeds/copywritingBankV8";
 import { buildContextualText } from "~/lib/services/contextualEmbed";
 
 const SCOPE = "ragBootstrap";
@@ -143,7 +152,7 @@ async function doBootstrap(): Promise<void> {
     }
   }
 
-  for (const hero of HERO_HEADLINE_SEEDS) {
+  for (const hero of [...HERO_HEADLINE_SEEDS, ...HERO_HEADLINE_SEEDS_V8]) {
     const result = await addDocument({
       text: hero.text,
       category: "hero_headline",
@@ -158,7 +167,7 @@ async function doBootstrap(): Promise<void> {
     else optionalFailed++;
   }
 
-  for (const benefits of BENEFITS_SEEDS) {
+  for (const benefits of [...BENEFITS_SEEDS, ...BENEFITS_SEEDS_V8]) {
     const result = await addDocument({
       text: benefits.items.map((b) => `${b.title}: ${b.description}`).join(" | "),
       category: "benefits",
@@ -173,7 +182,7 @@ async function doBootstrap(): Promise<void> {
     else optionalFailed++;
   }
 
-  for (const proof of SOCIAL_PROOF_SEEDS) {
+  for (const proof of [...SOCIAL_PROOF_SEEDS, ...SOCIAL_PROOF_SEEDS_V8]) {
     const result = await addDocument({
       text: proof.text,
       category: "social_proof",
@@ -187,7 +196,7 @@ async function doBootstrap(): Promise<void> {
     else optionalFailed++;
   }
 
-  for (const mc of MICROCOPY_SEEDS) {
+  for (const mc of [...MICROCOPY_SEEDS, ...MICROCOPY_SEEDS_V8]) {
     const result = await addDocument({
       text: mc.text,
       category: "cta_microcopy",
