@@ -5,9 +5,9 @@
  *
  * Мотивация: baseline генерация NIT Builder выдаёт generic-Tailwind лендинги.
  * Чтобы отличаться от Bolt/Lovable, даём пользователю выбор эстетики:
- * neon-cyber, editorial, tech-terminal. Каждый preset — это сжатый набор
- * правил (palette, fonts, signature moves), которые инжектятся в Coder
- * system prompt опционально.
+ * neon-cyber, editorial, tech-terminal, dark-luxe, earth-craft, bold-pop и др.
+ * Каждый preset — это сжатый набор правил (palette, fonts, signature moves),
+ * которые инжектятся в Coder system prompt опционально.
  *
  * Без preset — текущее поведение (generic). Preset НЕ заменяет, а дополняет
  * существующий design-token pipeline — токены отвечают за color_mood, preset
@@ -20,7 +20,10 @@ export type StylePresetId =
   | "clean-saas"
   | "warm-premium"
   | "editorial"
-  | "tech-terminal";
+  | "tech-terminal"
+  | "dark-luxe"
+  | "earth-craft"
+  | "bold-pop";
 
 export type StylePreset = {
   id: StylePresetId;

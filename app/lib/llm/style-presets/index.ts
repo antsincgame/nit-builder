@@ -6,6 +6,9 @@ import { CLEAN_SAAS_PRESET } from "./clean-saas";
 import { WARM_PREMIUM_PRESET } from "./warm-premium";
 import { EDITORIAL_PRESET } from "./editorial";
 import { TECH_TERMINAL_PRESET } from "./tech-terminal";
+import { DARK_LUXE_PRESET } from "./dark-luxe";
+import { EARTH_CRAFT_PRESET } from "./earth-craft";
+import { BOLD_POP_PRESET } from "./bold-pop";
 
 export { type StylePreset, type StylePresetId } from "./types";
 
@@ -16,6 +19,9 @@ export const STYLE_PRESETS: StylePreset[] = [
   WARM_PREMIUM_PRESET,
   EDITORIAL_PRESET,
   TECH_TERMINAL_PRESET,
+  DARK_LUXE_PRESET,
+  EARTH_CRAFT_PRESET,
+  BOLD_POP_PRESET,
 ];
 
 const BY_ID = new Map<StylePresetId, StylePreset>(
@@ -55,6 +61,9 @@ const EDITORIAL_PATTERNS = [/editorial|magazine|журнал|редакц|serif|
 const NEON_PATTERNS = [/cyber|кибер|neon|неон|glitch|глитч|brutal|брутал|hud|web3|crypto|крипт/];
 const WARM_PATTERNS = [/warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach/];
 const CLEAN_PATTERNS = [/apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard/];
+const DARK_LUXE_PATTERNS = [/люкс|luxe|элитн|нуар|noir/];
+const EARTH_CRAFT_PATTERNS = [/эко(?!ном)|крафт|органик|натуральн|ремесл|керамик/];
+const BOLD_POP_PATTERNS = [/ярк(ий|ая|ое|ие)|сочн|игрив|playful|поп.?арт|pop.?art|стикер|мемфис|memphis/];
 
 export function inferStylePresetId(
   userMessage: string,
@@ -76,15 +85,25 @@ export function inferStylePresetId(
   if (hasAny(userText, EDITORIAL_PATTERNS)) return "editorial";
   if (hasAny(userText, WARM_PATTERNS)) return "warm-premium";
   if (hasAny(userText, CLEAN_PATTERNS)) return "clean-saas";
+  if (hasAny(userText, DARK_LUXE_PATTERNS)) return "dark-luxe";
+  if (hasAny(userText, EARTH_CRAFT_PATTERNS)) return "earth-craft";
+  if (hasAny(userText, BOLD_POP_PATTERNS)) return "bold-pop";
 
   if (!hasAntiCyberIntent(text) && hasAny(text, NEON_PATTERNS)) return "neon-cyber";
   if (hasAny(text, TERMINAL_PATTERNS)) return "tech-terminal";
   if (hasAny(text, EDITORIAL_PATTERNS)) return "editorial";
   if (hasAny(text, WARM_PATTERNS)) return "warm-premium";
   if (hasAny(text, CLEAN_PATTERNS)) return "clean-saas";
+  if (hasAny(text, DARK_LUXE_PATTERNS)) return "dark-luxe";
+  if (hasAny(text, EARTH_CRAFT_PATTERNS)) return "earth-craft";
+  if (hasAny(text, BOLD_POP_PATTERNS)) return "bold-pop";
   if (plan?.color_mood === "vibrant-neon") return "neon-cyber";
   if (plan?.color_mood === "warm-pastel") return "warm-premium";
   if (plan?.color_mood === "light-minimal") return "clean-saas";
+  if (plan?.color_mood === "dark-premium") return "dark-luxe";
+  if (plan?.color_mood === "earth-natural") return "earth-craft";
+  if (plan?.color_mood === "bold-contrast") return "bold-pop";
+  if (plan?.color_mood === "cool-mono") return "clean-saas";
   return "generic";
 }
 
