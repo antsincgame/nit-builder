@@ -316,7 +316,7 @@ export function buildCollectionsHint(plan: Plan): string | null {
     .map((c, i) => {
       const fields = c.fields
         .map((f) => `id="${f.id}" type="${f.type}" label="${f.label}"`)
-        .join("; ")
+        .join("; ");
       return `  ${i + 1}. collection id="${c.id}" label="${c.label}" section="${c.section}"\n     поля: ${fields}`;
     })
     .join("\n");
