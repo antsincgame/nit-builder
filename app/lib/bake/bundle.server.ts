@@ -5,10 +5,16 @@
  *   1. compileTailwindForHtml — компилим Tailwind на исходном HTML (до PHP-вставок,
  *      иначе сканер увидит '<?= e($c[...]) ?>' как мусор и не извлечёт классы).
  *   2. inlineCompiledCss — встраиваем <style> в <head>, убираем CDN-скрипт.
- *   3. bakeHtmlToPhp — заменяем размеченные зоны (data-edit) на PHP-подстановки,
+ *   3. bakeCollections — заменяем размеченные коллекции (data-collection /
+ *      data-item / data-field) на текстовые МАРКЕРЫ цикла и полей, собираем
+ *      стартовые данные для data/collections.json. Маркеры, не живой PHP —
+ *      следующий шаг парсит HTML повторно.
+ *   4. bakeHtmlToPhp — заменяем размеченные зоны (data-edit) на PHP-подстановки,
  *      возвращает дефолты для data/defaults.json.
- *   4. readDirRecursive(app/templates/admin-php/) — читаем статичный PHP-template.
- *   5. JSZip — собираем итоговый архив, переименовывая setup.php в setup-<nonce>.php.
+ *   5. applyCollectionMarkers — подставляем PHP-выражения коллекций в финальный
+ *      текст (HTML больше не парсится — живой PHP безопасен).
+ *   6. readDirRecursive(app/templates/admin-php/) — читаем статичный PHP-template.
+ *   7. JSZip — собираем итоговый архив, переименовывая setup.php в setup-<nonce>.php.
  *
  * РАНДОМИЗАЦИЯ setup-ФАЙЛА (защита от first-come-first-served race на свежем деплое):
  * setup.php имеет окно «файла data/users.json ещё нет → любой POST создаст админа».
@@ -28,8 +34,9 @@ import { randomBytes } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeHtmlToPhp } from "./htmlToPhp.server";
+import { bakeCollections, applyCollectionMarkers } from "./bakeCollections.server";
 import { compileTailwindForHtml, inlineCompiledCss } from "./compileTailwind.server";
-import type { PlanEditableZone } from "~/lib/utils/planSchema";
+import type { PlanCollection, PlanEditableZone } from "~/lib/utils/planSchema";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,12 +68,20 @@ export function generateSetupFilename(): string {
 export type BundlePhpInput = {
   html: string;
   zones: PlanEditableZone[];
+  /** Коллекции из плана (Tier 6). Опционально — старые вызовы без них. */
+  collections?: PlanCollection[];
 };
 
 export type BundlePhpResult = {
   zip: Uint8Array;
   matchedZones: PlanEditableZone[];
   missingZones: PlanEditableZone[];
+  /** Коллекции, найденные и обёрнутые в PHP-цикл. */
+  matchedCollections: PlanCollection[];
+  /** Коллекции из плана, не размеченные Coder-ом (контейнер/образец не найден). */
+  missingCollections: PlanCollection[];
+  /** Поля коллекций, не найденные в образце (останутся статикой). */
+  missingCollectionFields: Array<{ collection: string; field: string }>;
   sizeBytes: number;
   /** Имя setup-файла в архиве (рандомизировано, см. doc сверху модуля). */
   setupFilename: string;
@@ -99,19 +114,28 @@ async function readDirRecursive(
 }
 
 /**
- * Главная функция: собрать ZIP с PHP-админкой по сгенерированному HTML и зонам из плана.
+ * Главная функция: собрать ZIP с PHP-админкой по сгенерированному HTML,
+ * зонам и коллекциям из плана.
  */
 export async function bundlePhp(
   input: BundlePhpInput,
 ): Promise<BundlePhpResult> {
-  // 1+2. Tailwind compile + inline.
+  // 1+2. Tailwind compile + inline (на исходном HTML — классы образцов
+  // коллекций сканируются до любых маркерных замен).
   const css = await compileTailwindForHtml(input.html);
   const htmlWithCss = inlineCompiledCss(input.html, css);
 
-  // 3. PHP baker (понимает уже встроенный CSS, не трогает <style>).
-  const baked = bakeHtmlToPhp(htmlWithCss, input.zones);
+  // 3. Коллекции → маркеры цикла/полей + стартовые данные. Идёт ДО зон:
+  // выход снова парсится в bakeHtmlToPhp, текстовые маркеры это переживают.
+  const colBake = bakeCollections(htmlWithCss, input.collections ?? []);
 
-  // 4. Admin template — статичные файлы.
+  // 4. PHP baker зон (понимает уже встроенный CSS, не трогает <style>).
+  const baked = bakeHtmlToPhp(colBake.html, input.zones);
+
+  // 5. Финальная подстановка PHP-выражений коллекций — HTML дальше не парсится.
+  const phpIndex = applyCollectionMarkers(baked.phpIndex, colBake.markers);
+
+  // 6. Admin template — статичные файлы.
   const templateDir = resolveAdminTemplateDir();
   const adminFiles = await readDirRecursive(templateDir);
 
@@ -125,9 +149,9 @@ export async function bundlePhp(
   const rewriteSetupRefs = (content: Buffer): Buffer =>
     Buffer.from(content.toString("utf8").replaceAll("setup.php", setupFilename), "utf8");
 
-  // 5. Собираем ZIP.
+  // 7. Собираем ZIP.
   const zip = new JSZip();
-  zip.file("index.php", baked.phpIndex);
+  zip.file("index.php", phpIndex);
   for (const f of adminFiles) {
     if (f.relPath === "setup.php") {
       // Кладём под рандомным именем, content переписываем тоже.
@@ -151,6 +175,13 @@ export async function bundlePhp(
     "data/zones.json",
     JSON.stringify(baked.matchedZones, null, 2),
   );
+  // collections.json — схема колонок + стартовая запись из образца на каждую
+  // найденную коллекцию. Пишем всегда (пустой объект если коллекций нет):
+  // admin/data.php по нему решает, показывать ли раздел «Данные».
+  zip.file(
+    "data/collections.json",
+    JSON.stringify(colBake.collectionsData, null, 2),
+  );
   // Пустой assets/uploads/ создаём с .htaccess (уже есть в template) + .gitkeep
   // на случай если в шаблоне путь без файлов — JSZip не создаёт пустые папки.
 
@@ -164,6 +195,9 @@ export async function bundlePhp(
     zip: buffer,
     matchedZones: baked.matchedZones,
     missingZones: baked.missingZones,
+    matchedCollections: colBake.matchedCollections,
+    missingCollections: colBake.missingCollections,
+    missingCollectionFields: colBake.missingFields,
     sizeBytes: buffer.length,
     setupFilename,
   };
