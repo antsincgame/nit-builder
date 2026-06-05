@@ -5,6 +5,7 @@
  * При первом запуске или bump SEED_VERSION:
  *   - добавляет plan_example seeds из planExamples.ts (24 базовых)
  *   - добавляет extended seeds из planExamplesExtended.ts (8 с pricing/faq/hours/contact)
+ *   - добавляет v8 seeds из planExamplesV8.ts (6 новых ниш)
  *   - добавляет hero_headline / benefits / social_proof / cta_microcopy
  *     из copywritingBank.ts
  *   - пишет sentinel
@@ -23,6 +24,9 @@
  * v5: repair partial bootstrap (sentinel без embedded seeds) + craft workshop seed.
  * v6: premium beauty seed + stricter weak-model template/language guidance.
  * v7: medical translation seed + deterministic weak-model RU copy repair.
+ * v8: 6 новых ниш в planExamplesV8.ts — vet, home-services, digital-agency,
+ *     moving, renovation, hotel. Все с extended-полями и копирайтом по планке
+ *     planQuality (цифры в benefits, без штампов).
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -33,6 +37,7 @@ import { addDocument, getSeedCoverage, hasDocument } from "~/lib/services/ragSto
 import { isRagDisabled } from "~/lib/services/ragEmbeddings";
 import { PLAN_EXAMPLE_SEEDS } from "~/lib/rag/seeds/planExamples";
 import { PLAN_EXAMPLE_SEEDS_EXTENDED } from "~/lib/rag/seeds/planExamplesExtended";
+import { PLAN_EXAMPLE_SEEDS_V8 } from "~/lib/rag/seeds/planExamplesV8";
 import {
   HERO_HEADLINE_SEEDS,
   BENEFITS_SEEDS,
@@ -42,9 +47,12 @@ import {
 import { buildContextualText } from "~/lib/services/contextualEmbed";
 
 const SCOPE = "ragBootstrap";
-const SEED_VERSION = "v7";
+const SEED_VERSION = "v8";
 const SENTINEL_ID = `__seed_sentinel:${SEED_VERSION}`;
-const EXPECTED_PLAN_SEEDS = PLAN_EXAMPLE_SEEDS.length + PLAN_EXAMPLE_SEEDS_EXTENDED.length;
+const EXPECTED_PLAN_SEEDS =
+  PLAN_EXAMPLE_SEEDS.length +
+  PLAN_EXAMPLE_SEEDS_EXTENDED.length +
+  PLAN_EXAMPLE_SEEDS_V8.length;
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -80,8 +88,12 @@ async function doBootstrap(): Promise<void> {
   let missingPlanEmbeddings = 0;
   let optionalFailed = 0;
 
-  // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact)
-  const allPlanSeeds = [...PLAN_EXAMPLE_SEEDS, ...PLAN_EXAMPLE_SEEDS_EXTENDED];
+  // Base seeds (24 ниши) + extended (8 с pricing/faq/hours/contact) + v8 (6 новых ниш)
+  const allPlanSeeds = [
+    ...PLAN_EXAMPLE_SEEDS,
+    ...PLAN_EXAMPLE_SEEDS_EXTENDED,
+    ...PLAN_EXAMPLE_SEEDS_V8,
+  ];
 
   for (const seed of allPlanSeeds) {
     // Contextual prefix: ниша + tone + mood
