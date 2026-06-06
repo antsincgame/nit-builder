@@ -6,6 +6,7 @@ nit_require_auth();
 
 $zones = nit_zones();
 $content = nit_load_content();
+$collections = nit_load_collections();
 
 // Группируем зоны по секции для удобной навигации.
 $grouped = [];
@@ -38,6 +39,7 @@ h2{font-size:11px;text-transform:uppercase;letter-spacing:.2em;color:#7d8499;mar
 <header>
   <h1>// admin · <?= e((string)($_SESSION['user'] ?? '')) ?></h1>
   <div>
+    <?php if ($collections !== []): ?><a class="view-site" href="data.php">⊞ Данные</a><?php endif; ?>
     <a class="view-site" href="../" target="_blank">↗ Открыть сайт</a>
     <a class="logout" href="logout.php">Выйти →</a>
   </div>
