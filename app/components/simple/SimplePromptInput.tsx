@@ -117,7 +117,7 @@ export function SimplePromptInput({
           className="text-[10px] tracking-[0.2em] uppercase mb-3 flex items-center justify-center gap-3 text-white/35"
         >
           <span className="w-8 h-px bg-white/[0.08]" />
-          style preset
+          стиль сайта
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {STYLE_PRESETS.map((preset) => {
