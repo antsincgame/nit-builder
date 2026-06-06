@@ -3,7 +3,7 @@ import type { Route } from "./+types/home";
 import { getAuth } from "~/lib/server/requireAuth.server";
 import { ensurePublicId } from "~/lib/server/publicId.server";
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Plus, Download, Share2, X, Undo2, Redo2, Loader2, PanelLeft } from "lucide-react";
+import { Plus, Download, Share2, X, Undo2, Redo2, Loader2, PanelLeft, ArrowUpRight } from "lucide-react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
 import { PolishChat } from "~/components/simple/PolishChat";
 import { HistorySidebar } from "~/components/simple/HistorySidebar";
