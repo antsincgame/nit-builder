@@ -25,7 +25,7 @@ export default function FinalCTA() {
           </h2>
           <p className="relative text-lg text-[#A1A1AA] mb-10 max-w-xl mx-auto">
             <strong className="text-white">Бесплатно для личного использования.</strong> Без карты, без подписки.
-            Нейросеть соберёт полноценный сайт — с SEO, картинками, базой и админкой — за <strong className="text-emerald-300">60 секунд</strong>.
+            Нейросеть соберёт полноценный сайт — с SEO, картинками, базой и админкой.
           </p>
 
           <div className="relative flex flex-col items-center gap-3">
