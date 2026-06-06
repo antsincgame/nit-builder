@@ -36,8 +36,17 @@ describe("buildPlannerPrompt", () => {
     expect(prompt).toContain("ru|en|by");
   });
 
+  it("describes collections for admin sites (Tier 6)", () => {
+    expect(prompt).toContain("КОЛЛЕКЦИИ");
+    expect(prompt).toContain('"collections"');
+    expect(prompt).toContain("text|richtext|image|price|number");
+  });
+
   it("is reasonably sized", () => {
-    expect(prompt.length).toBeLessThan(14_000);
+    // Потолок — канарейка против бесконтрольного распухания промпта.
+    // 14K → 16K (v8 Tier 6): секция КОЛЛЕКЦИИ + collections в JSON-схеме
+    // + пример коллекции в кофейне добавили ~1.3K осознанно.
+    expect(prompt.length).toBeLessThan(16_000);
     expect(prompt.length).toBeGreaterThan(500);
   });
 });
@@ -80,6 +89,13 @@ describe("buildCoderPrompt", () => {
     expect(p.toLowerCase()).toContain("cdn");
   });
 
+  it("describes collection markup rules (Tier 6)", () => {
+    const p = buildCoderPrompt({ templateHtml: mockTemplate, plan: mockPlan });
+    expect(p).toContain("data-collection");
+    expect(p).toContain("data-item");
+    expect(p).toContain("data-field");
+  });
+
   it("embeds curated design tokens for the plan's color_mood", () => {
     const p = buildCoderPrompt({ templateHtml: mockTemplate, plan: mockPlan });
     // warm-pastel palette primary
@@ -104,6 +120,15 @@ describe("buildPolisherPrompt", () => {
       userRequest: "сделай синим",
     });
     expect(p).toContain("сделай синим");
+  });
+
+  it("preserves admin markup attributes (Tier 6)", () => {
+    const p = buildPolisherPrompt({
+      currentHtml: "<html></html>",
+      userRequest: "x",
+    });
+    expect(p).toContain("data-collection");
+    expect(p).toContain("data-field");
   });
 
   it("instructs to return full HTML only", () => {
