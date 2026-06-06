@@ -159,11 +159,15 @@ async function repairAdminMarkupIfNeeded(params: {
       stopSequences: HTML_STOP_SEQUENCES,
       abortSignal: params.signal,
     });
-    const repaired = stripCodeFences(result.text);
-    if (!/<\/html>\s*$/i.test(repaired.trim())) {
-      logger.warn(SCOPE, "Admin repair вернул неполный HTML — оставляем исходный");
+    // Обрыв по токенам ловим по finishReason: текстовых следов после
+    // strip-слоя не остаётся (stripCodeFences дописывает </html>,
+    // repairTruncatedHtml дочинивает теги), а стоп-секвенция съедает
+    // закрывающий тег у честных ответов — текстовый чек был бы мёртвым.
+    if (result.finishReason === "length") {
+      logger.warn(SCOPE, "Admin repair оборвался по maxOutputTokens — оставляем исходный HTML");
       return params.html;
     }
+    const repaired = stripCodeFences(result.text);
     const after = auditAdminMarkup(repaired, zones, collections);
     const missingAfter =
       after.missingZones.length + after.missingCollections.length + after.missingFields.length;
