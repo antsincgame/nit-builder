@@ -30,15 +30,15 @@ const STYLE_PRESETS: Array<{
   hint: string;
   accent: string;
 }> = [
-  { id: "auto", name: "Auto", hint: "по промпту", accent: "var(--accent)" },
-  { id: "clean-saas", name: "Clean SaaS", hint: "Apple / Linear", accent: "#60a5fa" },
-  { id: "warm-premium", name: "Warm Premium", hint: "Framer / Stripe", accent: "#f59e0b" },
-  { id: "neon-cyber", name: "Neon Cyber", hint: "glitch / HUD", accent: "var(--magenta)" },
-  { id: "editorial", name: "Editorial", hint: "журнал / luxury", accent: "#d9a06a" },
-  { id: "tech-terminal", name: "Terminal", hint: "CLI / devtool", accent: "#39ff88" },
-  { id: "dark-luxe", name: "Dark Luxe", hint: "графит / латунь", accent: "#c6a15b" },
-  { id: "earth-craft", name: "Earth Craft", hint: "бумага / крафт", accent: "#b4652f" },
-  { id: "bold-pop", name: "Bold Pop", hint: "стикеры / поп-арт", accent: "#ffd60a" },
+  { id: "auto", name: "Авто", hint: "подберём по описанию", accent: "var(--accent)" },
+  { id: "clean-saas", name: "Минимализм", hint: "чисто и современно", accent: "#60a5fa" },
+  { id: "warm-premium", name: "Тёплый премиум", hint: "дорого и уютно", accent: "#f59e0b" },
+  { id: "neon-cyber", name: "Неон", hint: "смелый футуризм", accent: "var(--magenta)" },
+  { id: "editorial", name: "Журнальный", hint: "как глянцевый журнал", accent: "#d9a06a" },
+  { id: "tech-terminal", name: "Терминал", hint: "технологичный, для IT", accent: "#39ff88" },
+  { id: "dark-luxe", name: "Тёмный люкс", hint: "графит и латунь", accent: "#c6a15b" },
+  { id: "earth-craft", name: "Крафт", hint: "бумага, ручная работа", accent: "#b4652f" },
+  { id: "bold-pop", name: "Яркий поп", hint: "смело и цветно", accent: "#ffd60a" },
 ];
 
 export function SimplePromptInput({
