@@ -65,7 +65,7 @@ export function SimplePromptInput({
         {connectGate ? (
           <a
             href={connectGate.href}
-            className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold text-sm transition-all"
+            className="absolute bottom-3 right-3 inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold text-[13px] transition-all"
           >
             <PlugZap size={14} />
             {connectGate.label}
