@@ -10,6 +10,8 @@
  *   - отсутствие proof / reassurance
  *   - промах по ожидаемым секциям/template
  *   - Tier 4: adoption pricing/faq/hours/contact когда запрос их явно ожидает
+ *   - Tier 5/6: adoption needs_admin/editable_zones и collections когда
+ *     запрос просит админку / повторяющиеся записи
  */
 
 import { PlanSchema, type Plan } from "~/lib/utils/planSchema";
@@ -235,6 +237,36 @@ export function evaluatePlan(plan: Plan, query: EvalQuery): MetricCheck[] {
       name: "has_contact_phone_when_expected",
       passed: hasPhone,
       detail: hasPhone ? undefined : `contact_phone отсутствует или слишком короткий`,
+    });
+  }
+
+  // ─── Tier 5/6: admin & collections adoption checks ───
+  // Та же логика: чек добавляется только когда query этого ожидает.
+
+  if (query.expectsAdmin) {
+    const zonesCount = plan.editable_zones?.length ?? 0;
+    const adminOk = plan.needs_admin === true && zonesCount >= 3;
+    checks.push({
+      name: "has_admin_when_expected",
+      passed: adminOk,
+      value: zonesCount,
+      detail: adminOk
+        ? undefined
+        : `запрос хочет админку: needs_admin=${String(plan.needs_admin)}, зон ${zonesCount}`,
+    });
+  }
+
+  if (query.expectsCollections) {
+    const collections = plan.collections ?? [];
+    const validCollections = collections.filter((c) => (c.fields?.length ?? 0) >= 1);
+    const colOk = plan.needs_admin === true && validCollections.length >= 1;
+    checks.push({
+      name: "has_collections_when_expected",
+      passed: colOk,
+      value: validCollections.length,
+      detail: colOk
+        ? undefined
+        : `запрос подразумевает коллекции (каталог/меню/товары), план дал ${validCollections.length}`,
     });
   }
 
