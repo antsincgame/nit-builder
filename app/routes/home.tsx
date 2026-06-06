@@ -315,18 +315,17 @@ export default function Home() {
             </div>
           </header>
 
-          <main className="relative z-10 flex-1 w-full max-w-[860px] mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-16 flex flex-col justify-center">
-            <div className="max-w-[680px] mx-auto text-center mb-10 sm:mb-12">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
+          <main className="relative z-10 flex-1 w-full max-w-[860px] mx-auto px-5 sm:px-8 pt-8 sm:pt-10 pb-10 flex flex-col justify-center">
+            <div className="max-w-[680px] mx-auto text-center mb-5 sm:mb-6">
+              <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight leading-[1.15] text-white mb-3 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
                 Что построим
                 <br />
                 <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
                   сегодня?
                 </span>
               </h1>
-              <p className="max-w-[480px] mx-auto text-base sm:text-lg text-[#A1A1AA] leading-relaxed">
-                Опишите своими словами, что вам нужно — приложение сделает
-                сайт за минуту.
+              <p className="max-w-[440px] mx-auto text-[14px] sm:text-[15px] text-[#A1A1AA] leading-relaxed">
+                Опишите своими словами, что вам нужно — приложение соберёт сайт само.
               </p>
             </div>
 
