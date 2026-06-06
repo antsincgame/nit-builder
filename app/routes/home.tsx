@@ -376,12 +376,12 @@ export default function Home() {
             {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
               <div
                 id="connect"
-                className="mb-8 p-5 sm:p-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] scroll-mt-24"
+                className="mb-5 p-4 sm:p-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] scroll-mt-24"
               >
-                <div className="text-[14px] sm:text-[15px] font-semibold text-amber-200 mb-1.5">
+                <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
                   Остался один шаг: подключите свой компьютер
                 </div>
-                <p className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed mb-4">
+                <p className="text-[12px] sm:text-[13px] text-[#A1A1AA] leading-relaxed mb-3">
                   Сайты создаёт ваш компьютер, а не чужое облако — поэтому
                   nitgen полностью бесплатный, и ваши данные остаются у вас.
                   Подключение делается один раз и занимает около 5 минут.
