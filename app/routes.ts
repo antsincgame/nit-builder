@@ -5,8 +5,10 @@ export default [
   index("routes/index.tsx"),
   // /about остаётся для прямых ссылок на лендинг
   route("about", "routes/landing.tsx"),
-  // /app — приложение-генератор напрямую (для старых закладок / SSO-редиректов)
+  // /app — приложение-генератор: гости работают здесь (дневной лимит),
+  // авторизованных loader уводит на персональный /app/u/:publicId
   route("app", "routes/home.tsx"),
+  route("app/u/:publicId", "routes/app.u.$publicId.tsx"),
   route("login", "routes/login.tsx"),
   route("register", "routes/register.tsx"),
   // /guide — пошаговая инструкция для пользователей (LM Studio + tunnel)
