@@ -4,13 +4,16 @@
  *
  * Ниши не пересекаются с первой порцией:
  *   - cleaning-admin-pricing     — услуги: редактируемые цены тарифов + акция (explicit)
- *   - handmade-admin-catalog     — каталог тортов: фото + названия + цены (explicit)
+ *   - handmade-admin-catalog     — пополняемый каталог тортов: collection cakes
+ *     (photo/name/price) + зоны для единичных блоков (explicit, Tier 6)
  *   - psychologist-admin-content — контент: richtext-статьи и «о себе» (inferred,
  *     без слова «админка» в запросе)
  *
  * Отдельный файл — чтобы мелкими коммитами не перезаписывать первый.
- * Заливка БЕЗ бампа SEED_VERSION — repair-веткой doBootstrap после
- * подключения массива в ragBootstrap (отдельный коммит).
+ * Версионирование: доливка новых сидов — без бампа (repair-ветка по счётчику),
+ * изменение текста/плана существующего сида — bump SEED_VERSION.
+ * v9: handmade-admin-catalog переведён с фиксированных cake_N_* зон на
+ * collection — зонный каталог конкурировал с Tier 6-паттерном в few-shot.
  */
 
 import type { PlanExampleSeed } from "./planExamples";
@@ -173,16 +176,20 @@ export const PLAN_EXAMPLE_SEEDS_ADMIN_2: PlanExampleSeed[] = [
       admin_intent_confidence: "explicit",
       editable_zones: [
         { id: "hero_title", type: "text", label: "Заголовок hero", section: "hero" },
-        { id: "cake_1_photo", type: "image", label: "Торт 1: фото", section: "catalog" },
-        { id: "cake_1_name", type: "text", label: "Торт 1: название", section: "catalog" },
-        { id: "cake_1_price", type: "text", label: "Торт 1: цена", section: "catalog" },
-        { id: "cake_2_photo", type: "image", label: "Торт 2: фото", section: "catalog" },
-        { id: "cake_2_name", type: "text", label: "Торт 2: название", section: "catalog" },
-        { id: "cake_2_price", type: "text", label: "Торт 2: цена", section: "catalog" },
-        { id: "cake_3_photo", type: "image", label: "Торт 3: фото", section: "catalog" },
-        { id: "cake_3_name", type: "text", label: "Торт 3: название", section: "catalog" },
-        { id: "cake_3_price", type: "text", label: "Торт 3: цена", section: "catalog" },
         { id: "order_text", type: "richtext", label: "Как заказать", section: "how-to-order" },
+        { id: "contact_phone", type: "text", label: "Телефон для заказов", section: "contact" },
+      ],
+      collections: [
+        {
+          id: "cakes",
+          label: "Торты",
+          section: "catalog",
+          fields: [
+            { id: "photo", label: "Фото", type: "image" },
+            { id: "name", label: "Название", type: "text" },
+            { id: "price", label: "Цена", type: "price" },
+          ],
+        },
       ],
     },
   },
