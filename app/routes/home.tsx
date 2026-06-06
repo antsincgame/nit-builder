@@ -165,13 +165,15 @@ export default function Home() {
     [createSite, selectedStylePreset],
   );
 
-  // Есть ли в текущем HTML data-edit разметка от Coder-а — значит Planner
-  // отметил needs_admin=true и можно собрать PHP-бандл с админкой.
+  // Есть ли в текущем HTML админ-разметка от Coder-а (зоны ИЛИ коллекции) —
+  // значит Planner отметил needs_admin=true и можно собрать PHP-бандл с
+  // админкой. Сервер сам извлечёт и зоны, и схему коллекций из html
+  // (extract-фоллбеки бандл-роута) — клиенту достаточно показать кнопку.
   // useMemo: regex дешёвый, но html меняется на каждый стрим-чанк во время
   // генерации — пусть будет мемо чтобы не пересчитывать на каждый render.
   const hasEditableZones = useMemo(() => {
     const content = html || streamingHtml;
-    return !!content && /\sdata-edit="/.test(content);
+    return !!content && /\sdata-(edit|collection)="/.test(content);
   }, [html, streamingHtml]);
 
   const downloadHtml = useCallback(async () => {
