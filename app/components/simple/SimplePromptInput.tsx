@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, PlugZap } from "lucide-react";
 import type { StylePresetId } from "~/lib/llm/style-presets";
 
 type Props = {
@@ -14,6 +14,14 @@ type Props = {
   initialValue?: string;
   selectedStylePresetId: StylePresetId | "auto";
   onStylePresetChange: (presetId: StylePresetId | "auto") => void;
+  /**
+   * Гейт подключения. Когда генерация недоступна (у авторизованного
+   * туннель offline), вместо «Создать» показываем честную амбер-кнопку
+   * перехода к шагам подключения. Снимает ловушку ложного ожидания:
+   * действие не должно выглядеть доступным, если оно гарантированно
+   * упадёт после клика.
+   */
+  connectGate?: { label: string; href: string } | null;
 };
 
 const STYLE_PRESETS: Array<{
@@ -39,11 +47,13 @@ export function SimplePromptInput({
   initialValue = "",
   selectedStylePresetId,
   onStylePresetChange,
+  connectGate = null,
 }: Props) {
   const [value, setValue] = useState(initialValue);
   const [focused, setFocused] = useState(false);
 
   const submit = () => {
+    if (connectGate) return;
     const trimmed = value.trim();
     if (!trimmed || loading) return;
     onSubmit(trimmed);
