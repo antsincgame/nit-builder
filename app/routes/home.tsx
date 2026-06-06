@@ -691,7 +691,7 @@ function HowArrow() {
 /** Номер шага в степпере подключения. */
 function ConnectStepNum({ n }: { n: number }) {
   return (
-    <span className="shrink-0 w-6 h-6 rounded-full border border-amber-500/40 bg-amber-500/[0.1] text-amber-200 text-[12px] font-bold flex items-center justify-center mt-[1px]">
+    <span className="shrink-0 w-5 h-5 rounded-full border border-amber-500/40 bg-amber-500/[0.1] text-amber-200 text-[11px] font-bold flex items-center justify-center mt-[1px]">
       {n}
     </span>
   );
