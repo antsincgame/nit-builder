@@ -17,6 +17,10 @@
  * Ниши v8 (vet/home-services/moving/hotel/renovation/digital-agency)
  * добавлены вместе с seed-корпусом v8 — измеряют few-shot попадание
  * и adoption extended-полей на новых нишах.
+ *
+ * Tier 5/6: кейсы с expectsAdmin/expectsCollections меряют adoption
+ * админ-намерения и декларации коллекций. Формулировки намеренно не
+ * совпадают с сид-запросами — измеряем обобщение паттерна, не заучивание.
  */
 
 import type { EvalQuery } from "./types";
@@ -170,5 +174,23 @@ export const EVAL_QUERIES_EXTENDED: EvalQuery[] = [
     expectsPricing: true,
     expectsFaq: true,
     expectedKeywordsAny: ["студи", "лендинг", "тариф"],
+  },
+  {
+    id: "ext-restaurant-admin-menu",
+    query:
+      "сайт суши-бара с админкой: администратор сам добавляет новые роллы в меню, меняет цены и фотографии",
+    expectedNiche: "restaurant",
+    expectsAdmin: true,
+    expectsCollections: true,
+    expectedKeywordsAny: ["суши", "ролл", "меню"],
+  },
+  {
+    id: "ext-handmade-admin-products",
+    query:
+      "магазин украшений ручной работы хочу сама выкладывать новые серьги и кольца с фото и ценами без программиста",
+    expectedNiche: "handmade",
+    expectsAdmin: true,
+    expectsCollections: true,
+    expectedKeywordsAny: ["украшен", "ручной работы", "серьги"],
   },
 ];
