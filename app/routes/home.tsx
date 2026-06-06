@@ -678,6 +678,27 @@ export default function Home() {
 
 /* ─── Local sub-components ─── */
 
+/** Шаг полоски «как это работает» на welcome-экране. */
+function HowItWorksStep({ n, text }: { n: number; text: string }) {
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg sm:rounded-none">
+      <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-500/[0.12] border border-emerald-500/30 text-emerald-300 text-[12px] font-bold flex items-center justify-center">
+        {n}
+      </span>
+      <span className="text-[13px] text-[#A1A1AA]">{text}</span>
+    </div>
+  );
+}
+
+/** Стрелка между шагами «как это работает» (горизонтальная на десктопе). */
+function HowArrow() {
+  return (
+    <span className="hidden sm:flex items-center text-[#71717A]/50 px-1" aria-hidden>
+      →
+    </span>
+  );
+}
+
 /** Номер шага в степпере подключения. */
 function ConnectStepNum({ n }: { n: number }) {
   return (
