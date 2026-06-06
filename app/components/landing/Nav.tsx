@@ -4,13 +4,16 @@
  * Войти ведёт на /login. Скачать — на якорь #download внутри Hero.
  */
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
+import { Download, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import Logo from "./Logo";
+import { useAuth } from "~/lib/hooks/useAuth";
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const auth = useAuth();
+  const isAuthed = auth.status === "authenticated";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
