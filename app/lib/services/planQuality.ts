@@ -324,5 +324,29 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     }
   }
 
+  // ─── Tier 5/6: админ-инварианты (planSchema декларирует их именно здесь) ───
+  // 7B нередко выдаёт collections, забыв needs_admin=true. Без флага
+  // buildCollectionsHint возвращает null → Coder не размечает → repair
+  // пропускает → бандл без таблиц: коллекции тихо умирают по всей цепочке.
+  if ((normalized.collections?.length ?? 0) > 0 && normalized.needs_admin !== true) {
+    normalized.needs_admin = true;
+    if (
+      !normalized.admin_intent_confidence ||
+      normalized.admin_intent_confidence === "none"
+    ) {
+      normalized.admin_intent_confidence = "inferred";
+    }
+  }
+  // Обратное направление: needs_admin без единой зоны и коллекции — пустая
+  // админка (бандл-роут вернул бы 400). Гасим флаг, план честный.
+  if (
+    normalized.needs_admin === true &&
+    (normalized.editable_zones?.length ?? 0) === 0 &&
+    (normalized.collections?.length ?? 0) === 0
+  ) {
+    normalized.needs_admin = false;
+    normalized.admin_intent_confidence = "none";
+  }
+
   return normalized;
 }
