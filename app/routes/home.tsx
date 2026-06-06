@@ -401,6 +401,12 @@ export default function Home() {
                         <Download size={12} />
                         {downloadLabel}
                       </a>
+                      <Link
+                        to="/download"
+                        className="text-[11px] text-amber-200/70 hover:text-amber-100 underline underline-offset-2 transition-colors"
+                      >
+                        другие версии
+                      </Link>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
