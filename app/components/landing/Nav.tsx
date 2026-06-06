@@ -44,7 +44,17 @@ export default function Nav() {
         </div>
 
         <div className="hidden md:flex items-center gap-4">
-          <Link to="/login" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Войти</Link>
+          {isAuthed ? (
+            <Link
+              to="/app"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] text-[13px] font-semibold transition-colors shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+            >
+              Открыть приложение
+              <ArrowRight size={14} />
+            </Link>
+          ) : (
+            <Link to="/login" className="text-[13px] text-[#71717A] hover:text-white transition-colors">Войти</Link>
+          )}
           <a
             href="#download"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-[#0A0A0A] text-[13px] font-medium hover:bg-white/90 transition-colors"
