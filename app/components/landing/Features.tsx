@@ -4,7 +4,7 @@ import { Shield, Banknote, Zap, Globe, Lock, Cpu, Search, Database, Image } from
 const cards = [
   {
     icon: <Zap size={20} />,
-    title: "Сайт за 60 секунд",
+    title: "Сайт из одного описания",
     desc: "Напишите одно предложение — нейросеть сгенерирует готовый HTML-сайт. Не нужно знать код, чтобы сделать сайт через искусственный интеллект.",
     highlight: true,
   },
