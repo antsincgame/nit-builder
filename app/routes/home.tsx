@@ -1,4 +1,4 @@
-import { redirect } from "react-router";
+import { redirect, Link } from "react-router";
 import type { Route } from "./+types/home";
 import { getAuth } from "~/lib/server/requireAuth.server";
 import { ensurePublicId } from "~/lib/server/publicId.server";
