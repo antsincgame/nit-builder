@@ -422,7 +422,7 @@ export default function Home() {
                   href="/guide"
                   className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[12px] border border-amber-500/40 text-amber-200 hover:bg-amber-500/[0.1] font-semibold transition-all"
                 >
-                  Открыть пошаговую инструкцию с картинками
+                  Открыть пошаговую инструкцию
                   <ArrowUpRight size={13} />
                 </a>
               </div>
