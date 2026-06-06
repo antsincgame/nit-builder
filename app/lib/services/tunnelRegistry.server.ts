@@ -746,10 +746,17 @@ export function handleTunnelResponse(
       }
 
       // ─── Done repair-фазы (Tier 6) ───
-      // Принимаем починенный HTML только если он полный и промахов разметки
-      // стало меньше — иначе откат к HTML фазы кодера. Continuation для
-      // repair не делается: обрезанный результат отбраковывается по </html>.
+      // Обрыв по токенам ловим по finishReason: текстовых следов обрыва после
+      // strip-слоя не остаётся (stripCodeFences дописывает </html>,
+      // repairTruncatedHtml дочинивает теги), поэтому при "length" — молчаливый
+      // откат к HTML фазы кодера без траты continuation. Старые туннель-клиенты
+      // finishReason не шлют (undefined) — тогда полагаемся на аудит-сравнение
+      // внутри acceptTunnelRepair (приём только при уменьшении промахов).
       if (req.phase === "repair" && req.plan) {
+        if (event.finishReason === "length") {
+          finalizeTunnelDone(req, browser.ws, req.htmlBeforeRepair ?? "", event.durationMs);
+          break;
+        }
         const best = acceptTunnelRepair(req.htmlBeforeRepair ?? "", piece, req.plan);
         finalizeTunnelDone(req, browser.ws, best, event.durationMs);
         break;
