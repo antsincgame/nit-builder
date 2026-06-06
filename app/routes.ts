@@ -1,7 +1,7 @@
 import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
-  // "/" — auth-aware splitter: guest → лендинг, authed → приложение
+  // "/" — лендинг для всех (редиректа залогиненных нет: лого должно вести сюда)
   index("routes/index.tsx"),
   // /about остаётся для прямых ссылок на лендинг
   route("about", "routes/landing.tsx"),
