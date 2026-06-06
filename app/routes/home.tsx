@@ -145,12 +145,6 @@ export default function Home() {
     setSidebarOpen(false);
   }, [reset]);
 
-  const selectedStylePreset = stylePresetId === "auto" ? undefined : stylePresetId;
-  const createSiteWithSelectedStyle = useCallback(
-    (prompt: string) => createSite(prompt, { stylePresetId: selectedStylePreset }),
-    [createSite, selectedStylePreset],
-  );
-
   // Есть ли в текущем HTML админ-разметка от Coder-а (зоны ИЛИ коллекции) —
   // значит Planner отметил needs_admin=true и можно собрать PHP-бандл с
   // админкой. Сервер сам извлечёт и зоны, и схему коллекций из html
