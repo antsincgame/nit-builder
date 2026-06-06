@@ -346,7 +346,7 @@ export default function Home() {
             )}
 
             {auth.status === "unauthenticated" && (
-              <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-white/[0.08] bg-[#141414]">
+              <div className="mb-5 p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3 rounded-xl border border-white/[0.08] bg-[#141414]">
                 <div className="flex-1 text-[13px] sm:text-[14px] text-[#A1A1AA]">
                   Войдите по email — ваши сайты будут сохраняться в истории.
                 </div>
