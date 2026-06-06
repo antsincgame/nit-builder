@@ -8,6 +8,7 @@
  *   - добавляет v8 seeds из planExamplesV8.ts (6 новых ниш)
  *   - добавляет admin seeds из planExamplesAdmin.ts и planExamplesAdmin2.ts
  *     (6 с needs_admin/editable_zones)
+ *   - добавляет collection seeds из planExamplesCollections.ts (2 с collections)
  *   - добавляет hero_headline / benefits / social_proof / cta_microcopy
  *     из copywritingBank.ts и copywritingBankV8.ts
  *   - пишет sentinel
@@ -44,6 +45,9 @@
  * v8 (доливка 3): копирайт-банк для ниш v8 в copywritingBankV8.ts —
  *     hero/benefits/social_proof/microcopy. Копирайт-доки без явных id
  *     дедупятся в addDocument по контенту.
+ * v8 (доливка 4): 2 сида с collections (Tier 6) в planExamplesCollections.ts —
+ *     ресторан (меню как коллекция, explicit) и магазин чехлов (товары,
+ *     inferred). Учат разделению: единичное — зоны, повторяемое — коллекции.
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -57,6 +61,7 @@ import { PLAN_EXAMPLE_SEEDS_EXTENDED } from "~/lib/rag/seeds/planExamplesExtende
 import { PLAN_EXAMPLE_SEEDS_V8 } from "~/lib/rag/seeds/planExamplesV8";
 import { PLAN_EXAMPLE_SEEDS_ADMIN } from "~/lib/rag/seeds/planExamplesAdmin";
 import { PLAN_EXAMPLE_SEEDS_ADMIN_2 } from "~/lib/rag/seeds/planExamplesAdmin2";
+import { PLAN_EXAMPLE_SEEDS_COLLECTIONS } from "~/lib/rag/seeds/planExamplesCollections";
 import {
   HERO_HEADLINE_SEEDS,
   BENEFITS_SEEDS,
@@ -79,7 +84,8 @@ const EXPECTED_PLAN_SEEDS =
   PLAN_EXAMPLE_SEEDS_EXTENDED.length +
   PLAN_EXAMPLE_SEEDS_V8.length +
   PLAN_EXAMPLE_SEEDS_ADMIN.length +
-  PLAN_EXAMPLE_SEEDS_ADMIN_2.length;
+  PLAN_EXAMPLE_SEEDS_ADMIN_2.length +
+  PLAN_EXAMPLE_SEEDS_COLLECTIONS.length;
 
 let bootstrapPromise: Promise<void> | null = null;
 
@@ -116,13 +122,14 @@ async function doBootstrap(): Promise<void> {
   let optionalFailed = 0;
 
   // Base (24 ниши) + extended (8 с pricing/faq/hours/contact) + v8 (6 новых ниш)
-  // + admin×2 (6 видов админки с needs_admin/editable_zones)
+  // + admin×2 (6 видов админки) + collections (2 сида Tier 6)
   const allPlanSeeds = [
     ...PLAN_EXAMPLE_SEEDS,
     ...PLAN_EXAMPLE_SEEDS_EXTENDED,
     ...PLAN_EXAMPLE_SEEDS_V8,
     ...PLAN_EXAMPLE_SEEDS_ADMIN,
     ...PLAN_EXAMPLE_SEEDS_ADMIN_2,
+    ...PLAN_EXAMPLE_SEEDS_COLLECTIONS,
   ];
 
   for (const seed of allPlanSeeds) {
