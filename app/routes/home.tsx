@@ -362,30 +362,54 @@ export default function Home() {
             )}
 
             {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
-              <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
-                <div className="flex-1">
-                  <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
-                    nitgen не подключён
-                  </div>
-                  <div className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed">
-                    Чтобы генерировать на своём GPU, скачайте nitgen, запустите LM Studio и войдите через «Войти через nitgen».
-                  </div>
+              <div
+                id="connect"
+                className="mb-8 p-5 sm:p-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] scroll-mt-24"
+              >
+                <div className="text-[14px] sm:text-[15px] font-semibold text-amber-200 mb-1.5">
+                  Подключите nitgen — 3 шага, один раз
                 </div>
-                <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
-                  <a
-                    href={tunnelDownloadPath("macos-arm")}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
-                  >
-                    <Download size={14} />
-                    Скачать nitgen
-                  </a>
-                  <a
-                    href="/guide"
-                    className="text-[12px] text-amber-200/80 hover:text-amber-100 transition-colors text-center sm:text-right"
-                  >
-                    Как подключить — пошагово →
-                  </a>
-                </div>
+                <p className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed mb-4">
+                  Сайты создаёт ваш собственный компьютер — поэтому nitgen
+                  бесплатен, приватен и работает без облака. Для этого его
+                  нужно один раз связать с этой страницей.
+                </p>
+                <ol className="space-y-3.5 mb-4">
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={1} />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+                      <span className="text-[13px] sm:text-[14px] text-white/90">
+                        Скачайте и установите приложение nitgen
+                      </span>
+                      <a
+                        href={tunnelDownloadPath(downloadPlatform)}
+                        className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
+                      >
+                        <Download size={12} />
+                        {downloadLabel}
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={2} />
+                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                      Запустите LM Studio, загрузите модель и включите Server
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={3} />
+                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                      В приложении нажмите «Войти через nitgen» — статус выше
+                      станет зелёным
+                    </span>
+                  </li>
+                </ol>
+                <a
+                  href="/guide"
+                  className="text-[12px] text-amber-200/80 hover:text-amber-100 transition-colors"
+                >
+                  Подробная инструкция с картинками →
+                </a>
               </div>
             )}
 
