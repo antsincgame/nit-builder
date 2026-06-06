@@ -338,6 +338,15 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Как это работает — три простых шага без техники, для всех. */}
+            <div className="mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-0">
+              <HowItWorksStep n={1} text="Опишите идею своими словами" />
+              <HowArrow />
+              <HowItWorksStep n={2} text="ИИ соберёт сайт за минуту" />
+              <HowArrow />
+              <HowItWorksStep n={3} text="Скачайте готовый файл" />
+            </div>
+
             {auth.status === "loading" && (
               <div className="mb-8 p-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
                 <Loader2 size={14} className="text-emerald-400 animate-spin" />
