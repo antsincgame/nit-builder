@@ -339,7 +339,7 @@ export default function Home() {
             </div>
 
             {auth.status === "loading" && (
-              <div className="mb-8 p-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
+              <div className="mb-5 p-2.5 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
                 <Loader2 size={14} className="text-emerald-400 animate-spin" />
                 <div className="text-[13px] text-[#71717A]">Проверяем…</div>
               </div>
