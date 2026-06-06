@@ -8,7 +8,14 @@
  *   - каждая коллекция → контейнер [data-collection="<id>"] с карточкой
  *     [data-item] внутри
  *   - каждое поле коллекции → [data-field="<id>"] внутри образца
- *     (image-поле — строго на <img>, как требует бейкер)
+ *     (image-поле — строго на <img>, как требует бейкер) с валидным
+ *     data-field-type
+ *
+ * data-field-type обязателен из-за самодостаточности разметки: бандл-роут
+ * восстанавливает схему коллекций из html (extractCollectionsFromHtml),
+ * когда план недоступен — поле без типа отрендерилось бы в админке текстовым
+ * input-ом вместо upload-а картинки. data-field-label мягче: дефолтится на
+ * id, его отсутствие промахом не считается.
  *
  * Логика поиска идентична htmlToPhp/bakeCollections — что проходит аудит,
  * то испечётся без missing*. Но в отличие от бейкеров ничего не меняет и
@@ -26,6 +33,8 @@ import type {
   PlanEditableZone,
 } from "~/lib/utils/planSchema";
 
+const VALID_FIELD_TYPES = new Set(["text", "richtext", "image", "price", "number"]);
+
 export type MissingCollectionField = {
   collection: PlanCollection;
   field: PlanCollectionField;
@@ -38,7 +47,10 @@ export type AdminMarkupAudit = {
   missingZones: PlanEditableZone[];
   /** Коллекции без контейнера или без карточки-образца внутри. */
   missingCollections: PlanCollection[];
-  /** Поля, не найденные в образце найденной коллекции (или image не на <img>). */
+  /**
+   * Поля с неполной разметкой в образце найденной коллекции: узел не найден,
+   * image не на <img>, либо отсутствует/невалиден data-field-type.
+   */
   missingFields: MissingCollectionField[];
 };
 
@@ -89,6 +101,11 @@ export function auditAdminMarkup(
         continue;
       }
       if (field.type === "image" && node.tagName?.toUpperCase() !== "IMG") {
+        missingFields.push({ collection, field });
+        continue;
+      }
+      const typeAttr = node.getAttribute("data-field-type");
+      if (!typeAttr || !VALID_FIELD_TYPES.has(typeAttr)) {
         missingFields.push({ collection, field });
       }
     }
