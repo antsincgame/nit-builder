@@ -383,6 +383,60 @@ export default function Home() {
                 }
               />
             </div>
+
+            {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
+              <div
+                id="connect"
+                className="mb-8 p-5 sm:p-6 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] scroll-mt-24"
+              >
+                <div className="text-[14px] sm:text-[15px] font-semibold text-amber-200 mb-1.5">
+                  Остался один шаг: подключите свой компьютер
+                </div>
+                <p className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed mb-4">
+                  Сайты создаёт ваш компьютер, а не чужое облако — поэтому
+                  nitgen полностью бесплатный, и ваши данные остаются у вас.
+                  Подключение делается один раз и занимает около 5 минут.
+                </p>
+                <ol className="space-y-3.5 mb-5">
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={1} />
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
+                      <span className="text-[13px] sm:text-[14px] text-white/90">
+                        Скачайте и установите приложение nitgen
+                      </span>
+                      <a
+                        href={tunnelDownloadPath(downloadPlatform)}
+                        className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
+                      >
+                        <Download size={12} />
+                        {downloadLabel}
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={2} />
+                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                      Откройте инструкцию ниже и повторите 3 простых действия —
+                      она проведёт за руку, ничего настраивать вслепую не надо
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <ConnectStepNum n={3} />
+                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                      Когда всё готово, статус в шапке станет зелёным
+                      «Подключён» — и можно создавать сайты
+                    </span>
+                  </li>
+                </ol>
+                <a
+                  href="/guide"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] border border-amber-500/40 text-amber-200 hover:bg-amber-500/[0.1] font-semibold transition-all"
+                >
+                  Открыть пошаговую инструкцию с картинками
+                  <ArrowUpRight size={13} />
+                </a>
+              </div>
+            )}
           </main>
 
           <footer className="relative z-10 px-5 sm:px-8 py-6 text-center text-[13px] border-t border-white/[0.06] text-[#71717A]/60">
