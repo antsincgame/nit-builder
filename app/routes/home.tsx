@@ -364,10 +364,8 @@ export default function Home() {
 
             <div className="mb-8">
               <SimplePromptInput
-                onSubmit={createSiteWithSelectedStyle}
+                onSubmit={createSite}
                 loading={loading}
-                selectedStylePresetId={stylePresetId}
-                onStylePresetChange={setStylePresetId}
                 connectGate={
                   auth.status === "authenticated" && socket.tunnelStatus !== "online"
                     ? { label: "Сначала подключите nitgen", href: "#connect" }
