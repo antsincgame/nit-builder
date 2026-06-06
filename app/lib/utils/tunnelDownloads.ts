@@ -44,7 +44,9 @@ export function tunnelGithubDownloadUrl(platform: TunnelDownloadPlatform): strin
 }
 
 export function tunnelGithubReleaseUrl(): string {
-  return "https://github.com/antsincgame/nit-builder/releases/tag/tunnel-v0.1.0";
+  // Всегда последний опубликованный релиз — конкретный тег (tunnel-v0.1.0)
+  // вёл на пустой CLI-пререлиз без единого ассета.
+  return "https://github.com/antsincgame/nit-builder/releases/latest";
 }
 
 export function parseTunnelDownloadPlatform(
