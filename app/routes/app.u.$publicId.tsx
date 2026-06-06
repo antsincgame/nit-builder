@@ -3,8 +3,7 @@
  *
  * URL — витрина, не пропуск: доступ определяет session cookie.
  * Чужой /app/u/... открыть нельзя — loader сверяет publicId с юзером
- * из куки и уводит на свой. Гость → лендинг (приложение только
- * для авторизованных).
+ * из куки и уводит на свой. Гость → /app (гостевой режим).
  */
 import { redirect } from "react-router";
 import type { Route } from "./+types/app.u.$publicId";
@@ -15,7 +14,7 @@ import { ensurePublicId } from "~/lib/server/publicId.server";
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await getAuth(request);
   if (!user) {
-    return redirect("/");
+    return redirect("/app");
   }
   const pid = await ensurePublicId(user.userId);
   if (pid && pid !== params.publicId) {
