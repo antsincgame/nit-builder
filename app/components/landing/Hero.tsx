@@ -235,7 +235,7 @@ export default function Hero() {
 
         <div className="mt-16 pt-10 border-t border-white/[0.06]">
           <h2 className="text-center text-xl sm:text-2xl font-bold text-white mb-2">Начните за 4 шага</h2>
-          <p className="text-center text-sm text-[#71717A] mb-10">Настройка займёт не больше 5 минут</p>
+          <p className="text-center text-sm text-[#71717A] mb-10">Делается один раз — дальше только описываете и скачиваете</p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
