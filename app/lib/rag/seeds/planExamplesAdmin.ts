@@ -6,21 +6,24 @@
  * выставляет админ-поля, даже когда юзер явно просит «админку». Три сида
  * покрывают разные СТРУКТУРЫ админок:
  *   - barbershop-admin-prices   — услуги с редактируемыми ценами (text-зоны
- *     прайса + акция + фото мастера), confidence=explicit
+ *     прайса + акция + фото мастера), confidence=explicit. Фикс-прайс из
+ *     3 позиций — стабильная структура, зоны здесь уместнее коллекции.
  *   - nutritionist-admin-programs — контентный сайт с richtext-программами
  *     и текстом «о себе», confidence=inferred («чтобы я сама обновляла»)
- *   - flowers-admin-catalog     — мини-каталог с парами фото+название+цена
- *     (image-зоны), confidence=explicit
+ *   - flowers-admin-catalog     — пополняемый каталог букетов недели:
+ *     collection bouquets (photo/name/price) + зоны для единичных блоков,
+ *     confidence=explicit (Tier 6)
  *
  * Правила зон (EditableZoneSchema): id — snake_case, type — только
  * text|richtext|image, section — строго из plan.sections, при needs_admin=true
  * зон должно быть >= 3 (инвариант normalizePlanForRequest).
  *
- * Версионирование: сиды доливаются в текущий SEED_VERSION=v8 БЕЗ бампа:
- * repair-ветка doBootstrap видит totalPlanSeeds < EXPECTED_PLAN_SEEDS и прогоняет
- * все сиды через addDocument — существующие дедупятся по id мгновенно
- * (возвращается existing с готовым эмбеддингом), новые эмбедятся и встают
- * в корпус без дублей контента.
+ * Версионирование: ДОЛИВКА новых сидов идёт без бампа (repair-ветка
+ * doBootstrap дозальёт по счётчику EXPECTED_PLAN_SEEDS), но ИЗМЕНЕНИЕ
+ * текста/плана существующего сида требует bump SEED_VERSION — иначе
+ * прод-стор навсегда останется со старой версией (дедуп по id).
+ * v9: flowers-admin-catalog переведён с фиксированных bouquet_N_* зон на
+ * collection — зонный каталог конкурировал с Tier 6-паттерном в few-shot.
  */
 
 import type { PlanExampleSeed } from "./planExamples";
@@ -262,46 +265,22 @@ export const PLAN_EXAMPLE_SEEDS_ADMIN: PlanExampleSeed[] = [
           section: "hero",
         },
         {
-          id: "bouquet_1_photo",
-          type: "image",
-          label: "Букет недели №1 — фото",
-          section: "catalog",
-        },
-        {
-          id: "bouquet_1_name",
-          type: "text",
-          label: "Букет недели №1 — название",
-          section: "catalog",
-        },
-        {
-          id: "bouquet_1_price",
-          type: "text",
-          label: "Букет недели №1 — цена",
-          section: "catalog",
-        },
-        {
-          id: "bouquet_2_photo",
-          type: "image",
-          label: "Букет недели №2 — фото",
-          section: "catalog",
-        },
-        {
-          id: "bouquet_2_name",
-          type: "text",
-          label: "Букет недели №2 — название",
-          section: "catalog",
-        },
-        {
-          id: "bouquet_2_price",
-          type: "text",
-          label: "Букет недели №2 — цена",
-          section: "catalog",
-        },
-        {
           id: "delivery_text",
           type: "richtext",
           label: "Условия доставки",
           section: "delivery",
+        },
+      ],
+      collections: [
+        {
+          id: "bouquets",
+          label: "Букеты недели",
+          section: "catalog",
+          fields: [
+            { id: "photo", label: "Фото", type: "image" },
+            { id: "name", label: "Название", type: "text" },
+            { id: "price", label: "Цена", type: "price" },
+          ],
         },
       ],
     },
