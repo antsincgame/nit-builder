@@ -242,6 +242,8 @@ export default function Hero() {
               </p>
             </div>
           </div>
+
+          <div className="lg:sticky lg:top-24 flex flex-col gap-4">
             <LoginCard />
             <DownloadCard />
           </div>
