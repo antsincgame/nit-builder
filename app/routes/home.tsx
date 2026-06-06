@@ -67,6 +67,17 @@ export function meta() {
 export default function Home() {
   const [projectId] = useState(() => `simple-${uuid()}`);
   const auth = useAuth();
+  const os = useOS();
+  // Платформа для прямой ссылки скачивания туннеля под ОС юзера.
+  const downloadPlatform =
+    os === "macos" ? ("macos-arm" as const)
+    : os === "linux" ? ("linux" as const)
+    : ("windows" as const);
+  const downloadLabel =
+    os === "macos" ? "Скачать для macOS"
+    : os === "linux" ? "Скачать для Linux"
+    : os === "windows" ? "Скачать для Windows"
+    : "Скачать nitgen";
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
