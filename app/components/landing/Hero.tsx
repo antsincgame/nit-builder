@@ -263,7 +263,7 @@ export default function Hero() {
               {
                 step: "4",
                 title: "Творите",
-                desc: "Опишите идею в браузере — ИИ соберёт сайт за секунды",
+                desc: "Опишите идею в браузере — ИИ соберёт сайт",
                 link: undefined,
                 linkLabel: undefined,
               },
