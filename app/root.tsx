@@ -31,9 +31,9 @@ export const meta = () => [
   {
     name: "description",
     content:
-      "Расскажите, что вы делаете — приложение само соберёт сайт за минуту. Без программирования, без подписок, всё работает на вашем компьютере.",
+      "Расскажите, что вы делаете — приложение само соберёт сайт. Без программирования, без подписок, всё работает на вашем компьютере.",
   },
-  { property: "og:title", content: "NITGEN — Сделайте сайт за минуту" },
+  { property: "og:title", content: "NITGEN — Создавайте сайты бесплатно" },
   {
     property: "og:description",
     content:
@@ -45,7 +45,7 @@ export const meta = () => [
   { property: "og:image:height", content: "630" },
   { property: "og:locale", content: "ru_RU" },
   { name: "twitter:card", content: "summary_large_image" },
-  { name: "twitter:title", content: "NITGEN — Сделайте сайт за минуту" },
+  { name: "twitter:title", content: "NITGEN — Создавайте сайты бесплатно" },
   {
     name: "twitter:description",
     content:
