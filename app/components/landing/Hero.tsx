@@ -234,7 +234,7 @@ export default function Hero() {
                   <div className="w-16 h-16 rounded-full border-2 border-white/20 flex items-center justify-center">
                     <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-white/80 border-b-[10px] border-b-transparent ml-1" />
                   </div>
-                  <span className="text-sm text-[#71717A]">Демо: создание сайта через ИИ за 60 секунд</span>
+                  <span className="text-sm text-[#71717A]">Демо: создание сайта через ИИ</span>
                 </div>
               </div>
               <p className="mt-3 text-[13px] text-[#71717A]">
