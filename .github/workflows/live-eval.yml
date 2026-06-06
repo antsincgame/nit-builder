@@ -48,8 +48,11 @@ jobs:
         shell: pwsh
         run: |
           npx tsx scripts/liveRun.ts --cases=${{ inputs.cases }} --timeout-min=${{ inputs.timeout_min }}
-          $dir = (Get-Content live-results/LATEST -Raw).Trim()
+          $code = $LASTEXITCODE
+          $dir = ''
+          if (Test-Path live-results/LATEST) { $dir = (Get-Content live-results/LATEST -Raw).Trim() }
           "run_dir=$dir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          exit $code
 
       - name: Publish results to eval-results branch
         if: always() && steps.run.outputs.run_dir != ''
@@ -69,7 +72,7 @@ jobs:
 
   php-smoke:
     needs: generate
-    if: needs.generate.outputs.run_dir != ''
+    if: always() && needs.generate.outputs.run_dir != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
