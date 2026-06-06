@@ -309,7 +309,7 @@ export default function Home() {
                   <>
                     <TunnelStatusPill status={socket.tunnelStatus} />
                     <a
-                      href={tunnelDownloadPath("macos-arm")}
+                      href={tunnelDownloadPath(downloadPlatform)}
                       className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
                       title="Скачать nitgen"
                     >
