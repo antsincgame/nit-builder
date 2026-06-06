@@ -82,7 +82,6 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("preview");
-  const [stylePresetId, setStylePresetId] = useState<StylePresetId | "auto">("auto");
 
   const socketRef = useRef<ReturnType<typeof useControlSocket> | null>(null);
   const flow = useGenerationFlow({
