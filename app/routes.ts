@@ -22,6 +22,7 @@ export default [
   route("api/bundle", "routes/api.bundle.ts"),
   route("api/bundle/php", "routes/api.bundle.php.ts"),
   route("api/health", "routes/api.health.ts"),
+  route("api/feedback", "routes/api.feedback.ts"),
   route("api/metrics", "routes/api.metrics.ts"),
   // Auth endpoints
   route("api/auth/register", "routes/api.auth.register.ts"),
