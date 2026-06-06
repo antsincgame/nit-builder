@@ -1,0 +1,119 @@
+name: Live Eval (LM Studio)
+
+# Живые прогоны конвейера на self-hosted раннере (машина с LM Studio).
+# Результаты коммитятся в ветку eval-results (логи Actions через API
+# недоступны — ветка и есть канал чтения отчётов).
+#
+# Требования к раннеру: Windows/macOS/Linux с git, доступом в интернет
+# и запущенным LM Studio сервером (Developer → Start Server, :1234).
+
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: 'ID кейсов через запятую или all'
+        required: false
+        default: 'all'
+      timeout_min:
+        description: 'Таймаут на один кейс, минут'
+        required: false
+        default: '12'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-eval
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: self-hosted
+    timeout-minutes: 120
+    outputs:
+      run_dir: ${{ steps.run.outputs.run_dir }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install
+        shell: pwsh
+        run: npm ci
+
+      - name: Live run
+        id: run
+        shell: pwsh
+        run: |
+          npx tsx scripts/liveRun.ts --cases=${{ inputs.cases }} --timeout-min=${{ inputs.timeout_min }}
+          $dir = (Get-Content live-results/LATEST -Raw).Trim()
+          "run_dir=$dir" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Publish results to eval-results branch
+        if: always() && steps.run.outputs.run_dir != ''
+        shell: pwsh
+        run: |
+          git config user.name "live-eval-bot"
+          git config user.email "live-eval@nitgen.org"
+          git fetch origin eval-results
+          if ($LASTEXITCODE -eq 0) {
+            git checkout -B eval-results origin/eval-results
+          } else {
+            git checkout -B eval-results
+          }
+          git add live-results
+          git commit -m "live-eval: ${{ steps.run.outputs.run_dir }}"
+          git push origin eval-results
+
+  php-smoke:
+    needs: generate
+    if: needs.generate.outputs.run_dir != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: eval-results
+
+      - name: Smoke PHP bundles
+        shell: bash
+        run: |
+          set -e
+          dir="${{ needs.generate.outputs.run_dir }}"
+          echo "smoking bundles in $dir"
+          shopt -s nullglob
+          zips=("$dir"/*.bundle.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "no bundles to smoke — ok"
+            exit 0
+          fi
+          fail=0
+          for z in "${zips[@]}"; do
+            name=$(basename "$z" .bundle.zip)
+            w="/tmp/smoke-$name"
+            rm -rf "$w" && mkdir -p "$w"
+            unzip -q "$z" -d "$w"
+            echo "═══ $name: php -l ═══"
+            while IFS= read -r -d '' f; do
+              php -l "$f" || fail=1
+            done < <(find "$w" -name '*.php' -print0)
+            echo "═══ $name: php -S smoke ═══"
+            (cd "$w" && php -S 127.0.0.1:8099 >"/tmp/php-$name.log" 2>&1 & echo $! > "/tmp/php-$name.pid")
+            sleep 1
+            code=$(curl -s -o "/tmp/idx-$name.html" -w '%{http_code}' http://127.0.0.1:8099/index.php || echo 000)
+            kill "$(cat /tmp/php-$name.pid)" 2>/dev/null || true
+            echo "index.php -> HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "❌ index.php не 200"; tail -20 "/tmp/php-$name.log" || true; fail=1; continue
+            fi
+            if grep -q 'data-collection=' "/tmp/idx-$name.html"; then
+              echo "❌ data-collection остался в рендере (бейкер не вычистил)"; fail=1
+            fi
+            if grep -q 'data-edit=' "/tmp/idx-$name.html"; then
+              echo "❌ data-edit остался в рендере"; fail=1
+            fi
+            echo "✅ $name"
+          done
+          exit $fail
