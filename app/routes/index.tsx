@@ -1,17 +1,34 @@
 /**
- * Root index route (/) — auth-aware splitter.
+ * Root index route (/) — всегда лендинг.
  *
- * Обновлены meta-теги — было "Опиши сайт — получи HTML из своего GPU
- * через p2p tunnel", видимо в SEO Google и при шаре ссылки.
+ * Было: auth-aware сплиттер (клиентский) — один URL отдавал разный
+ * контент (гость → лендинг, authed → приложение), а SSR рендерил
+ * только спиннер — краулеры видели пустую страницу, LCP ~3.7s.
  *
- * - guest → лендинг
- * - authenticated → приложение-генератор (бывший Home)
- * - loading → короткий spinner
+ * Стало: разделение по URL:
+ *   /    — всегда лендинг (полный SSR-контент для SEO)
+ *   /app — приложение-генератор
+ *
+ * Авторизованных серверный loader 302-ит на /app по куке nit_session.
+ * Проверка дёшевая: HMAC-подпись + expiry, без похода в Appwrite.
+ * Если токен отозван (logout-all) — /app сам разрулит через /api/auth/me.
  */
 
-import HomeApp from "./home";
+import { redirect } from "react-router";
+import type { Route } from "./+types/index";
 import Landing from "./landing";
-import { useAuth } from "~/lib/contexts/AuthContext";
+import {
+  parseSessionCookie,
+  verifySessionToken,
+} from "~/lib/server/sessionCookie.server";
+
+export function loader({ request }: Route.LoaderArgs) {
+  const token = parseSessionCookie(request.headers.get("Cookie"));
+  if (token && verifySessionToken(token)) {
+    return redirect("/app");
+  }
+  return null;
+}
 
 export function meta() {
   return [
@@ -27,32 +44,10 @@ export function meta() {
       content:
         "Простые сайты за минуту — без программистов, без подписок. Работает на вашем компьютере.",
     },
+    { tagName: "link", rel: "canonical", href: "https://nitgen.org/" },
   ];
 }
 
 export default function Index() {
-  const auth = useAuth();
-
-  if (auth.status === "loading") {
-    return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "var(--bg)" }}
-      >
-        <div
-          className="w-10 h-10 rounded-full animate-spin"
-          style={{
-            border: "3px solid var(--line)",
-            borderTopColor: "var(--ink)",
-          }}
-        />
-      </div>
-    );
-  }
-
-  if (auth.status === "authenticated") {
-    return <HomeApp />;
-  }
-
   return <Landing />;
 }
