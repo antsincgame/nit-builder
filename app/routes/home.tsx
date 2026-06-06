@@ -330,10 +330,10 @@ export default function Home() {
             </div>
 
             {/* Как это работает — три простых шага без техники, для всех. */}
-            <div className="mb-8 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 sm:gap-0">
+            <div className="mb-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-1.5 sm:gap-0">
               <HowItWorksStep n={1} text="Опишите идею своими словами" />
               <HowArrow />
-              <HowItWorksStep n={2} text="ИИ соберёт сайт за минуту" />
+              <HowItWorksStep n={2} text="ИИ соберёт сайт" />
               <HowArrow />
               <HowItWorksStep n={3} text="Скачайте готовый файл" />
             </div>
