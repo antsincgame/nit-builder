@@ -10,6 +10,7 @@ import { HistorySidebar } from "~/components/simple/HistorySidebar";
 import { ToastContainer } from "~/components/simple/ToastContainer";
 import { useKeyboardShortcuts } from "~/lib/hooks/useKeyboardShortcuts";
 import { useAuth } from "~/lib/hooks/useAuth";
+import { useOS } from "~/hooks/useOS";
 import { useControlSocket } from "~/lib/hooks/useControlSocket";
 import { useGenerationFlow } from "~/lib/hooks/useGenerationFlow";
 import { toast } from "~/lib/stores/toastStore";
