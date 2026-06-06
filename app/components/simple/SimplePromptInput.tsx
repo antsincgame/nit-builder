@@ -54,9 +54,9 @@ export function SimplePromptInput({
             }
           }}
           placeholder="Опишите в 1-2 предложениях какой сайт вы хотите…"
-          rows={4}
+          rows={3}
           disabled={loading}
-          className={`w-full px-5 py-4 pr-5 pb-16 text-[15px] sm:text-[16px] resize-none outline-none disabled:opacity-50 transition-all rounded-2xl bg-[#141414] text-white placeholder:text-white/30 ${
+          className={`w-full px-4 py-3.5 pr-4 pb-14 text-[14px] sm:text-[15px] resize-none outline-none disabled:opacity-50 transition-all rounded-xl bg-[#141414] text-white placeholder:text-white/30 ${
             focused
               ? "border-emerald-500/40 ring-2 ring-emerald-500/15"
               : "border-white/[0.08]"
