@@ -23,11 +23,13 @@ export const TUNNEL_DOWNLOADS: Record<
     label: "macOS Intel",
   },
   linux: {
-    filename: "nit-tunnel_0.1.0_amd64.AppImage",
+    // Фактическое имя из релиза tunnel-desktop-v0.1.1: Tauri бандлит
+    // AppImage/deb по productName ("NIT Tunnel" → NIT.Tunnel), а не lowercase.
+    filename: "NIT.Tunnel_0.1.0_amd64.AppImage",
     label: "Linux AppImage",
   },
   "linux-deb": {
-    filename: "nit-tunnel_0.1.0_amd64.deb",
+    filename: "NIT.Tunnel_0.1.0_amd64.deb",
     label: "Linux Debian/Ubuntu",
   },
 };
