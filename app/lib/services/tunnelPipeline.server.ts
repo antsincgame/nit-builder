@@ -281,8 +281,16 @@ export function buildTunnelRepairPhase(
 
 /**
  * Принимает результат repair-фазы: возвращает починенный HTML только если
- * он полный (заканчивается </html>) и промахов разметки стало меньше, чем
- * в исходном. Иначе — исходный HTML фазы кодера. Не бросает.
+ * промахов разметки стало меньше, чем в исходном. Иначе — исходный HTML
+ * фазы кодера. Не бросает.
+ *
+ * Обрыв по токенам здесь НЕ детектируется намеренно: stripCodeFences
+ * дописывает </html> отсутствующим хвостам (это норма — стоп-секвенции
+ * съедают закрывающий тег у честных ответов), а repairTruncatedHtml
+ * дочинивает теги, поэтому текстовый чек «кончается ли </html>» всегда
+ * проходил бы. Честный сигнал обрыва — finishReason==="length" из
+ * done-события туннеля; его проверяет оркестратор (tunnelRegistry) ДО
+ * вызова этой функции и откатывается без неё.
  */
 export function acceptTunnelRepair(
   originalRawHtml: string,
@@ -293,11 +301,6 @@ export function acceptTunnelRepair(
   if (zones.length === 0 && collections.length === 0) return originalRawHtml;
 
   const repaired = stripCodeFences(repairedRawHtml);
-  if (!/<\/html>\s*$/i.test(repaired.trim())) {
-    logger.warn(SCOPE, "Tunnel repair вернул неполный HTML — оставляем исходный");
-    return originalRawHtml;
-  }
-
   const original = stripCodeFences(originalRawHtml);
   const before = countMissing(auditAdminMarkup(original, zones, collections));
   const after = countMissing(auditAdminMarkup(repaired, zones, collections));
