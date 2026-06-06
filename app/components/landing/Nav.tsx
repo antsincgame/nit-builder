@@ -84,7 +84,11 @@ export default function Nav() {
           <Link to="/guide" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Как начать</Link>
           <a href="#comparison" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Сравнение</a>
           <a href="#faq" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>FAQ</a>
-          <Link to="/login" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Войти</Link>
+          {isAuthed ? (
+            <Link to="/app" className="text-sm text-emerald-400 font-medium" onClick={() => setMobileOpen(false)}>Открыть приложение →</Link>
+          ) : (
+            <Link to="/login" className="text-sm text-[#71717A]" onClick={() => setMobileOpen(false)}>Войти</Link>
+          )}
           <a
             href="#download"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-[#0A0A0A] text-sm font-medium"
