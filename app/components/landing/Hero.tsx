@@ -238,7 +238,7 @@ export default function Hero() {
                 </div>
               </div>
               <p className="mt-3 text-[13px] text-[#71717A]">
-                Видео: как бесплатно создать сайт с помощью нейросети за 60 секунд в nitgen
+                Видео: как бесплатно создать сайт с помощью нейросети в nitgen
               </p>
             </div>
           </div>
