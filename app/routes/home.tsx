@@ -670,11 +670,11 @@ export default function Home() {
 /** Шаг полоски «как это работает» на welcome-экране. */
 function HowItWorksStep({ n, text }: { n: number; text: string }) {
   return (
-    <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg sm:rounded-none">
-      <span className="shrink-0 w-6 h-6 rounded-full bg-emerald-500/[0.12] border border-emerald-500/30 text-emerald-300 text-[12px] font-bold flex items-center justify-center">
+    <div className="flex items-center gap-2 px-2 py-1 rounded-lg sm:rounded-none">
+      <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-500/[0.12] border border-emerald-500/30 text-emerald-300 text-[11px] font-bold flex items-center justify-center">
         {n}
       </span>
-      <span className="text-[13px] text-[#A1A1AA]">{text}</span>
+      <span className="text-[12px] text-[#A1A1AA]">{text}</span>
     </div>
   );
 }
