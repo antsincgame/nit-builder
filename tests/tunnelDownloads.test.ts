@@ -28,9 +28,9 @@ describe("tunnelDownloads", () => {
     );
   });
 
-  it("returns the tunnel release page while binary assets are unavailable", () => {
+  it("returns the latest releases page as the fallback destination", () => {
     expect(tunnelGithubReleaseUrl()).toBe(
-      "https://github.com/antsincgame/nit-builder/releases/tag/tunnel-v0.1.0",
+      "https://github.com/antsincgame/nit-builder/releases/latest",
     );
   });
 });
