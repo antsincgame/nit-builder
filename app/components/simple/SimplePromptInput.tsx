@@ -16,13 +16,6 @@ type Props = {
   onStylePresetChange: (presetId: StylePresetId | "auto") => void;
 };
 
-const EXAMPLES = [
-  "Сайт для кофейни в центре Минска",
-  "Свадебный сайт в стиле минимализм",
-  "Личная страница фотографа-путешественника",
-  "Сайт репетитора по английскому для детей",
-];
-
 const STYLE_PRESETS: Array<{
   id: StylePresetId | "auto";
   name: string;
