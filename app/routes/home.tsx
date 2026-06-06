@@ -390,7 +390,7 @@ export default function Home() {
                   <li className="flex items-start gap-3">
                     <ConnectStepNum n={1} />
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
-                      <span className="text-[13px] sm:text-[14px] text-white/90">
+                      <span className="text-[12px] sm:text-[13px] text-white/90">
                         Скачайте и установите приложение nitgen
                       </span>
                       <a
@@ -404,14 +404,14 @@ export default function Home() {
                   </li>
                   <li className="flex items-start gap-3">
                     <ConnectStepNum n={2} />
-                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                    <span className="text-[12px] sm:text-[13px] text-white/90">
                       Откройте инструкцию ниже и повторите 3 простых действия —
                       она проведёт за руку, ничего настраивать вслепую не надо
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <ConnectStepNum n={3} />
-                    <span className="text-[13px] sm:text-[14px] text-white/90">
+                    <span className="text-[12px] sm:text-[13px] text-white/90">
                       Когда всё готово, статус в шапке станет зелёным
                       «Подключён» — и можно создавать сайты
                     </span>
