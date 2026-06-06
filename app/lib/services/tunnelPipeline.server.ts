@@ -18,11 +18,17 @@
  *                   (детерминированно, без второго LLM-вызова) ИЛИ pruned
  *                   template + coder-промпт для фазы 2.
  *   Фаза 2 (code):  HTML генерит туннель по coder-промпту.
+ *   Фаза 3 (repair, опц.): buildTunnelRepairPhase — auditAdminMarkup HTML
+ *                   фазы 2; при промахах админ-разметки готовит узкий
+ *                   repair-промпт (зеркало repair-цикла pipelineCreate).
+ *                   acceptTunnelRepair принимает результат только если
+ *                   промахов стало меньше — иначе остаёмся на исходном.
  *   финализация:    finalizeTunnelHtml — stripCodeFences + post-polish.
  *
  * Всё best-effort и backward-compatible: если retrieval/few-shot недоступны
  * (в BYO-GPU серверного embeddings-провайдера может не быть), планировщик
- * работает без обогащения; если план не распарсился — synthetic plan.
+ * работает без обогащения; если план не распарсился — synthetic plan; если
+ * repair-раунд упал или ухудшил разметку — финализируется HTML фазы 2.
  */
 
 import { PlanSchema, extractPlanJson, type Plan } from "~/lib/utils/planSchema";
@@ -31,6 +37,7 @@ import {
   buildPlannerSystemPrompt,
   CODER_SYSTEM_PROMPT,
   buildCoderUserMessage,
+  buildAdminRepairPrompt,
 } from "~/lib/config/htmlPrompts";
 import { retrieveTemplates } from "~/lib/services/templateRetriever";
 import { buildFewShotPlansAdaptive } from "~/lib/services/fewShotBuilder";
@@ -45,6 +52,7 @@ import {
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
 import { pruneTemplateForPlan } from "~/lib/utils/templatePrune";
 import { postPolishHtml } from "~/lib/services/htmlPostPolish";
+import { auditAdminMarkup } from "~/lib/bake/auditMarkup";
 import {
   inferStylePresetId,
   injectStylePreset,
@@ -201,6 +209,110 @@ export function resolveTunnelPlan(
     templateName: template.name,
     presetId,
   };
+}
+
+// ─── Фаза 3 (repair, опц.): админ-разметка ──────────────────────────
+//
+// Зеркало repairAdminMarkupIfNeeded из pipelineCreate, разложенное на
+// «приготовить промпт» / «принять результат» — LLM-вызов между ними делает
+// оркестратор (tunnelRegistry) через тот же туннельный generate, что и
+// остальные фазы. Один раунд максимум, best-effort.
+
+/** Бюджет токенов repair-фазы (полный HTML на выходе, как у кодера). */
+export const TUNNEL_REPAIR_MAX_TOKENS = 16_000;
+/** Температура repair-фазы: точечная правка, не творчество. */
+export const TUNNEL_REPAIR_TEMPERATURE = 0.2;
+
+export type TunnelRepairPhase = {
+  system: string;
+  prompt: string;
+  /** Сколько промахов нашёл аудит — для логов оркестратора. */
+  missingBefore: number;
+};
+
+function adminDeclarations(plan: Plan) {
+  const zones = plan.needs_admin ? plan.editable_zones ?? [] : [];
+  const collections = plan.needs_admin ? plan.collections ?? [] : [];
+  return { zones, collections };
+}
+
+function countMissing(audit: ReturnType<typeof auditAdminMarkup>): number {
+  return (
+    audit.missingZones.length +
+    audit.missingCollections.length +
+    audit.missingFields.length
+  );
+}
+
+/**
+ * Решает, нужна ли repair-фаза для HTML фазы кодера. null — разметка полная
+ * (или план без админки), фаза пропускается. Иначе — готовый туннельный
+ * generate-промпт со списком промахов.
+ */
+export function buildTunnelRepairPhase(
+  rawHtml: string,
+  plan: Plan,
+): TunnelRepairPhase | null {
+  const { zones, collections } = adminDeclarations(plan);
+  if (zones.length === 0 && collections.length === 0) return null;
+
+  const cleaned = stripCodeFences(rawHtml);
+  const audit = auditAdminMarkup(cleaned, zones, collections);
+  if (audit.ok) return null;
+
+  const missingBefore = countMissing(audit);
+  logger.warn(
+    SCOPE,
+    `Admin markup incomplete (${missingBefore}): zones=[${audit.missingZones.map((z) => z.id).join(",")}] collections=[${audit.missingCollections.map((c) => c.id).join(",")}] fields=[${audit.missingFields.map((m) => `${m.collection.id}.${m.field.id}`).join(",")}] — tunnel repair round`,
+  );
+
+  return {
+    system:
+      "Ты — HTML-Кодер. Точечно дополняешь готовый HTML недостающими атрибутами админ-разметки, ничего больше не меняя. Возвращаешь ТОЛЬКО полный HTML от <!DOCTYPE html> до </html>.",
+    prompt: buildAdminRepairPrompt({
+      currentHtml: cleaned,
+      missingZones: audit.missingZones,
+      missingCollections: audit.missingCollections,
+      missingFields: audit.missingFields,
+    }),
+    missingBefore,
+  };
+}
+
+/**
+ * Принимает результат repair-фазы: возвращает починенный HTML только если
+ * он полный (заканчивается </html>) и промахов разметки стало меньше, чем
+ * в исходном. Иначе — исходный HTML фазы кодера. Не бросает.
+ */
+export function acceptTunnelRepair(
+  originalRawHtml: string,
+  repairedRawHtml: string,
+  plan: Plan,
+): string {
+  const { zones, collections } = adminDeclarations(plan);
+  if (zones.length === 0 && collections.length === 0) return originalRawHtml;
+
+  const repaired = stripCodeFences(repairedRawHtml);
+  if (!/<\/html>\s*$/i.test(repaired.trim())) {
+    logger.warn(SCOPE, "Tunnel repair вернул неполный HTML — оставляем исходный");
+    return originalRawHtml;
+  }
+
+  const original = stripCodeFences(originalRawHtml);
+  const before = countMissing(auditAdminMarkup(original, zones, collections));
+  const after = countMissing(auditAdminMarkup(repaired, zones, collections));
+  if (after < before) {
+    logger.info(
+      SCOPE,
+      `Tunnel repair: ${before} промахов → ${after}${after === 0 ? " (разметка полная)" : ""}`,
+    );
+    return repaired;
+  }
+  logger.warn(
+    SCOPE,
+    `Tunnel repair не улучшил разметку (${before} → ${after}) — оставляем исходный HTML`,
+  );
+  return originalRawHtml;
 }
 
 /**
