@@ -1,34 +1,13 @@
 /**
- * Root index route (/) — всегда лендинг.
+ * Root index route (/) — всегда лендинг, для всех.
  *
- * Было: auth-aware сплиттер (клиентский) — один URL отдавал разный
- * контент (гость → лендинг, authed → приложение), а SSR рендерил
- * только спиннер — краулеры видели пустую страницу, LCP ~3.7s.
- *
- * Стало: разделение по URL:
- *   /    — всегда лендинг (полный SSR-контент для SEO)
- *   /app — приложение-генератор
- *
- * Авторизованных серверный loader 302-ит на /app по куке nit_session.
- * Проверка дёшевая: HMAC-подпись + expiry, без похода в Appwrite.
- * Если токен отозван (logout-all) — /app сам разрулит через /api/auth/me.
+ * Раньше loader 302-ил залогиненных на /app — из-за этого клик по лого
+ * «не работал»: юзера тут же возвращало в кабинет. Теперь / — это
+ * лендинг без условий (один URL = один контент), а залогиненный видит
+ * в навигации кнопку «Открыть приложение».
  */
 
-import { redirect } from "react-router";
-import type { Route } from "./+types/index";
 import Landing from "./landing";
-import {
-  parseSessionCookie,
-  verifySessionToken,
-} from "~/lib/server/sessionCookie.server";
-
-export function loader({ request }: Route.LoaderArgs) {
-  const token = parseSessionCookie(request.headers.get("Cookie"));
-  if (token && verifySessionToken(token)) {
-    return redirect("/app");
-  }
-  return null;
-}
 
 export function meta() {
   return [

@@ -1,19 +1,18 @@
 /**
- * SimplePromptInput v3 — эстетика лендинга:
- * чёрный фон, emerald-акцент, lucide иконки.
- * Добавлен selector style presets для управления визуальным языком генерации.
+ * SimplePromptInput v4 — только поле + кнопка.
+ *
+ * Сетка style-пресетов убрана: стиль подбирает пайплайн сам из описания
+ * (auto). Кто хочет конкретный стиль — пишет его словами в промпте,
+ * Planner это понимает. Меньше выборов на экране — меньше страха.
  */
 
 import { useState } from "react";
 import { Loader2, ArrowRight, PlugZap } from "lucide-react";
-import type { StylePresetId } from "~/lib/llm/style-presets";
 
 type Props = {
   onSubmit: (prompt: string) => void;
   loading: boolean;
   initialValue?: string;
-  selectedStylePresetId: StylePresetId | "auto";
-  onStylePresetChange: (presetId: StylePresetId | "auto") => void;
   /**
    * Гейт подключения. Когда генерация недоступна (у авторизованного
    * туннель offline), вместо «Создать» показываем честную амбер-кнопку
@@ -24,29 +23,10 @@ type Props = {
   connectGate?: { label: string; href: string } | null;
 };
 
-const STYLE_PRESETS: Array<{
-  id: StylePresetId | "auto";
-  name: string;
-  hint: string;
-  accent: string;
-}> = [
-  { id: "auto", name: "Авто", hint: "подберём по описанию", accent: "var(--accent)" },
-  { id: "clean-saas", name: "Минимализм", hint: "чисто и современно", accent: "#60a5fa" },
-  { id: "warm-premium", name: "Тёплый премиум", hint: "дорого и уютно", accent: "#f59e0b" },
-  { id: "neon-cyber", name: "Неон", hint: "смелый футуризм", accent: "var(--magenta)" },
-  { id: "editorial", name: "Журнальный", hint: "как глянцевый журнал", accent: "#d9a06a" },
-  { id: "tech-terminal", name: "Терминал", hint: "технологичный, для IT", accent: "#39ff88" },
-  { id: "dark-luxe", name: "Тёмный люкс", hint: "графит и латунь", accent: "#c6a15b" },
-  { id: "earth-craft", name: "Крафт", hint: "бумага, ручная работа", accent: "#b4652f" },
-  { id: "bold-pop", name: "Яркий поп", hint: "смело и цветно", accent: "#ffd60a" },
-];
-
 export function SimplePromptInput({
   onSubmit,
   loading,
   initialValue = "",
-  selectedStylePresetId,
-  onStylePresetChange,
   connectGate = null,
 }: Props) {
   const [value, setValue] = useState(initialValue);
@@ -110,51 +90,6 @@ export function SimplePromptInput({
             )}
           </button>
         )}
-      </div>
-
-      <div className="mt-5">
-        <div
-          className="text-[10px] tracking-[0.2em] uppercase mb-3 flex items-center justify-center gap-3 text-white/35"
-        >
-          <span className="w-8 h-px bg-white/[0.08]" />
-          стиль сайта
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          {STYLE_PRESETS.map((preset) => {
-            const active = preset.id === selectedStylePresetId;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                disabled={loading}
-                onClick={() => onStylePresetChange(preset.id)}
-                className="group text-left px-3 py-3 rounded-xl transition disabled:opacity-50"
-                style={{
-                  border: active ? `1px solid ${preset.accent}` : "1px solid rgba(255,255,255,0.08)",
-                  background: active ? "rgba(255,255,255,0.06)" : "#141414",
-                  boxShadow: active ? `0 0 28px color-mix(in srgb, ${preset.accent} 22%, transparent)` : "none",
-                }}
-                aria-pressed={active}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: preset.accent, boxShadow: active ? `0 0 14px ${preset.accent}` : "none" }}
-                  />
-                  <span
-                    className="text-[11px] font-bold tracking-[0.08em] uppercase"
-                    style={{ color: active ? "#fff" : "#A1A1AA" }}
-                  >
-                    {preset.name}
-                  </span>
-                </div>
-                <div className="text-[10px] font-mono text-white/35">
-                  {preset.hint}
-                </div>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
     </div>
