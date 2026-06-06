@@ -34,6 +34,10 @@ import {
   parseTunnelPlan,
   resolveTunnelPlan,
   finalizeTunnelHtml,
+  buildTunnelRepairPhase,
+  acceptTunnelRepair,
+  TUNNEL_REPAIR_MAX_TOKENS,
+  TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
 import type { Plan } from "~/lib/utils/planSchema";
 import type { StylePresetId } from "~/lib/llm/style-presets";
@@ -107,15 +111,24 @@ export type PendingRequest = {
    * Фаза запроса. "plan" — туннель генерит JSON-план (фаза 1), его текст НЕ
    * показывается браузеру; по done сервер парсит план, пробует skeleton и
    * либо финализирует, либо шлёт coder-промпт фазы 2. "code" — туннель генерит
-   * HTML (фаза 2 или legacy одношаговый путь). Отсутствие = "code".
+   * HTML (фаза 2 или legacy одношаговый путь). "repair" — опциональная фаза 3
+   * (Tier 6): туннель дополняет HTML недостающей админ-разметкой; стрим тоже
+   * глотается (это НОВЫЙ полный HTML, дописывание к превью фазы code дало бы
+   * кашу), результат принимается через acceptTunnelRepair. Отсутствие = "code".
    */
-  phase?: "plan" | "code";
+  phase?: "plan" | "code" | "repair";
   /** Стиль-пресет (для resolveTunnelPlan и post-polish финализации). */
   stylePresetId?: StylePresetId;
   /** План, полученный в фазе 1 — нужен для post-polish финализации HTML. */
   plan?: Plan;
   /** Пресет, выбранный при резолюции плана — для финализации фазы code. */
   presetId?: StylePresetId;
+  /**
+   * HTML фазы кодера на момент запуска repair-фазы. Используется как откат,
+   * если repair вернул мусор/обрезок/не улучшил разметку, и как маркер
+   * «repair уже пробовали» (один раунд максимум).
+   */
+  htmlBeforeRepair?: string;
   /** Called when request completes or errors */
   onComplete?: (html: string) => void;
   onError?: (error: string) => void;
@@ -632,9 +645,11 @@ export function handleTunnelResponse(
 
     case "text":
       // В plan-фазе туннель стримит JSON-план — его НЕ показываем браузеру
-      // (иначе сырой JSON попадёт в превью как «сайт»). Глотаем; HTML потечёт
-      // в фазе code.
-      if (req.phase === "plan") break;
+      // (иначе сырой JSON попадёт в превью как «сайт»). В repair-фазе туннель
+      // стримит НОВЫЙ полный HTML — дописывание его к превью фазы code дало
+      // бы кашу из двух документов. Глотаем оба; браузер получит финальный
+      // HTML в generate_done.
+      if (req.phase === "plan" || req.phase === "repair") break;
       sendToBrowser(browser.ws, {
         type: "generate_text",
         requestId,
@@ -730,6 +745,16 @@ export function handleTunnelResponse(
         }
       }
 
+      // ─── Done repair-фазы (Tier 6) ───
+      // Принимаем починенный HTML только если он полный и промахов разметки
+      // стало меньше — иначе откат к HTML фазы кодера. Continuation для
+      // repair не делается: обрезанный результат отбраковывается по </html>.
+      if (req.phase === "repair" && req.plan) {
+        const best = acceptTunnelRepair(req.htmlBeforeRepair ?? "", piece, req.plan);
+        finalizeTunnelDone(req, browser.ws, best, event.durationMs);
+        break;
+      }
+
       // ─── Фаза code (continuation + финализация) ───
       const attempts = req.continuationAttempts ?? 0;
       const merged =
@@ -770,11 +795,58 @@ export function handleTunnelResponse(
         // туннеля нет — финализируем накопленным (ниже)
       }
 
+      // ─── Tier 6: запуск repair-фазы (зеркало pipelineCreate) ───
+      // Только двухфазный путь (есть план) и только один раунд
+      // (htmlBeforeRepair служит маркером). merged здесь — полный HTML
+      // фазы кодера: length-ветка выше уже отработала.
+      if (req.plan && !req.htmlBeforeRepair) {
+        const repairPhase = buildTunnelRepairPhase(merged, req.plan);
+        if (repairPhase) {
+          const repairTunnel = findTunnelByConnectionId(req.tunnelConnectionId);
+          if (repairTunnel) {
+            req.htmlBeforeRepair = merged;
+            req.phase = "repair";
+            req.currentStep = "code";
+            try {
+              repairTunnel.ws.send(
+                JSON.stringify({
+                  type: "generate",
+                  requestId,
+                  system: repairPhase.system,
+                  prompt: repairPhase.prompt,
+                  maxOutputTokens: Math.min(
+                    req.maxOutputTokens ?? 8000,
+                    TUNNEL_REPAIR_MAX_TOKENS,
+                  ),
+                  temperature: TUNNEL_REPAIR_TEMPERATURE,
+                } satisfies ServerToTunnel),
+              );
+              return; // ждём response_done repair-фазы
+            } catch {
+              // туннель отвалился при отправке — финализируем HTML фазы кодера
+              req.phase = "code";
+              req.htmlBeforeRepair = undefined;
+            }
+          }
+        }
+      }
+
       finalizeTunnelDone(req, browser.ws, merged, event.durationMs);
       break;
     }
 
     case "error":
+      // Repair-фаза best-effort (зеркало серверного repair): ошибка туннеля
+      // на починке не роняет генерацию — финализируем HTML фазы кодера.
+      if (req.phase === "repair" && req.htmlBeforeRepair && req.plan) {
+        finalizeTunnelDone(
+          req,
+          browser.ws,
+          req.htmlBeforeRepair,
+          Date.now() - req.startedAt,
+        );
+        break;
+      }
       sendToBrowser(browser.ws, {
         type: "generate_error",
         requestId,
@@ -904,7 +976,11 @@ function finalizeTunnelDone(
   recordTunnelOutcome(
     req,
     "success",
-    (req.continuationAttempts ?? 0) > 0 ? "tunnel-continued" : undefined,
+    req.htmlBeforeRepair
+      ? "tunnel-repaired"
+      : (req.continuationAttempts ?? 0) > 0
+        ? "tunnel-continued"
+        : undefined,
   );
   pendingRequests.delete(req.requestId);
   stats.totalRequestsCompleted++;
