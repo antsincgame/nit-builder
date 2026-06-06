@@ -4,18 +4,27 @@
  * Skeleton-injection. Если plan содержит весь требуемый копирайт И в шаблоне
  * есть совместимая структура для слотов — Coder LLM пропускается, экономит
  * ~6000+ prompt tokens и ~10s latency. Иначе — стандартный Coder pipeline.
+ * Исключение: needs_admin с зонами/коллекциями всегда идёт через Coder —
+ * статичные шаблоны не несут data-edit/data-collection разметку.
  *
  * Tier 4 — extended slots в skeleton: pricing_tiers / faq / hours_text / contact_*.
  * Заполняются только если plan содержит данные И section найдена в шаблоне.
+ *
+ * Tier 6 — repair-цикл админ-разметки: после Кодера (template и custom пути)
+ * HTML проходит auditAdminMarkup; при промахах — ОДИН узкий repair-раунд
+ * (buildAdminRepairPrompt, generateText без стрима) и повторный аудит.
+ * Починенный HTML принимается только если промахов стало меньше; любая
+ * ошибка repair'а не валит генерацию — остаётся исходный HTML.
  */
 
-import { streamText } from "ai";
+import { streamText, generateText } from "ai";
 import type { Plan } from "~/lib/utils/planSchema";
 import {
   CODER_SYSTEM_PROMPT,
   CUSTOM_ARTIFACT_SYSTEM_PROMPT,
   buildCoderUserMessage,
   buildCustomArtifactUserMessage,
+  buildAdminRepairPrompt,
   shouldUseCustomArtifactMode,
 } from "~/lib/config/htmlPrompts";
 import {
@@ -57,6 +66,7 @@ import {
 } from "~/lib/llm/style-presets";
 import { obtainPlan } from "~/lib/services/pipelinePlanner";
 import { postPolishHtml } from "~/lib/services/htmlPostPolish";
+import { auditAdminMarkup } from "~/lib/bake/auditMarkup";
 import {
   stripCodeFences,
   readUsage,
@@ -105,6 +115,75 @@ function customArtifactLooksTooThin(html: string): boolean {
     keyframesCount < THIN_ARTIFACT.minKeyframes ||
     cardishCount < THIN_ARTIFACT.minCardish
   );
+}
+
+/**
+ * Repair-цикл админ-разметки (Tier 6): сгенерил → audit → один узкий
+ * repair-раунд → повторный audit. Возвращает лучший из двух HTML.
+ *
+ * Без стрима (generateText): второй полный HTML поверх первого ломал бы
+ * превью в чате; починка молчаливая, итог уезжает в step_complete.
+ * Best-effort: любая ошибка (кроме Abort) — остаёмся на исходном HTML.
+ */
+async function repairAdminMarkupIfNeeded(params: {
+  html: string;
+  plan: Plan;
+  model: ReturnType<typeof getModel>;
+  signal: AbortSignal;
+}): Promise<string> {
+  const zones = params.plan.needs_admin ? params.plan.editable_zones ?? [] : [];
+  const collections = params.plan.needs_admin ? params.plan.collections ?? [] : [];
+  if (zones.length === 0 && collections.length === 0) return params.html;
+
+  const audit = auditAdminMarkup(params.html, zones, collections);
+  if (audit.ok) return params.html;
+
+  const missingBefore =
+    audit.missingZones.length + audit.missingCollections.length + audit.missingFields.length;
+  logger.warn(
+    SCOPE,
+    `Admin markup incomplete (${missingBefore}): zones=[${audit.missingZones.map((z) => z.id).join(",")}] collections=[${audit.missingCollections.map((c) => c.id).join(",")}] fields=[${audit.missingFields.map((m) => `${m.collection.id}.${m.field.id}`).join(",")}] — repair round`,
+  );
+
+  try {
+    const result = await generateText({
+      model: params.model,
+      prompt: buildAdminRepairPrompt({
+        currentHtml: params.html,
+        missingZones: audit.missingZones,
+        missingCollections: audit.missingCollections,
+        missingFields: audit.missingFields,
+      }),
+      maxOutputTokens: 16_000,
+      temperature: 0.2,
+      stopSequences: HTML_STOP_SEQUENCES,
+      abortSignal: params.signal,
+    });
+    const repaired = stripCodeFences(result.text);
+    if (!/<\/html>\s*$/i.test(repaired.trim())) {
+      logger.warn(SCOPE, "Admin repair вернул неполный HTML — оставляем исходный");
+      return params.html;
+    }
+    const after = auditAdminMarkup(repaired, zones, collections);
+    const missingAfter =
+      after.missingZones.length + after.missingCollections.length + after.missingFields.length;
+    if (missingAfter < missingBefore) {
+      logger.info(
+        SCOPE,
+        `Admin repair: ${missingBefore} промахов → ${missingAfter}${after.ok ? " (разметка полная)" : ""}`,
+      );
+      return repaired;
+    }
+    logger.warn(
+      SCOPE,
+      `Admin repair не улучшил разметку (${missingBefore} → ${missingAfter}) — оставляем исходный HTML`,
+    );
+    return params.html;
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw err;
+    logger.warn(SCOPE, `Admin repair failed: ${(err as Error).message} — оставляем исходный HTML`);
+    return params.html;
+  }
 }
 
 function normalizeBackendPlanForPrompt(plan: Plan, prompt: string): Plan {
@@ -354,10 +433,17 @@ export async function* executeHtmlSimple(
       const fullHtml = customArtifactLooksTooThin(generatedHtml)
         ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized, presetId: stylePresetId })
         : generatedHtml;
-      const polished = postPolishHtml({ html: fullHtml, presetId: stylePresetId, plan: currentPlan });
       if (fullHtml !== generatedHtml) {
         logger.warn(SCOPE, `Custom artifact fallback builder used (${generatedHtml.length} generated chars)`);
       }
+      // Tier 6: один repair-раунд админ-разметки до post-polish.
+      const repairedHtml = await repairAdminMarkupIfNeeded({
+        html: fullHtml,
+        plan: currentPlan,
+        model,
+        signal,
+      });
+      const polished = postPolishHtml({ html: repairedHtml, presetId: stylePresetId, plan: currentPlan });
       if (polished.fixes.length > 0) {
         yield { type: "post_polish_applied", fixes: polished.fixes };
       }
@@ -392,7 +478,15 @@ export async function* executeHtmlSimple(
   // Skeleton только для русских планов: все шаблоны написаны на русском
   // (lang="ru"), и без прохода Кодера статичные тексты шаблона (навигация,
   // меню, футер) остались бы русскими внутри en/by сайта.
-  const shouldTrySkeleton = stylePresetId === "generic" && currentPlan.language === "ru";
+  // Admin-сайты (зоны/коллекции) тоже всегда через Coder: статичные шаблоны
+  // не несут data-edit/data-collection разметку, skeleton отдал бы юзеру
+  // «админку» без единой редактируемой зоны.
+  const adminNeedsCoder =
+    currentPlan.needs_admin === true &&
+    ((currentPlan.editable_zones?.length ?? 0) > 0 ||
+      (currentPlan.collections?.length ?? 0) > 0);
+  const shouldTrySkeleton =
+    stylePresetId === "generic" && currentPlan.language === "ru" && !adminNeedsCoder;
   const cleanTemplateHtml = shouldTrySkeleton ? loadTemplateHtml(template.id) : "";
   const injection = shouldTrySkeleton
     ? injectPlanIntoTemplate(cleanTemplateHtml, currentPlan)
@@ -442,7 +536,9 @@ export async function* executeHtmlSimple(
   }
 
   const skeletonSkipReason = !injection
-    ? "style_preset_requires_coder"
+    ? adminNeedsCoder
+      ? "admin_markup_requires_coder"
+      : "style_preset_requires_coder"
     : injection.ok ? "missing_primary_cta" : injection.reason;
   metrics.skeletonInjectSkipped(skeletonSkipReason);
   logger.info(SCOPE, `Skeleton-injection пропущена (${skeletonSkipReason}), вызываем Coder`);
@@ -587,7 +683,16 @@ export async function* executeHtmlSimple(
     }
 
     const fullHtml = stripCodeFences(rawHtml);
-    const polished = postPolishHtml({ html: fullHtml, presetId, plan: currentPlan });
+    // Tier 6: один repair-раунд админ-разметки до post-polish. Усечённые
+    // (truncated) генерации выше не чиним — HTML неполный, его доделает
+    // continuation.
+    const repairedHtml = await repairAdminMarkupIfNeeded({
+      html: fullHtml,
+      plan: currentPlan,
+      model,
+      signal,
+    });
+    const polished = postPolishHtml({ html: repairedHtml, presetId, plan: currentPlan });
     if (polished.fixes.length > 0) {
       yield { type: "post_polish_applied", fixes: polished.fixes };
     }
