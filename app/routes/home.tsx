@@ -30,6 +30,19 @@ import Logo from "~/components/landing/Logo";
 import type { StylePresetId } from "~/lib/llm/style-presets";
 import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
+/**
+ * /app — точка входа в приложение.
+ * Авторизованных уводим на персональный URL /app/u/:publicId (cookie —
+ * источник истины, URL — витрина). Гости остаются здесь: гостевой режим
+ * с дневным лимитом генераций.
+ */
+export async function loader({ request }: Route.LoaderArgs) {
+  const user = await getAuth(request);
+  if (!user) return null;
+  const pid = await ensurePublicId(user.userId);
+  return pid ? redirect(`/app/u/${pid}`) : null;
+}
+
 export function meta() {
   return [
     { title: "nitgen — Создавайте сайты бесплатно" },
