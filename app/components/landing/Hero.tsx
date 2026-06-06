@@ -225,9 +225,23 @@ export default function Hero() {
               ))}
             </div>
 
+            <div className="mt-2">
+              <div
+                className="relative rounded-2xl border border-white/[0.08] overflow-hidden bg-[#141414]"
+                style={{ aspectRatio: "16/9", maxWidth: "640px" }}
+              >
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                  <div className="w-16 h-16 rounded-full border-2 border-white/20 flex items-center justify-center">
+                    <div className="w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-white/80 border-b-[10px] border-b-transparent ml-1" />
+                  </div>
+                  <span className="text-sm text-[#71717A]">Демо: создание сайта через ИИ</span>
+                </div>
+              </div>
+              <p className="mt-3 text-[13px] text-[#71717A]">
+                Видео: как бесплатно создать сайт с помощью нейросети в nitgen
+              </p>
+            </div>
           </div>
-
-          <div className="lg:sticky lg:top-24 flex flex-col gap-4">
             <LoginCard />
             <DownloadCard />
           </div>
