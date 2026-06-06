@@ -361,7 +361,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="mb-8">
+            <div className="mb-5">
               <SimplePromptInput
                 onSubmit={createSite}
                 loading={loading}
