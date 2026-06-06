@@ -48,6 +48,11 @@
  * v8 (доливка 4): 2 сида с collections (Tier 6) в planExamplesCollections.ts —
  *     ресторан (меню как коллекция, explicit) и магазин чехлов (товары,
  *     inferred). Учат разделению: единичное — зоны, повторяемое — коллекции.
+ * v9 (бамп): каталог-сиды flowers-admin-catalog и handmade-admin-catalog
+ *     переведены с фиксированных зон (bouquet_N_*, cake_N_*) на collections —
+ *     зонные каталоги конкурировали с Tier 6-паттерном в few-shot на похожих
+ *     запросах. Бамп обязателен: изменены ПЛАНЫ существующих сидов, без него
+ *     прод-стор навсегда остался бы со старыми версиями (дедуп по id).
  *
  * Вызывается ленивыми точками: buildFewShotPlansAdaptive, admin endpoints.
  * Если RAG_ENABLED=0 или embedding недоступен — ничего не делает.
@@ -77,7 +82,7 @@ import {
 import { buildContextualText } from "~/lib/services/contextualEmbed";
 
 const SCOPE = "ragBootstrap";
-const SEED_VERSION = "v8";
+const SEED_VERSION = "v9";
 const SENTINEL_ID = `__seed_sentinel:${SEED_VERSION}`;
 const EXPECTED_PLAN_SEEDS =
   PLAN_EXAMPLE_SEEDS.length +
