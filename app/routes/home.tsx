@@ -1,3 +1,7 @@
+import { redirect } from "react-router";
+import type { Route } from "./+types/home";
+import { getAuth } from "~/lib/server/requireAuth.server";
+import { ensurePublicId } from "~/lib/server/publicId.server";
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Plus, Download, Share2, Save, History, X, Undo2, Redo2, Loader2 } from "lucide-react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
