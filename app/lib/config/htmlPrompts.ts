@@ -6,6 +6,9 @@ import {
   buildEditableZonesHint,
   buildCollectionsHint,
   type Plan,
+  type PlanCollection,
+  type PlanCollectionField,
+  type PlanEditableZone,
 } from "~/lib/utils/planSchema";
 
 export function buildPlannerSystemPrompt(
@@ -294,4 +297,71 @@ export function buildPolisherPrompt(params: {
   return `${POLISHER_SYSTEM_PROMPT}
 
 ${buildPolisherUserMessage(params)}`;
+}
+
+/**
+ * Repair-раунд админ-разметки (Tier 6): точечная починка HTML, в котором
+ * Кодер пропустил часть задекларированной планом разметки.
+ *
+ * Вызывается пайплайном после auditAdminMarkup (app/lib/bake/auditMarkup.ts):
+ * сгенерил → audit → если !ok → ОДИН repair-раунд этим промптом → повторный
+ * audit. Промпт намеренно узкий — «добавь только атрибуты, ничего не меняя»:
+ * полный CODER_SYSTEM_PROMPT здесь провоцировал бы 7B на переписывание
+ * текстов и стилей.
+ *
+ * Списки приходят прямо из AdminMarkupAudit (структурно совместимые типы).
+ */
+export function buildAdminRepairPrompt(params: {
+  currentHtml: string;
+  missingZones: PlanEditableZone[];
+  missingCollections: PlanCollection[];
+  missingFields: Array<{ collection: PlanCollection; field: PlanCollectionField }>;
+}): string {
+  const parts: string[] = [];
+
+  if (params.missingZones.length > 0) {
+    const list = params.missingZones
+      .map(
+        (z, i) =>
+          `  ${i + 1}. id="${z.id}" type="${z.type}" label="${z.label}" section="${z.section}"`,
+      )
+      .join("\n");
+    parts.push(`ДОБАВЬ ЗОНЫ — на подходящий СУЩЕСТВУЮЩИЙ узел в указанной секции повесь три атрибута data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>" (text — короткий заголовок/строка, richtext — блочный узел, image — сам <img>):
+${list}`);
+  }
+
+  if (params.missingCollections.length > 0) {
+    const list = params.missingCollections
+      .map((c, i) => {
+        const fields = c.fields
+          .map((f) => `id="${f.id}" type="${f.type}" label="${f.label}"`)
+          .join("; ");
+        return `  ${i + 1}. collection id="${c.id}" label="${c.label}" section="${c.section}"\n     поля: ${fields}`;
+      })
+      .join("\n");
+    parts.push(`ДОБАВЬ КОЛЛЕКЦИИ — в указанной секции создай контейнер списка с data-collection="<id>", внутри РОВНО ОДНУ карточку-образец с data-item, поля карточки помечай data-field="<field_id>" (image — на самом <img>); заполни образец реалистичными значениями:
+${list}`);
+  }
+
+  if (params.missingFields.length > 0) {
+    const list = params.missingFields
+      .map(
+        (m, i) =>
+          `  ${i + 1}. в коллекции "${m.collection.id}" нет data-field="${m.field.id}" (type="${m.field.type}", label="${m.field.label}")${m.field.type === "image" ? " — атрибут строго на <img>" : ""}`,
+      )
+      .join("\n");
+    parts.push(`ДОБАВЬ ПОЛЯ В СУЩЕСТВУЮЩИЕ КОЛЛЕКЦИИ — внутрь карточки-образца [data-item]:
+${list}`);
+  }
+
+  return `Ты — HTML-Кодер. В готовом HTML не хватает части админ-разметки, задекларированной планом. Добавь ТОЛЬКО перечисленные ниже атрибуты/элементы. Тексты, стили, классы, структуру и уже расставленные data-атрибуты НЕ менять и НЕ удалять.
+
+${parts.join("\n\n")}
+
+ТЕКУЩИЙ HTML:
+\`\`\`html
+${params.currentHtml}
+\`\`\`
+
+ВЫВОД: ТОЛЬКО полный HTML от <!DOCTYPE html> до </html> с добавленной разметкой. Без markdown, без объяснений.`;
 }
