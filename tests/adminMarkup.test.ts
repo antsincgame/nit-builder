@@ -190,6 +190,11 @@ describe("extractCollectionsFromHtml", () => {
 });
 
 // ─── acceptTunnelRepair ───
+//
+// Обрыв по токенам acceptTunnelRepair НЕ детектирует намеренно: strip-слой
+// (stripCodeFences + repairTruncatedHtml) дочинивает хвосты — это норма для
+// стоп-секвенций, съедающих </html> у честных ответов. Честный сигнал обрыва,
+// finishReason==="length", проверяет оркестратор ДО вызова accept.
 
 describe("acceptTunnelRepair", () => {
   it("план без админки → всегда исходный (быстрый путь)", () => {
@@ -202,9 +207,11 @@ describe("acceptTunnelRepair", () => {
     expect(result).toContain('data-edit="hero_title"');
   });
 
-  it("отбраковывает обрезанный repair (нет </html>)", () => {
-    const truncated = FULL_MARKUP.replace("</html>", "");
-    expect(acceptTunnelRepair(NO_MARKUP, truncated, ADMIN_PLAN)).toBe(NO_MARKUP);
+  it("repair, обёрнутый в markdown-фенсы, принимается (strip-слой чистит)", () => {
+    const fenced = "```html\n" + FULL_MARKUP + "\n```";
+    const result = acceptTunnelRepair(NO_MARKUP, fenced, ADMIN_PLAN);
+    expect(result).toContain('data-collection="cakes"');
+    expect(result).toContain('data-edit="hero_title"');
   });
 
   it("откатывается, если repair не улучшил разметку", () => {
@@ -214,7 +221,7 @@ describe("acceptTunnelRepair", () => {
   });
 
   it("частичное улучшение тоже принимается (меньше промахов, но не ноль)", () => {
-    // Зона размечена, коллекция всё ещё отсутствует: 4 промаха → 1.
+    // Зона размечена, коллекция всё ещё отсутствует: 2 промаха → 1.
     const partial = `<!DOCTYPE html><html><body>
       <h1 data-edit="hero_title" data-edit-type="text" data-edit-label="Заголовок">Торты</h1>
     </body></html>`;
