@@ -419,6 +419,11 @@ export default function Home() {
                 loading={loading}
                 selectedStylePresetId={stylePresetId}
                 onStylePresetChange={setStylePresetId}
+                connectGate={
+                  auth.status === "authenticated" && socket.tunnelStatus !== "online"
+                    ? { label: "Сначала подключите nitgen", href: "#connect" }
+                    : null
+                }
               />
             </div>
           </main>
