@@ -25,6 +25,13 @@ export type EvalQuery = {
   expectsHours?: boolean;
   /** Бизнес явно оффлайновый с физическим адресом — план должен содержать contact_phone. */
   expectsContactPhone?: boolean;
+
+  // ─── Tier 5/6: ожидания админки и коллекций ───
+
+  /** Запрос явно/косвенно просит админку — план должен иметь needs_admin=true и >=3 зон. */
+  expectsAdmin?: boolean;
+  /** Запрос подразумевает повторяющиеся записи (каталог, меню, товары) под админкой — план должен декларировать >=1 коллекцию. */
+  expectsCollections?: boolean;
 };
 
 export type MetricCheck = {
