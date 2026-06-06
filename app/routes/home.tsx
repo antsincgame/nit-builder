@@ -386,7 +386,7 @@ export default function Home() {
                   nitgen полностью бесплатный, и ваши данные остаются у вас.
                   Подключение делается один раз и занимает около 5 минут.
                 </p>
-                <ol className="space-y-3.5 mb-5">
+                <ol className="space-y-2.5 mb-3.5">
                   <li className="flex items-start gap-3">
                     <ConnectStepNum n={1} />
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
