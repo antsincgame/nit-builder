@@ -3,12 +3,14 @@ import { Check, X, Minus } from "lucide-react";
 
 type Val = "yes" | "no" | "partial" | string;
 
+// Все строки — позитивные фичи: галка = «у сервиса это есть».
+// Никаких инверсий вроде «Подписка: нет» — иначе таблица читается наоборот.
 const rows: { label: string; nitgen: Val; tilda: Val; wix: Val; bolt: Val }[] = [
   { label: "Цена", nitgen: "Бесплатно", tilda: "от ₽750/мес", wix: "от $17/мес", bolt: "от $20/мес" },
-  { label: "Подписка", nitgen: "no", tilda: "yes", wix: "yes", bolt: "yes" },
-  { label: "Лимиты страниц", nitgen: "no", tilda: "partial", wix: "partial", bolt: "partial" },
-  { label: "Данные в облаке", nitgen: "no", tilda: "yes", wix: "yes", bolt: "yes" },
-  { label: "Работает офлайн", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
+  { label: "Без подписки", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
+  { label: "Без лимитов страниц", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
+  { label: "Данные остаются у вас", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
+  { label: "Генерация на вашем компьютере", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
   { label: "Открытый код", nitgen: "yes", tilda: "no", wix: "no", bolt: "no" },
   { label: "Создание через ИИ", nitgen: "yes", tilda: "no", wix: "partial", bolt: "yes" },
   { label: "SEO из коробки", nitgen: "yes", tilda: "yes", wix: "yes", bolt: "partial" },
