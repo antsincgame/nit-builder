@@ -3,11 +3,10 @@ import type { Route } from "./+types/home";
 import { getAuth } from "~/lib/server/requireAuth.server";
 import { ensurePublicId } from "~/lib/server/publicId.server";
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
-import { Plus, Download, Share2, Save, History, X, Undo2, Redo2, Loader2 } from "lucide-react";
+import { Plus, Download, Share2, X, Undo2, Redo2, Loader2, PanelLeft } from "lucide-react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
-import { TemplateGrid } from "~/components/simple/TemplateGrid";
 import { PolishChat } from "~/components/simple/PolishChat";
-import { HistoryPanel } from "~/components/simple/HistoryPanel";
+import { HistorySidebar } from "~/components/simple/HistorySidebar";
 import { ToastContainer } from "~/components/simple/ToastContainer";
 import { useKeyboardShortcuts } from "~/lib/hooks/useKeyboardShortcuts";
 import { useAuth } from "~/lib/hooks/useAuth";
@@ -23,8 +22,6 @@ import {
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
-import { SaveAsTemplateDialog } from "~/components/simple/SaveAsTemplateDialog";
-import { MyTemplatesPanel } from "~/components/simple/MyTemplatesPanel";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
 import type { StylePresetId } from "~/lib/llm/style-presets";
@@ -56,23 +53,23 @@ export function meta() {
 }
 
 /**
- * Home v5 — эстетика лендинга nitgen-gront.
+ * Home v6 — свободный чат + сайдбар истории (как Claude/ChatGPT).
  *
- * Меняется только визуал: #0A0A0A фон, NeuralBackground canvas,
- * emerald-акценты, lucide-react иконки, без mesh-orbs/nit-bg-grid.
+ * Что ушло из v5: TemplateGrid («Или выберите готовый»), Мои шаблоны,
+ * Save-as-Template, выезжающая справа история. Генерация — только через
+ * свободный промпт; RAG-подбор (Planner → база заготовок → Coder)
+ * работает под капотом, юзер его не видит.
  *
  * Логика useGenerationFlow / useControlSocket / chat / iframe превью —
- * не тронуты. Горячие клавиши сохранены.
+ * не тронуты. Горячие клавиши сохранены (Cmd+H → сайдбар).
  */
 export default function Home() {
   const [projectId] = useState(() => `simple-${uuid()}`);
   const auth = useAuth();
 
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<"chat" | "preview">("preview");
   const [stylePresetId, setStylePresetId] = useState<StylePresetId | "auto">("auto");
 
@@ -119,64 +116,24 @@ export default function Home() {
     currentSiteId,
     lastPrompt,
   } = flow;
+  void lastPrompt;
 
   useEffect(() => {
     if (mode === "generating") setMobileTab("preview");
   }, [mode]);
 
-  const handleUseTemplate = useCallback(
-    (template: { id: string; name: string; html: string; prompt: string | null }) => {
-      openFromHistory({
-        id: "",
-        prompt: template.prompt ?? "",
-        html: template.html,
-        templateId: `user-template:${template.id}`,
-        templateName: template.name,
-        createdAt: Date.now(),
-      });
-      toast.success(`Шаблон «${template.name}» загружен`);
+  const handleOpenEntry = useCallback(
+    (entry: Parameters<typeof openFromHistory>[0]) => {
+      openFromHistory(entry);
+      setSidebarOpen(false);
     },
     [openFromHistory],
   );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    let pending: string | null;
-    try {
-      pending = sessionStorage.getItem("nit-pending-template");
-    } catch {
-      return;
-    }
-    if (!pending) return;
-    try {
-      sessionStorage.removeItem("nit-pending-template");
-    } catch {
-      /* ignore */
-    }
-    try {
-      const parsed = JSON.parse(pending) as {
-        id?: unknown;
-        name?: unknown;
-        html?: unknown;
-        prompt?: unknown;
-      };
-      if (
-        typeof parsed.id === "string" &&
-        typeof parsed.name === "string" &&
-        typeof parsed.html === "string" &&
-        (parsed.prompt === null || typeof parsed.prompt === "string")
-      ) {
-        handleUseTemplate({
-          id: parsed.id,
-          name: parsed.name,
-          html: parsed.html,
-          prompt: parsed.prompt,
-        });
-      }
-    } catch {
-      /* ignore invalid JSON */
-    }
-  }, [handleUseTemplate]);
+  const handleNewSite = useCallback(() => {
+    reset();
+    setSidebarOpen(false);
+  }, [reset]);
 
   const selectedStylePreset = stylePresetId === "auto" ? undefined : stylePresetId;
   const createSiteWithSelectedStyle = useCallback(
@@ -187,9 +144,7 @@ export default function Home() {
   // Есть ли в текущем HTML админ-разметка от Coder-а (зоны ИЛИ коллекции) —
   // значит Planner отметил needs_admin=true и можно собрать PHP-бандл с
   // админкой. Сервер сам извлечёт и зоны, и схему коллекций из html
-  // (extract-фоллбеки бандл-роута) — клиенту достаточно показать кнопку.
-  // useMemo: regex дешёвый, но html меняется на каждый стрим-чанк во время
-  // генерации — пусть будет мемо чтобы не пересчитывать на каждый render.
+  // (extract-фоллбэки бандл-роута) — клиенту достаточно показать кнопку.
   const hasEditableZones = useMemo(() => {
     const content = html || streamingHtml;
     return !!content && /\sdata-(edit|collection)="/.test(content);
@@ -283,13 +238,13 @@ export default function Home() {
       key: "Escape",
       handler: () => {
         if (settingsOpen) setSettingsOpen(false);
-        else if (historyOpen) setHistoryOpen(false);
+        else if (sidebarOpen) setSidebarOpen(false);
         else if (mode === "generating") cancelGeneration();
       },
       description: "Отмена / закрыть",
     },
-    { key: "h", meta: true, handler: () => setHistoryOpen(true), description: "История" },
-    { key: "h", ctrl: true, handler: () => setHistoryOpen(true), description: "История" },
+    { key: "h", meta: true, handler: () => setSidebarOpen(true), description: "История" },
+    { key: "h", ctrl: true, handler: () => setSidebarOpen(true), description: "История" },
     { key: "d", meta: true, handler: () => mode === "editing" && downloadHtml(), description: "Скачать" },
     { key: "d", ctrl: true, handler: () => mode === "editing" && downloadHtml(), description: "Скачать" },
     { key: ",", meta: true, handler: () => setSettingsOpen(true), description: "Настройки" },
@@ -303,145 +258,139 @@ export default function Home() {
   /* ─── Welcome screen ─── */
   if (mode === "welcome") {
     return (
-      <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden">
+      <div className="relative min-h-screen bg-[#0A0A0A] text-white overflow-x-hidden flex">
         <NeuralBackground />
         <ToastContainer />
-        <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onOpen={openFromHistory} />
-        <MyTemplatesPanel
-          isOpen={templatesOpen}
-          onClose={() => setTemplatesOpen(false)}
-          onUse={handleUseTemplate}
-        />
         <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
-        <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#0A0A0A]/80 border-b border-white/[0.06]">
-          <div className="max-w-[1200px] mx-auto px-5 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
-            <a href="/" className="flex items-center gap-2.5 no-underline">
-              <Logo size={32} />
-              <span className="text-[15px] font-semibold text-white tracking-tight">nitgen</span>
-            </a>
+        <HistorySidebar
+          inlineOnDesktop
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onOpenEntry={handleOpenEntry}
+          onNewSite={handleNewSite}
+          activeSiteId={currentSiteId}
+          refreshKey={currentSiteId}
+        />
 
-            <div className="flex items-center gap-2">
-              {auth.status === "authenticated" && (
-                <>
-                  <TunnelStatusPill status={socket.tunnelStatus} />
-                  <button
-                    type="button"
-                    onClick={() => setHistoryOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
-                    title="Мои сайты"
+        <div className="relative flex-1 flex flex-col min-w-0">
+          <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[#0A0A0A]/80 border-b border-white/[0.06]">
+            <div className="px-4 sm:px-8 h-14 sm:h-16 flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-white/[0.04] transition"
+                  aria-label="История"
+                  title="История (Cmd+H)"
+                >
+                  <PanelLeft size={17} />
+                </button>
+                <a href="/" className="lg:hidden flex items-center gap-2.5 no-underline">
+                  <Logo size={28} />
+                  <span className="text-[14px] font-semibold text-white tracking-tight">nitgen</span>
+                </a>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {auth.status === "authenticated" && (
+                  <>
+                    <TunnelStatusPill status={socket.tunnelStatus} />
+                    <a
+                      href={tunnelDownloadPath("macos-arm")}
+                      className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
+                      title="Скачать nitgen"
+                    >
+                      <Download size={13} />
+                      nitgen
+                    </a>
+                  </>
+                )}
+                <AuthBadge auth={auth} onOpenSettings={() => setSettingsOpen(true)} />
+              </div>
+            </div>
+          </header>
+
+          <main className="relative z-10 flex-1 w-full max-w-[860px] mx-auto px-5 sm:px-8 pt-12 sm:pt-20 pb-16 flex flex-col justify-center">
+            <div className="max-w-[680px] mx-auto text-center mb-10 sm:mb-12">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
+                Что построим
+                <br />
+                <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
+                  сегодня?
+                </span>
+              </h1>
+              <p className="max-w-[480px] mx-auto text-base sm:text-lg text-[#A1A1AA] leading-relaxed">
+                Опишите своими словами, что вам нужно — приложение сделает
+                сайт за минуту.
+              </p>
+            </div>
+
+            {auth.status === "loading" && (
+              <div className="mb-8 p-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
+                <Loader2 size={14} className="text-emerald-400 animate-spin" />
+                <div className="text-[13px] text-[#71717A]">Проверяем…</div>
+              </div>
+            )}
+
+            {auth.status === "unauthenticated" && (
+              <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-white/[0.08] bg-[#141414]">
+                <div className="flex-1 text-[13px] sm:text-[14px] text-[#A1A1AA]">
+                  Войдите по email — ваши сайты будут сохраняться в истории.
+                </div>
+                <div className="shrink-0">
+                  <a
+                    href="/login"
+                    className="px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
                   >
-                    История
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTemplatesOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
-                    title="Мои сохранённые шаблоны"
-                  >
-                    Мои шаблоны
-                  </button>
+                    Войти
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
+              <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
+                <div className="flex-1">
+                  <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
+                    nitgen не подключён
+                  </div>
+                  <div className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed">
+                    Чтобы генерировать на своём GPU, скачайте nitgen, запустите LM Studio и войдите через «Войти через nitgen».
+                  </div>
+                </div>
+                <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
                   <a
                     href={tunnelDownloadPath("macos-arm")}
-                    className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 text-[13px] rounded-md text-[#71717A] hover:text-white transition-colors"
-                    title="Скачать nitgen"
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
                   >
-                    <Download size={13} />
-                    nitgen
+                    <Download size={14} />
+                    Скачать nitgen
                   </a>
-                </>
-              )}
-              <AuthBadge auth={auth} onOpenSettings={() => setSettingsOpen(true)} />
-            </div>
-          </div>
-        </header>
-
-        <main className="relative z-10 max-w-[1100px] mx-auto px-5 sm:px-8 pt-10 sm:pt-16 pb-16">
-          <div className="max-w-[680px] mx-auto text-center mb-10 sm:mb-14">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.1] text-white mb-4 drop-shadow-[0_0_30px_rgba(255,255,255,0.06)]">
-              Что построим
-              <br />
-              <span className="bg-gradient-to-r from-white via-white/90 to-emerald-200/80 bg-clip-text text-transparent">
-                сегодня?
-              </span>
-            </h1>
-            <p className="max-w-[480px] mx-auto text-base sm:text-lg text-[#A1A1AA] leading-relaxed">
-              Опишите в двух словах что вы делаете — приложение сделает сайт
-              за минуту. Или выберите готовый вариант ниже.
-            </p>
-          </div>
-
-          {auth.status === "loading" && (
-            <div className="mb-8 p-3 flex items-center gap-3 rounded-lg border border-white/[0.06] bg-[#141414]">
-              <Loader2 size={14} className="text-emerald-400 animate-spin" />
-              <div className="text-[13px] text-[#71717A]">Проверяем…</div>
-            </div>
-          )}
-
-          {auth.status === "unauthenticated" && (
-            <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-white/[0.08] bg-[#141414]">
-              <div className="flex-1 text-[13px] sm:text-[14px] text-[#A1A1AA]">
-                Войдите по email — ваши сайты будут сохраняться в истории.
-              </div>
-              <div className="shrink-0">
-                <a
-                  href="/login"
-                  className="px-4 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)]"
-                >
-                  Войти
-                </a>
-              </div>
-            </div>
-          )}
-
-          {auth.status === "authenticated" && socket.tunnelStatus !== "online" && (
-            <div className="mb-8 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]">
-              <div className="flex-1">
-                <div className="text-[13px] sm:text-[14px] font-semibold text-amber-200 mb-1">
-                  nitgen не подключён
-                </div>
-                <div className="text-[13px] sm:text-[14px] text-[#A1A1AA] leading-relaxed">
-                  Чтобы генерировать на своём GPU, скачайте nitgen, запустите LM Studio и войдите через «Войти через nitgen».
+                  <a
+                    href="/guide"
+                    className="text-[12px] text-amber-200/80 hover:text-amber-100 transition-colors text-center sm:text-right"
+                  >
+                    Как подключить — пошагово →
+                  </a>
                 </div>
               </div>
-              <div className="shrink-0 flex flex-col items-stretch sm:items-end gap-2">
-                <a
-                  href={tunnelDownloadPath("macos-arm")}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-[13px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
-                >
-                  <Download size={14} />
-                  Скачать nitgen
-                </a>
-                <a
-                  href="/guide"
-                  className="text-[12px] text-amber-200/80 hover:text-amber-100 transition-colors text-center sm:text-right"
-                >
-                  Как подключить — пошагово →
-                </a>
-              </div>
+            )}
+
+            <div className="mb-8">
+              <SimplePromptInput
+                onSubmit={createSiteWithSelectedStyle}
+                loading={loading}
+                selectedStylePresetId={stylePresetId}
+                onStylePresetChange={setStylePresetId}
+              />
             </div>
-          )}
+          </main>
 
-          <div className="mb-12 sm:mb-16">
-            <SimplePromptInput
-              onSubmit={createSiteWithSelectedStyle}
-              loading={loading}
-              selectedStylePresetId={stylePresetId}
-              onStylePresetChange={setStylePresetId}
-            />
-          </div>
-
-          <div className="mb-5 text-center">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-              Или выберите готовый
-            </h2>
-          </div>
-          <TemplateGrid onSelect={createSiteWithSelectedStyle} />
-        </main>
-
-        <footer className="relative z-10 px-5 sm:px-8 py-8 text-center text-[13px] border-t border-white/[0.06] text-[#71717A]/60">
-          <span>nitgen · © {new Date().getFullYear()}</span>
-        </footer>
+          <footer className="relative z-10 px-5 sm:px-8 py-6 text-center text-[13px] border-t border-white/[0.06] text-[#71717A]/60">
+            <span>nitgen · © {new Date().getFullYear()}</span>
+          </footer>
+        </div>
       </div>
     );
   }
@@ -455,24 +404,31 @@ export default function Home() {
     return (
       <div className="h-screen text-white flex flex-col overflow-hidden bg-[#0A0A0A]">
         <ToastContainer />
-        <HistoryPanel isOpen={historyOpen} onClose={() => setHistoryOpen(false)} onOpen={openFromHistory} />
-        <MyTemplatesPanel
-          isOpen={templatesOpen}
-          onClose={() => setTemplatesOpen(false)}
-          onUse={handleUseTemplate}
-        />
         <SettingsDrawer isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
         <ShareDialog isOpen={shareOpen} siteId={currentSiteId} onClose={() => setShareOpen(false)} />
-        <SaveAsTemplateDialog
-          isOpen={saveTemplateOpen}
-          html={html}
-          prompt={lastPrompt}
-          onClose={() => setSaveTemplateOpen(false)}
+
+        <HistorySidebar
+          inlineOnDesktop={false}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          onOpenEntry={handleOpenEntry}
+          onNewSite={handleNewSite}
+          activeSiteId={currentSiteId}
+          refreshKey={currentSiteId}
         />
 
         {/* Top bar */}
         <div className="flex items-center justify-between px-3 sm:px-5 py-3 shrink-0 gap-3 border-b border-white/[0.06] bg-[#0A0A0A]">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0 overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-white/[0.04] transition shrink-0"
+              aria-label="История"
+              title="История (Cmd+H)"
+            >
+              <PanelLeft size={16} />
+            </button>
             <a href="/" className="flex items-center gap-2.5 no-underline shrink-0">
               <Logo size={26} />
               <span className="hidden sm:inline text-[13px] font-semibold text-white tracking-tight">
@@ -549,7 +505,7 @@ export default function Home() {
                 )}
                 <button
                   type="button"
-                  onClick={reset}
+                  onClick={handleNewSite}
                   className="px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition flex items-center gap-1.5"
                   title="Создать новый сайт"
                 >
@@ -586,28 +542,6 @@ export default function Home() {
                   >
                     <Share2 size={12} />
                     Поделиться
-                  </button>
-                )}
-                {html && auth.status === "authenticated" && (
-                  <button
-                    type="button"
-                    onClick={() => setSaveTemplateOpen(true)}
-                    className="hidden md:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition items-center gap-1.5"
-                    title="Сохранить как свой шаблон"
-                  >
-                    <Save size={12} />
-                    Сохранить
-                  </button>
-                )}
-                {auth.status === "authenticated" && (
-                  <button
-                    type="button"
-                    onClick={() => setHistoryOpen(true)}
-                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition items-center gap-1.5"
-                    title="Мои сохранённые сайты"
-                  >
-                    <History size={12} />
-                    История
                   </button>
                 )}
               </>
