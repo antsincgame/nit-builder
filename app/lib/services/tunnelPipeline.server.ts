@@ -169,7 +169,14 @@ export function resolveTunnelPlan(
   // Skeleton-injection пробуем только для generic-пресета (как в pipelineCreate)
   // и только для русских планов: шаблоны lang="ru", без Кодера их статичные
   // тексты не переводятся. Стилевые пресеты требуют генерации кодером.
-  if (presetId === "generic" && plan.language === "ru") {
+  // Admin-сайты (зоны/коллекции) тоже всегда через Coder — зеркало guard'а
+  // pipelineCreate: статичные шаблоны не несут data-edit/data-collection
+  // разметку, skeleton отдал бы юзеру «админку» без единой редактируемой зоны.
+  const adminNeedsCoder =
+    plan.needs_admin === true &&
+    ((plan.editable_zones?.length ?? 0) > 0 ||
+      (plan.collections?.length ?? 0) > 0);
+  if (presetId === "generic" && plan.language === "ru" && !adminNeedsCoder) {
     const cleanTemplateHtml = loadTemplateHtml(template.id);
     const injection = injectPlanIntoTemplate(cleanTemplateHtml, plan);
     if (injection.ok && htmlContainsPrimaryCta(injection.html, plan)) {
