@@ -208,7 +208,7 @@ export default function Hero() {
 
             {/* Подзаголовок */}
             <p className="text-lg text-[#A1A1AA] leading-relaxed max-w-xl">
-              Опишите проект одним предложением — ИИ соберёт <strong className="text-white font-semibold">полноценный сайт</strong> за <strong className="text-white font-semibold">60 секунд</strong>: с SEO, картинками, а при необходимости — с базой данных и админкой.
+              Опишите проект одним предложением — ИИ соберёт <strong className="text-white font-semibold">полноценный сайт</strong>: с SEO, картинками, а при необходимости — с базой данных и админкой.
               <span className="text-white/60"> Бесплатно для личного использования, локально на вашем компьютере. Без облака и без знания кода.</span>
             </p>
 
