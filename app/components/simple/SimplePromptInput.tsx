@@ -82,24 +82,34 @@ export function SimplePromptInput({
               : "border-white/[0.08]"
           } border`}
         />
-        <button
-          type="button"
-          onClick={submit}
-          disabled={loading || !value.trim()}
-          className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:border disabled:border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
-        >
-          {loading ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Создаём…
-            </>
-          ) : (
-            <>
-              Создать
-              <ArrowRight size={14} />
-            </>
-          )}
-        </button>
+        {connectGate ? (
+          <a
+            href={connectGate.href}
+            className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold text-sm transition-all"
+          >
+            <PlugZap size={14} />
+            {connectGate.label}
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={submit}
+            disabled={loading || !value.trim()}
+            className="absolute bottom-4 right-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/[0.06] disabled:border disabled:border-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-[#0A0A0A] disabled:text-white font-semibold text-sm transition-all shadow-[0_0_24px_rgba(16,185,129,0.35)] disabled:shadow-none"
+          >
+            {loading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Создаём…
+              </>
+            ) : (
+              <>
+                Создать
+                <ArrowRight size={14} />
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="mt-5">
