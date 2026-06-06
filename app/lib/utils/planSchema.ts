@@ -78,9 +78,13 @@ const CollectionFieldSchema = z.object({
  * PHP-циклом из одного элемента-образца, размеченного Coder-ом.
  *
  * LLM НЕ пишет ни SQL, ни PHP: Planner декларирует эту схему, Coder
- * размечает образец атрибутами data-collection/data-item/data-field,
- * детерминированный baker превращает образец в foreach, данные живут
- * в data/collections.json (key = collection id).
+ * размечает образец атрибутами data-collection(-label) / data-item /
+ * data-field(-type/-label), детерминированный baker превращает образец в
+ * foreach, данные живут в data/collections.json (key = collection id).
+ *
+ * Разметка самодостаточна (как у зон): label контейнера и type/label каждого
+ * поля живут в самом HTML, поэтому бандл-роут умеет извлечь схему коллекций
+ * из html даже когда план недоступен (extractCollectionsFromHtml).
  */
 const CollectionSchema = z.object({
   /** snake_case, уникален в рамках сайта. Примеры: products, bouquets, reviews. */
@@ -153,10 +157,11 @@ export const PlanSchema = z.object({
   // needs_admin=true и размечает зоны. Пост-процессор (htmlToPhp baker)
   // превращает их в PHP при бандлинге.
   //
-  // Инварианты (проверяем в normalizePlanForRequest, в этой зоне мягко):
-  //   - needs_admin=true => editable_zones.length >= 3
-  //   - needs_admin=false => editable_zones пустой или отсутствует
-  //   - admin_intent_confidence="none" => needs_admin=false
+  // Инварианты (реализованы в normalizePlanForRequest):
+  //   - needs_admin=true без единой зоны и коллекции => needs_admin гасится
+  //   - collections непустой => needs_admin форсится в true
+  // Планка «needs_admin => зон >= 3» остаётся рекомендацией промпта:
+  // синтезировать зоны детерминированно нельзя (они зависят от секций).
 
   /** Требуется ли генерировать PHP-админку для этого сайта. */
   needs_admin: z.boolean().optional(),
@@ -183,9 +188,9 @@ export const PlanSchema = z.object({
   // когда повторяемость очевидна из запроса; единичные блоки остаются
   // editable_zones.
   //
-  // Инварианты (мягко, как зоны):
-  //   - collections непустой => needs_admin=true
-  //   - id коллекций не пересекаются с id зон
+  // Инварианты:
+  //   - collections непустой => needs_admin=true (форсится в normalizePlanForRequest)
+  //   - id коллекций не пересекаются с id зон (рекомендация промпта)
 
   /** Коллекции записей для админ-таблиц. Обычно 1-2 на сайт. */
   collections: z.array(CollectionSchema).max(5).optional(),
@@ -301,12 +306,17 @@ ${list}
 }
 
 /**
- * Собрать инструкции по разметке коллекций (data-collection/data-item/data-field)
- * для Coder-а. Возвращает null если коллекций нет.
+ * Собрать инструкции по разметке коллекций для Coder-а.
+ * Возвращает null если коллекций нет.
  *
  * Coder создаёт РОВНО ОДИН элемент-образец на коллекцию — baker вырежет его,
  * обернёт в PHP-foreach и положит дефолтные значения образца первой записью
  * в data/collections.json. Админка размножает записи, не Coder.
+ *
+ * Разметка самодостаточна (зеркало зон): label контейнера и type/label
+ * каждого поля живут в атрибутах — extractCollectionsFromHtml восстановит
+ * схему коллекций из одного html, когда plan недоступен (туннельный путь
+ * не передаёт план в браузер, фронт шлёт в бандл-роут только html).
  */
 export function buildCollectionsHint(plan: Plan): string | null {
   if (!plan.needs_admin || !plan.collections || plan.collections.length === 0) {
@@ -322,23 +332,23 @@ export function buildCollectionsHint(plan: Plan): string | null {
     .join("\n");
   return `РАЗМЕТКА КОЛЛЕКЦИЙ (повторяющиеся записи для PHP-админки):
 Для каждой коллекции ниже создай в её секции ОДИН элемент-образец:
-  - контейнер списка (grid/flex) пометь атрибутом data-collection="<id>"
+  - контейнер списка (grid/flex) пометь ДВУМЯ атрибутами: data-collection="<id>" data-collection-label="<label>"
   - внутри контейнера РОВНО ОДНА карточка-образец с атрибутом data-item
-  - поля внутри карточки пометь data-field="<field_id>"
+  - каждое поле внутри карточки пометь ТРЕМЯ атрибутами: data-field="<field_id>" data-field-type="<type>" data-field-label="<label>"
 Пример:
-  <div data-collection="cakes" class="grid md:grid-cols-3 gap-6">
+  <div data-collection="cakes" data-collection-label="Торты" class="grid md:grid-cols-3 gap-6">
     <article data-item class="rounded-xl border p-4">
-      <img data-field="photo" src="https://images.unsplash.com/..." alt="">
-      <h3 data-field="name">Торт «Минск»</h3>
-      <span data-field="price">₽2 900</span>
+      <img data-field="photo" data-field-type="image" data-field-label="Фото" src="https://images.unsplash.com/..." alt="">
+      <h3 data-field="name" data-field-type="text" data-field-label="Название">Торт «Минск»</h3>
+      <span data-field="price" data-field-type="price" data-field-label="Цена">₽2 900</span>
     </article>
   </div>
 Коллекции:
 ${list}
 Правила:
-  - id коллекций и полей — дословно из списка.
+  - id, type, label — дословно из списка. Все атрибуты обязательны: HTML самодостаточен, как у зон.
   - Ровно ОДИН data-item на коллекцию: не дублируй карточку руками, PHP-цикл размножит её сам.
-  - type=image — data-field на самом <img>, src сохраняется как дефолт.
+  - type=image — все три data-field-атрибута на самом <img>, src сохраняется как дефолт.
   - type=richtext — блочный узел; text/price/number — текстовый узел.
   - Заполни образец реалистичными значениями: они станут первой записью таблицы.`;
 }
