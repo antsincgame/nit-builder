@@ -18,14 +18,7 @@ const rows: { label: string; nitgen: Val; tilda: Val; wix: Val; bolt: Val }[] = 
 ];
 
 function CellValue({ val, isNitgen }: { val: Val; isNitgen?: boolean }) {
-  if (val === "yes" || (val === "no" && isNitgen)) {
-    const isGood = val === "yes" || isNitgen;
-    return (
-      <div className="flex justify-center">
-        {isGood ? <Check size={15} className="text-emerald-500" /> : <X size={15} className="text-[#71717A]/40" />}
-      </div>
-    );
-  }
+  if (val === "yes") return <div className="flex justify-center"><Check size={15} className="text-emerald-500" /></div>;
   if (val === "no") return <div className="flex justify-center"><X size={15} className="text-[#71717A]/40" /></div>;
   if (val === "partial") return <div className="flex justify-center"><Minus size={15} className="text-[#71717A]/60" /></div>;
   return <div className={`text-center text-sm ${isNitgen ? "text-white font-medium" : "text-[#71717A]"}`}>{val}</div>;
