@@ -31,15 +31,14 @@ import type { StylePresetId } from "~/lib/llm/style-presets";
 import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 /**
- * /app — точка входа в приложение, только для авторизованных.
+ * /app — точка входа в приложение.
  * Авторизованных уводим на персональный URL /app/u/:publicId (cookie —
- * источник истины, URL — витрина). Гостей — на лендинг: гостевой режим
- * в UI закрыт (бэкенд-инфраструктура nit_guest_limits осталась, но
- * с фронта в чат без логина не попасть).
+ * источник истины, URL — витрина). Гости остаются здесь: гостевой режим
+ * с дневным лимитом генераций.
  */
 export async function loader({ request }: Route.LoaderArgs) {
   const user = await getAuth(request);
-  if (!user) return redirect("/");
+  if (!user) return null;
   const pid = await ensurePublicId(user.userId);
   // pid === null только при сетевом сбое Appwrite — оставляем юзера на
   // /app, чтобы кабинет не падал из-за временной недоступности prefs.
