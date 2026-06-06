@@ -137,18 +137,6 @@ export function SimplePromptInput({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 mt-4 justify-center">
-        {EXAMPLES.map((ex) => (
-          <button
-            key={ex}
-            type="button"
-            onClick={() => setValue(ex)}
-            className="px-3 py-1.5 text-[12px] rounded-full border border-white/[0.08] bg-[#141414] text-[#A1A1AA] hover:text-white hover:border-white/[0.15] transition-colors"
-          >
-            {ex}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
