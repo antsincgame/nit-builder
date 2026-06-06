@@ -119,10 +119,11 @@ export default function FAQ() {
         </div>
 
         <div className="mt-12 fade-in-up">
-          <p className="text-center text-sm text-[#71717A] leading-relaxed">
+          <p className="text-center text-sm text-[#71717A] leading-relaxed mb-6">
             Остались вопросы о том, как бесплатно создать сайт с помощью ИИ?
             Напишите нам — поможем разобраться с генерацией сайтов через нейросеть.
           </p>
+          <FeedbackForm />
         </div>
       </div>
     </section>
