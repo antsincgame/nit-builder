@@ -54,8 +54,6 @@ export default [
   route("api/public-templates", "routes/api.public-templates.ts"),
   route("api/public-templates/:id", "routes/api.public-templates.$id.ts"),
   route("api/public-templates/:id/vote", "routes/api.public-templates.$id.vote.ts"),
-  // Public community gallery page (v2.2)
-  route("templates", "routes/templates.tsx"),
   // Admin / RAG / Eval
   route("api/admin/eval/run", "routes/api.admin.eval.run.ts"),
   route("api/admin/feedback", "routes/api.admin.feedback.ts"),
