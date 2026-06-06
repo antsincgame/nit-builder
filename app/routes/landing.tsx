@@ -31,6 +31,8 @@ export const meta: Route.MetaFunction = () => [
     content:
       "создать сайт через ИИ, бесплатный генератор сайтов, нейросеть для сайтов, ИИ конструктор, сделать сайт бесплатно",
   },
+  // /about — алиас лендинга; каноническая версия — корень.
+  { tagName: "link", rel: "canonical", href: "https://nitgen.org/" },
 ];
 
 export default function Landing() {
