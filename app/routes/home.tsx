@@ -667,6 +667,15 @@ export default function Home() {
 
 /* ─── Local sub-components ─── */
 
+/** Номер шага в степпере подключения. */
+function ConnectStepNum({ n }: { n: number }) {
+  return (
+    <span className="shrink-0 w-6 h-6 rounded-full border border-amber-500/40 bg-amber-500/[0.1] text-amber-200 text-[12px] font-bold flex items-center justify-center mt-[1px]">
+      {n}
+    </span>
+  );
+}
+
 /**
  * Индикатор подключения туннеля в шапке. Берёт живой socket.tunnelStatus
  * ("online" | "offline" | "unknown") и показывает зелёную точку «Подключён»
