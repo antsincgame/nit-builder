@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { getAuth } from "~/lib/server/requireAuth.server";
 import { getNitUser } from "~/lib/server/appwrite.server";
+import { ensurePublicId } from "~/lib/server/publicId.server";
 import { hasTunnelForUser, getTunnelCount } from "~/lib/services/tunnelRegistry.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -9,12 +10,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     return Response.json({ authenticated: false }, { status: 200 });
   }
 
-  const nitUser = await getNitUser(user.userId);
+  const [nitUser, publicId] = await Promise.all([
+    getNitUser(user.userId),
+    ensurePublicId(user.userId),
+  ]);
 
   return Response.json({
     authenticated: true,
     userId: user.userId,
     email: user.email,
+    publicId,
     preferredProvider: nitUser?.preferredProvider ?? "tunnel",
     tunnelTokenCreatedAt: nitUser?.tunnelTokenCreatedAt ?? null,
     tunnel: {
