@@ -25,7 +25,6 @@ import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
 import NeuralBackground from "~/components/landing/NeuralBackground";
 import Logo from "~/components/landing/Logo";
-import type { StylePresetId } from "~/lib/llm/style-presets";
 import { tunnelDownloadPath } from "~/lib/utils/tunnelDownloads";
 
 /**
