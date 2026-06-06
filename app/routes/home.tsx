@@ -395,7 +395,7 @@ export default function Home() {
                       </span>
                       <a
                         href={tunnelDownloadPath(downloadPlatform)}
-                        className="inline-flex w-fit items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
+                        className="inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] bg-amber-300 hover:bg-amber-200 text-[#0A0A0A] font-semibold transition-all"
                       >
                         <Download size={12} />
                         {downloadLabel}
