@@ -59,7 +59,7 @@ export default function SeoBlock() {
               <strong className="text-[#A1A1AA]">Создать сайт через ИИ бесплатно</strong> можно для
               личных проектов: портфолио, блог, некоммерческий лендинг, каталог с админкой.
               Для коммерческих задач — клиентские сайты, агентская работа, бизнес — доступна
-              <strong className="text-[#A1A1AA]"> коммерческая лицензия</strong>. Свяжитесь с отделом продаж: sales@nitgen.org.
+              <strong className="text-[#A1A1AA]"> коммерческая лицензия</strong>. Напишите на sales@nitgen.org.
             </p>
 
             <p>
