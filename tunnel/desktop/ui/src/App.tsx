@@ -87,8 +87,7 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleTunnelEvent = useCallback((ev: TunnelUiEvent) => {
-    switch (ev.type) {
+  const handleTunnelEvent = useCallback((ev: TunnelUiEvent) => {    switch (ev.type) {
       case "status_changed":
         // content приходит из Rust как { status: ... }. Защита от undefined
         // на случай рассинхрона формата — чтобы кривое событие не уронило UI.
