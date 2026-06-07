@@ -12,6 +12,19 @@ export const SCOPE = "htmlOrchestrator";
 
 export const HTML_STOP_SEQUENCES = ["</html>", "```\n\n", "\n```"];
 
+/**
+ * Вырезает блоки размышлений reasoning-моделей (Qwen3, DeepSeek-R1 и т.п.):
+ * <think>...</think> и <thinking>...</thinking>, включая НЕЗАКРЫТЫЙ хвостовой
+ * блок (частый случай: модель упёрлась в max_tokens посреди размышлений).
+ * Без этого думанье попадает в план-парсер и в финальный HTML как мусор.
+ */
+export function stripThinkBlocks(text: string): string {
+  return text
+    .replace(/<think(?:ing)?>[\s\S]*?<\/think(?:ing)?>/gi, "")
+    .replace(/<think(?:ing)?>[\s\S]*$/i, "")
+    .trim();
+}
+
 export function stripCodeFences(text: string): string {
   let working = text;
   if (!/<\/html>/i.test(working) && /<html[\s>]/i.test(working)) {
