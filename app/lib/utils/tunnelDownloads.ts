@@ -11,25 +11,25 @@ export const TUNNEL_DOWNLOADS: Record<
   { filename: string; label: string }
 > = {
   windows: {
-    filename: "NIT.Tunnel_0.2.0_x64-setup.exe",
+    filename: "NIT.Tunnel_0.2.1_x64-setup.exe",
     label: "Windows",
   },
   "macos-arm": {
-    filename: "NIT.Tunnel_0.2.0_aarch64.dmg",
+    filename: "NIT.Tunnel_0.2.1_aarch64.dmg",
     label: "macOS Apple Silicon",
   },
   "macos-intel": {
-    filename: "NIT.Tunnel_0.2.0_x64.dmg",
+    filename: "NIT.Tunnel_0.2.1_x64.dmg",
     label: "macOS Intel",
   },
   linux: {
-    // Фактическое имя из релиза tunnel-desktop-v0.2.0: Tauri бандлит
+    // Фактическое имя из релиза tunnel-desktop-v0.2.1: Tauri бандлит
     // AppImage/deb по productName ("NIT Tunnel" → NIT.Tunnel), а не lowercase.
-    filename: "NIT.Tunnel_0.2.0_amd64.AppImage",
+    filename: "NIT.Tunnel_0.2.1_amd64.AppImage",
     label: "Linux AppImage",
   },
   "linux-deb": {
-    filename: "NIT.Tunnel_0.2.0_amd64.deb",
+    filename: "NIT.Tunnel_0.2.1_amd64.deb",
     label: "Linux Debian/Ubuntu",
   },
 };

@@ -21,10 +21,10 @@ describe("tunnelDownloads", () => {
 
   it("maps platforms to GitHub release assets", () => {
     expect(tunnelGithubDownloadUrl("macos-arm")).toContain(
-      "NIT.Tunnel_0.2.0_aarch64.dmg",
+      "NIT.Tunnel_0.2.1_aarch64.dmg",
     );
     expect(tunnelGithubDownloadUrl("windows")).toContain(
-      "NIT.Tunnel_0.2.0_x64-setup.exe",
+      "NIT.Tunnel_0.2.1_x64-setup.exe",
     );
   });
 
