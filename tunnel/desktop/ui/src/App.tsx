@@ -37,6 +37,9 @@ export function App() {
   >(new Map());
   const [starting, setStarting] = useState(false);
   const [bootLoaded, setBootLoaded] = useState(false);
+  // Тикер для elapsed активных запросов: значение не читается, сам setState
+  // форсит ререндер каждые 500мс пока есть активные запросы.
+  const [, setClockTick] = useState(0);
 
   // ─── Load persisted config on mount ────────────────────────
 
