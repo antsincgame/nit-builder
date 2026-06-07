@@ -11,7 +11,13 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
 
-const LLM_TIMEOUT_SECS: u64 = 300; // 5 minutes
+/// Idle-таймаут стрима: рвём соединение, только если LM Studio МОЛЧИТ дольше
+/// этого. Общий лимит на запрос убран сознательно: медленные модели (27B на
+/// маке, reasoning) легко генерят дольше 5 минут, а прежний total-timeout
+/// reqwest обрывал живой стрим ровно на 300-й секунде с ошибкой
+/// "error decoding response body". Поток чанков = жизнь, тишина = смерть.
+const STREAM_IDLE_TIMEOUT_SECS: u64 = 180;
+const CONNECT_TIMEOUT_SECS: u64 = 15;
 
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
