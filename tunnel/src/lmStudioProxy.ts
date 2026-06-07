@@ -155,12 +155,17 @@ export async function* streamFromLmStudio(
     };
   } catch (err) {
     if ((err as Error).name === "AbortError") {
-      yield { type: "error", error: "Request aborted (timeout or cancelled)" };
+      yield {
+        type: "error",
+        error: idleFired
+          ? `LM Studio idle timeout: нет данных дольше ${Math.round(config.timeoutMs / 1000)}s`
+          : "Request aborted (timeout or cancelled)",
+      };
     } else {
       yield { type: "error", error: `LM Studio proxy error: ${(err as Error).message}` };
     }
   } finally {
-    clearTimeout(timeout);
+    if (idleTimer) clearTimeout(idleTimer);
   }
 }
 
