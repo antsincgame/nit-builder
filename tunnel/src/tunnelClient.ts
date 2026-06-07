@@ -276,6 +276,10 @@ async function handleGenerate(
           requestId: req.requestId,
           text: delta.text,
         });
+      } else if (delta.type === "thinking") {
+        // Размышления reasoning-модели: текста не несут, но это живой
+        // прогресс — считаем в tokenCount чтобы логи/UI не висели на нуле.
+        tokenCount++;
       } else if (delta.type === "done") {
         send({
           type: "response_done",
