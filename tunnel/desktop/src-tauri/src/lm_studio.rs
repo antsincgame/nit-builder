@@ -236,7 +236,7 @@ impl LmStudioProxy {
                                 .await;
                             return;
                         }
-                        Some(Ok(bytes)) => {
+                        Ok(Some(Ok(bytes))) => {
                             let text = match std::str::from_utf8(&bytes) {
                                 Ok(s) => s,
                                 Err(_) => continue, // skip invalid UTF-8 chunks
