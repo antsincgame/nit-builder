@@ -21,7 +21,7 @@ import type {
   TunnelCapabilities,
   PipelineStep,
 } from "@nit/shared";
-import { stripCodeFences } from "~/lib/services/htmlOrchestrator.helpers";
+import { stripCodeFences, stripThinkBlocks } from "~/lib/services/htmlOrchestrator.helpers";
 import {
   CONTINUATION_SYSTEM_PROMPT,
   buildContinuationUserMessage,
