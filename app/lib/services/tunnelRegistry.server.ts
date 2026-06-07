@@ -644,6 +644,10 @@ export function handleTunnelResponse(
       break;
 
     case "text":
+      // Пустой text — keepalive от туннеля (thinking-фаза reasoning-модели,
+      // см. tunnel.rs): lastActivityAt уже обновлён выше, чтобы sweeper не
+      // считал долгие размышления зависанием. Браузеру пустышку не шлём.
+      if (!event.text) break;
       // В plan-фазе туннель стримит JSON-план — его НЕ показываем браузеру
       // (иначе сырой JSON попадёт в превью как «сайт»). В repair-фазе туннель
       // стримит НОВЫЙ полный HTML — дописывание его к превью фазы code дало
