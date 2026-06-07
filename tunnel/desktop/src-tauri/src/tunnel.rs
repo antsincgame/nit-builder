@@ -352,6 +352,7 @@ async fn connect_and_serve(
 
                                     // Forward stream events to outgoing channel
                                     let mut tokens = 0usize;
+                                    let mut last_keepalive = std::time::Instant::now();
                                     while let Some(ev) = stream_rx.recv().await {
                                         match ev {
                                             StreamEvent::Start => {
