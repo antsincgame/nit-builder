@@ -154,7 +154,12 @@ export async function probeLmStudio(baseUrl: string): Promise<{
       return { available: false, error: `HTTP ${res.status}` };
     }
     const data = (await res.json()) as { data?: Array<{ id: string }> };
-    const model = data.data?.[0]?.id;
+    // Первая модель списка может оказаться embedding-моделью (nomic, bge и
+    // т.п.) — чатить в неё нельзя. Берём первую НЕ-embedding; если других
+    // нет — первую как есть (честная ошибка случится позже на completions).
+    const models = data.data ?? [];
+    const model =
+      (models.find((m) => !m.id.toLowerCase().includes("embed")) ?? models[0])?.id;
     return { available: true, model };
   } catch (err) {
     return { available: false, error: (err as Error).message };
