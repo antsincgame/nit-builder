@@ -658,7 +658,10 @@ export function handleTunnelResponse(
       break;
 
     case "done": {
-      const piece = event.fullText ?? "";
+      // Reasoning-модели (Qwen3 GGUF и т.п.) шлют размышления <think>...</think>
+      // прямо в content — без среза они ломают JSON-парсер плана и попадают
+      // в финальный HTML. Срезаем один раз для всех фаз (plan/code/repair).
+      const piece = stripThinkBlocks(event.fullText ?? "");
 
       // ─── Фаза 1 (planner) ───
       // Туннель вернул JSON-план. Парсим, выбираем шаблон. Если skeleton-
