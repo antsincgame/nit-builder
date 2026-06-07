@@ -86,7 +86,7 @@ pub struct LmStudioProxy {
 impl LmStudioProxy {
     pub fn new(base_url: String) -> Result<Self> {
         let client = Client::builder()
-            .timeout(Duration::from_secs(LLM_TIMEOUT_SECS))
+            .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS))
             .build()
             .context("Failed to build HTTP client")?;
         Ok(Self { client, base_url })
