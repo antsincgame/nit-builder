@@ -251,6 +251,17 @@ impl LmStudioProxy {
                                             {
                                                 return; // consumer dropped
                                             }
+                                        } else if chunk
+                                            .choices
+                                            .as_ref()
+                                            .and_then(|c| c.first())
+                                            .and_then(|c| c.delta.as_ref())
+                                            .and_then(|d| d.reasoning_content.as_ref())
+                                            .is_some()
+                                        {
+                                            if tx.send(StreamEvent::Reasoning).await.is_err() {
+                                                return; // consumer dropped
+                                            }
                                         }
                                     }
                                 }
