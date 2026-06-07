@@ -388,6 +388,20 @@ async fn connect_and_serve(
                                                         tokens,
                                                     },
                                                 );
+                                                // Keepalive серверу: thinking-чанки не пересылаются
+                                                // (это не текст ответа), и при размышлениях дольше
+                                                // 5 минут серверный sweeper счёл бы запрос мёртвым.
+                                                // Пустой response_text раз в ~20с обновляет
+                                                // lastActivityAt; браузеру сервер пустышки не шлёт.
+                                                if last_keepalive.elapsed().as_secs() >= 20 {
+                                                    last_keepalive = std::time::Instant::now();
+                                                    let _ = outgoing_for_task.send(
+                                                        TunnelToServer::ResponseText {
+                                                            request_id: req_id_for_task.clone(),
+                                                            text: String::new(),
+                                                        },
+                                                    );
+                                                }
                                             }
                                             StreamEvent::Done {
                                                 full_text,
