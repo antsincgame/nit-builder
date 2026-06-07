@@ -214,10 +214,23 @@ impl LmStudioProxy {
                     return;
                 }
 
-                chunk = stream.next() => {
+                chunk = tokio::time::timeout(
+                    Duration::from_secs(STREAM_IDLE_TIMEOUT_SECS),
+                    stream.next(),
+                ) => {
                     match chunk {
-                        None => break, // end of stream
-                        Some(Err(err)) => {
+                        // Тишина дольше idle-окна: модель/сервер зависли.
+                        Err(_) => {
+                            let _ = tx
+                                .send(StreamEvent::Error(format!(
+                                    "LM Studio молчит дольше {}s — генерация зависла (модель выгружена или сервер упал)",
+                                    STREAM_IDLE_TIMEOUT_SECS
+                                )))
+                                .await;
+                            return;
+                        }
+                        Ok(None) => break, // end of stream
+                        Ok(Some(Err(err))) => {
                             let _ = tx
                                 .send(StreamEvent::Error(format!("Stream error: {}", err)))
                                 .await;
