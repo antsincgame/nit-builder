@@ -259,6 +259,32 @@ describe("streamFromLmStudio", () => {
     expect(events.find((e) => e.type === "error")?.error).toMatch(/LM Studio 500/);
   });
 
+  it("reasoning_content → thinking-события, в text/fullText не попадает", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseStream([
+        JSON.stringify({
+          choices: [{ delta: { reasoning_content: "хм, кофейня..." } }],
+        }),
+        JSON.stringify({
+          choices: [{ delta: { reasoning_content: "выберу шаблон" } }],
+        }),
+        JSON.stringify({ choices: [{ delta: { content: "ok" } }] }),
+      ]),
+    );
+
+    const events: Array<{ type: string; text?: string; fullText?: string }> = [];
+    for await (const ev of streamFromLmStudio(
+      { baseUrl: "http://x/v1", model: "m", timeoutMs: 1000 },
+      { system: "s", prompt: "p", maxTokens: 100, temperature: 0.5 },
+    )) {
+      events.push(ev);
+    }
+
+    const types = events.map((e) => e.type);
+    expect(types).toEqual(["start", "thinking", "thinking", "text", "done"]);
+    expect(events.find((e) => e.type === "done")?.fullText).toBe("ok");
+  });
+
   it("malformed JSON chunks игнорируются (не валят stream)", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       makeSseStream([
