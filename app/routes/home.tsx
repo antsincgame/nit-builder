@@ -635,7 +635,7 @@ export default function Home() {
               loadingLabel={
                 isGenerating
                   ? currentStep === "plan"
-                    ? "Изучаем запрос…"
+                    ? "Изучаем запрос… (большая модель может думать несколько минут)"
                     : currentStep === "template"
                       ? "Подбираем вариант…"
                       : currentStep === "code"
