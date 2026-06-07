@@ -55,6 +55,9 @@ struct StreamChoice {
 #[derive(Debug, Deserialize)]
 struct StreamDelta {
     content: Option<String>,
+    /// Reasoning-модели стримят размышления отдельным полем (LM Studio
+    /// разделяет think-вывод). В текст ответа не входит.
+    reasoning_content: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
