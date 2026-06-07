@@ -17,6 +17,9 @@ const LLM_TIMEOUT_SECS: u64 = 300; // 5 minutes
 pub enum StreamEvent {
     Start,
     Text(String),
+    /// Reasoning-модель (Qwen3 и т.п.) стримит размышления: текста ответа не
+    /// несут, но это живой прогресс — UI-счётчики не должны висеть на нуле.
+    Reasoning,
     Done { full_text: String, duration_ms: u64, finish_reason: String },
     Error(String),
 }
