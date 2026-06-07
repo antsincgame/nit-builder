@@ -27,7 +27,9 @@ const CLIENT_VERSION = NIT_TUNNEL_CLIENT_VERSION;
 const HEARTBEAT_INTERVAL_MS = 15_000;
 const RECONNECT_INITIAL_MS = 5_000;
 const RECONNECT_MAX_MS = 60_000;
-const LLM_TIMEOUT_MS = 5 * 60_000; // 5 minutes for generation
+// Idle-окно стрима: рвём только если LM Studio молчит дольше. Живой поток
+// чанков (включая thinking) может идти сколько угодно — общий лимит убран.
+const LLM_TIMEOUT_MS = 180_000;
 
 export type TunnelConfig = {
   serverUrl: string; // e.g. "wss://nit.vibecoding.by/api/tunnel"
