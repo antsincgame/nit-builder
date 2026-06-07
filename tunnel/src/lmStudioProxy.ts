@@ -99,7 +99,7 @@ export async function* streamFromLmStudio(
           try {
             const parsed = JSON.parse(data) as {
               choices?: Array<{
-                delta?: { content?: string };
+                delta?: { content?: string; reasoning_content?: string };
                 finish_reason?: string | null;
               }>;
             };
@@ -108,6 +108,11 @@ export async function* streamFromLmStudio(
             if (delta) {
               fullText += delta;
               yield { type: "text", text: delta };
+            } else if (choice?.delta?.reasoning_content) {
+              // Reasoning-модели (Qwen3 и т.п.) стримят размышления отдельным
+              // полем. В текст ответа они не входят, но сигналят что модель
+              // жива — пробрасываем как thinking для счётчиков прогресса.
+              yield { type: "thinking" };
             }
             // finish_reason приходит в последнем чанке (delta пустой). "length" —
             // упёрлись в max_tokens, остальное (stop/null) — нормальное завершение.
