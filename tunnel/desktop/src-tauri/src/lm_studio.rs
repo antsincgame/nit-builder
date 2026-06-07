@@ -162,16 +162,26 @@ impl LmStudioProxy {
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
 
-        let response_result = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await;
+        // Таймаут только на ожидание заголовков: если сервер не ответил 200
+        // за idle-окно — он мёртв. Сам стрим дальше живёт по своему idle.
+        let response_result = tokio::time::timeout(
+            Duration::from_secs(STREAM_IDLE_TIMEOUT_SECS),
+            self.client.post(&url).json(&request).send(),
+        )
+        .await;
 
         let response = match response_result {
-            Ok(r) if r.status().is_success() => r,
-            Ok(r) => {
+            Err(_) => {
+                let _ = tx
+                    .send(StreamEvent::Error(format!(
+                        "LM Studio не ответил за {}s — сервер недоступен или перегружен",
+                        STREAM_IDLE_TIMEOUT_SECS
+                    )))
+                    .await;
+                return;
+            }
+            Ok(Ok(r)) if r.status().is_success() => r,
+            Ok(Ok(r)) => {
                 let status = r.status();
                 let body = r.text().await.unwrap_or_default();
                 let _ = tx
