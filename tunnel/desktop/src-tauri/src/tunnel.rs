@@ -376,6 +376,18 @@ async fn connect_and_serve(
                                                     },
                                                 );
                                             }
+                                            StreamEvent::Reasoning => {
+                                                // Размышления reasoning-модели: текста не несут,
+                                                // но это живой прогресс — без него счётчик UI
+                                                // висит на «0 tokens» всё время think-фазы.
+                                                tokens += 1;
+                                                let _ = events_for_task.send(
+                                                    TunnelUiEvent::RequestProgress {
+                                                        request_id: req_id_for_task.clone(),
+                                                        tokens,
+                                                    },
+                                                );
+                                            }
                                             StreamEvent::Done {
                                                 full_text,
                                                 duration_ms,
