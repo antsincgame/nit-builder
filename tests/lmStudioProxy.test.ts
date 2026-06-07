@@ -91,6 +91,38 @@ describe("probeLmStudio", () => {
     const result = await probeLmStudio("http://localhost:1234/v1");
     expect(result).toEqual({ available: true, model: undefined });
   });
+
+  it("пропускает embedding-модели и берёт первую chat-модель", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "text-embedding-nomic-embed-text-v1.5" },
+            { id: "qwen/qwen3.6-27b" },
+          ],
+        }),
+      ),
+    );
+
+    const result = await probeLmStudio("http://localhost:1234/v1");
+    expect(result).toEqual({ available: true, model: "qwen/qwen3.6-27b" });
+  });
+
+  it("если ВСЕ модели embedding — возвращает первую (fallback)", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ id: "text-embedding-nomic-embed-text-v1.5" }],
+        }),
+      ),
+    );
+
+    const result = await probeLmStudio("http://localhost:1234/v1");
+    expect(result).toEqual({
+      available: true,
+      model: "text-embedding-nomic-embed-text-v1.5",
+    });
+  });
 });
 
 // ─── streamFromLmStudio ───────────────────────────────────────────
