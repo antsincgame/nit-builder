@@ -99,10 +99,16 @@ impl LmStudioProxy {
             .await
             .context("Failed to parse /v1/models response")?;
 
-        let first_model = data
-            .data
-            .and_then(|models| models.into_iter().next())
-            .map(|m| m.id)
+        // Первая модель списка может оказаться embedding-моделью (nomic, bge
+        // и т.п.) — чатить в неё нельзя: completions виснет или падает. Берём
+        // первую НЕ-embedding; если других нет — первую как есть (честная
+        // ошибка случится на chat/completions).
+        let models = data.data.unwrap_or_default();
+        let first_model = models
+            .iter()
+            .find(|m| !m.id.to_lowercase().contains("embed"))
+            .or_else(|| models.first())
+            .map(|m| m.id.clone())
             .ok_or_else(|| anyhow!("LM Studio has no loaded models"))?;
 
         Ok(first_model)
