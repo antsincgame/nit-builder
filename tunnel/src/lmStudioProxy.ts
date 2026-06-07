@@ -44,7 +44,20 @@ export async function* streamFromLmStudio(
   };
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  // Idle-таймер вместо общего лимита: медленные модели (27B, reasoning)
+  // легко генерят дольше 5 минут — рвать живой стрим нельзя. Рвём только
+  // если данных нет дольше timeoutMs. Каждый полученный чанк сбрасывает
+  // таймер; idleFired отличает таймаут тишины от пользовательской отмены.
+  let idleFired = false;
+  let idleTimer: ReturnType<typeof setTimeout> | null = null;
+  const resetIdle = () => {
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      idleFired = true;
+      controller.abort();
+    }, config.timeoutMs);
+  };
+  resetIdle();
 
   // Chain user abort signal with our internal one
   if (params.signal) {
