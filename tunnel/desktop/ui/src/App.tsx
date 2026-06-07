@@ -87,7 +87,17 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleTunnelEvent = useCallback((ev: TunnelUiEvent) => {    switch (ev.type) {
+  // Без тикера elapsedMs пересчитывается только на ререндере: пока модель
+  // греет промпт или думает (reasoning) — токенов нет, ререндеров нет,
+  // и «0.0s» застывает, выглядя как мёртвый запрос.
+  useEffect(() => {
+    if (activeRequests.size === 0) return;
+    const timer = setInterval(() => setClockTick((v) => v + 1), 500);
+    return () => clearInterval(timer);
+  }, [activeRequests.size]);
+
+  const handleTunnelEvent = useCallback((ev: TunnelUiEvent) => {
+    switch (ev.type) {
       case "status_changed":
         // content приходит из Rust как { status: ... }. Защита от undefined
         // на случай рассинхрона формата — чтобы кривое событие не уронило UI.
