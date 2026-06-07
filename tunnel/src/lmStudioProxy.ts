@@ -4,7 +4,7 @@
  */
 
 export type StreamDelta = {
-  type: "start" | "text" | "done" | "error";
+  type: "start" | "text" | "thinking" | "done" | "error";
   text?: string;
   fullText?: string;
   error?: string;
