@@ -192,7 +192,7 @@ impl LmStudioProxy {
                     .await;
                 return;
             }
-            Err(err) => {
+            Ok(Err(err)) => {
                 let _ = tx
                     .send(StreamEvent::Error(format!("LM Studio request failed: {}", err)))
                     .await;
