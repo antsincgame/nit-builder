@@ -99,7 +99,11 @@ export async function* streamFromLmStudio(
           try {
             const parsed = JSON.parse(data) as {
               choices?: Array<{
-                delta?: { content?: string; reasoning_content?: string };
+                delta?: {
+                  content?: string;
+                  reasoning_content?: string;
+                  reasoning?: string;
+                };
                 finish_reason?: string | null;
               }>;
             };
@@ -108,10 +112,14 @@ export async function* streamFromLmStudio(
             if (delta) {
               fullText += delta;
               yield { type: "text", text: delta };
-            } else if (choice?.delta?.reasoning_content) {
-              // Reasoning-модели (Qwen3 и т.п.) стримят размышления отдельным
-              // полем. В текст ответа они не входят, но сигналят что модель
-              // жива — пробрасываем как thinking для счётчиков прогресса.
+            } else if (
+              choice?.delta?.reasoning_content ||
+              choice?.delta?.reasoning
+            ) {
+              // Reasoning-модели стримят размышления отдельным полем:
+              // LM Studio/DeepSeek — reasoning_content, Ollama и часть
+              // llama.cpp-сборок — reasoning. В текст ответа не входят,
+              // но сигналят что модель жива — пробрасываем для прогресса.
               yield { type: "thinking" };
             }
             // finish_reason приходит в последнем чанке (delta пустой). "length" —
