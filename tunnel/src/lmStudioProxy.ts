@@ -96,6 +96,7 @@ export async function* streamFromLmStudio(
     while (true) {
       const { value, done } = await reader.read();
       if (done) break;
+      resetIdle();
 
       buffer += decoder.decode(value, { stream: true });
 
