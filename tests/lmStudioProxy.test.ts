@@ -285,6 +285,31 @@ describe("streamFromLmStudio", () => {
     expect(events.find((e) => e.type === "done")?.fullText).toBe("ok");
   });
 
+  it("альтернативное поле reasoning (Ollama-стиль) тоже даёт thinking", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseStream([
+        JSON.stringify({ choices: [{ delta: { reasoning: "думаю..." } }] }),
+        JSON.stringify({ choices: [{ delta: { content: "ok" } }] }),
+      ]),
+    );
+
+    const events: Array<{ type: string; fullText?: string }> = [];
+    for await (const ev of streamFromLmStudio(
+      { baseUrl: "http://x/v1", model: "m", timeoutMs: 1000 },
+      { system: "s", prompt: "p", maxTokens: 100, temperature: 0.5 },
+    )) {
+      events.push(ev);
+    }
+
+    expect(events.map((e) => e.type)).toEqual([
+      "start",
+      "thinking",
+      "text",
+      "done",
+    ]);
+    expect(events.find((e) => e.type === "done")?.fullText).toBe("ok");
+  });
+
   it("malformed JSON chunks игнорируются (не валят stream)", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       makeSseStream([
