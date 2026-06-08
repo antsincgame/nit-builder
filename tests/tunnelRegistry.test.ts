@@ -824,7 +824,7 @@ describe("tunnelRegistry", () => {
         maxOutputTokens: number;
       };
       expect(coderGen).toBeDefined();
-      expect(coderGen.maxOutputTokens).toBe(8000); // code-бюджет
+      expect(coderGen.maxOutputTokens).toBe(16000); // code-бюджет (S-tier, поднят до 16k)
       const steps = bws.sent
         .filter((m) => (m as { type: string }).type === "generate_step")
         .map((m) => (m as { step: string }).step);
