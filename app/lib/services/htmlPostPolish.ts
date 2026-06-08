@@ -157,7 +157,13 @@ if(document.readyState!=="loading")run();else document.addEventListener("DOMCont
 export function applyPremiumBaseLayer(html: string): string {
   if (html.includes('id="nit-premium-base"')) return html;
   const hasGoogleFonts = /fonts\.googleapis\.com/i.test(html);
-  const inject = `${hasGoogleFonts ? "" : INTER_FONT_LINK}${PREMIUM_BASE_STYLE}`;
-  if (html.includes("</head>")) return html.replace("</head>", `${inject}\n</head>`);
-  return `${inject}\n${html}`;
+  const headInject = `${hasGoogleFonts ? "" : INTER_FONT_LINK}${PREMIUM_BASE_STYLE}`;
+  let out = html.includes("</head>")
+    ? html.replace("</head>", `${headInject}\n</head>`)
+    : `${headInject}\n${html}`;
+  // Reveal-скрипт — в конец body (graceful, не блокирует рендер).
+  out = out.includes("</body>")
+    ? out.replace("</body>", `${REVEAL_SCRIPT}\n</body>`)
+    : `${out}\n${REVEAL_SCRIPT}`;
+  return out;
 }
