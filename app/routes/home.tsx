@@ -160,6 +160,21 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [mode, socket.status, handleWsEvent]);
 
+  // Локальный таймер «сколько идёт генерация» для loading-экрана: тикает раз
+  // в секунду от старта loading, токены приходят из generationProgress.
+  const [elapsedSec, setElapsedSec] = useState(0);
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSec(0);
+      return;
+    }
+    const start = Date.now();
+    const id = setInterval(() => {
+      setElapsedSec(Math.round((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [loading]);
+
   const handleOpenEntry = useCallback(
     (entry: Parameters<typeof openFromHistory>[0]) => {
       openFromHistory(entry);
