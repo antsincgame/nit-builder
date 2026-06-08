@@ -878,58 +878,6 @@ export function handleTunnelResponse(
         }
       }
 
-      // ─── Done секционной фазы (опц., за флагом NIT_TUNNEL_SECTIONS) ───
-      // Прогоняем чистый редьюсер: либо шлём следующую секцию (или ретрай
-      // текущей), либо финализируем собранный документ. Обрыв по длине
-      // передаём как truncated — редьюсер решает, ретраить или принять.
-      if (req.phase === "sections" && req.sectionFlow) {
-        const adv = advanceSectionFlow(req.sectionFlow, piece, {
-          maxRetries: SECTION_MAX_RETRIES,
-          truncated: event.finishReason === "length",
-        });
-        req.sectionFlow = adv.state;
-
-        if (adv.step.kind === "done") {
-          // Собранный документ финализируем тем же путём, что и монолит:
-          // req.plan+presetId выставлены → finalizeTunnelHtml (strip +
-          // post-polish + премиум-слой).
-          finalizeTunnelDone(req, browser.ws, adv.step.html, event.durationMs);
-          break;
-        }
-
-        // Нужен ещё один generate (следующая секция либо ретрай текущей).
-        const sectionTunnel = findTunnelByConnectionId(req.tunnelConnectionId);
-        if (sectionTunnel) {
-          req.currentStep = "code";
-          try {
-            sectionTunnel.ws.send(
-              JSON.stringify({
-                type: "generate",
-                requestId,
-                system: adv.step.system,
-                prompt: adv.step.prompt,
-                maxOutputTokens: SECTION_MAX_TOKENS,
-                temperature: req.temperature ?? 0.4,
-              } satisfies ServerToTunnel),
-            );
-            return; // ждём done следующей секции
-          } catch {
-            // отправка не удалась — обрабатываем как обрыв туннеля ниже
-          }
-        }
-        sendToBrowser(browser.ws, {
-          type: "generate_error",
-          requestId,
-          error: "Tunnel disconnected during generation",
-          code: "TUNNEL_DISCONNECTED",
-        });
-        if (req.onError) req.onError("tunnel_gone_during_sections");
-        recordTunnelOutcome(req, "error", "tunnel_gone_during_sections");
-        pendingRequests.delete(requestId);
-        stats.totalRequestsFailed++;
-        break;
-      }
-
       // ─── Done repair-фазы (Tier 6) ───
       // Обрыв по токенам ловим по finishReason: текстовых следов обрыва после
       // strip-слоя не остаётся (stripCodeFences дописывает </html>,
