@@ -504,8 +504,6 @@ export function useGenerationFlow(
             setChatMessages((prev) => [...prev, { role: "assistant", text: note }]);
             try {
               saveToHistory({
-                id: uuid(),
-                createdAt: Date.now(),
                 prompt: lastPromptRef.current,
                 templateId: "",
                 templateName: "",
