@@ -189,3 +189,125 @@ export function validateSectionHtml(
 
   return { ok: issues.length === 0, issues };
 }
+
+// ─── Промпт генерации одной секции ───
+//
+// Компактный промпт под слабую модель: одна секция за вызов. Несёт только
+// релевантный для секции копирайт из плана + дизайн-контракт (переменные и
+// классы общей системы, на которые секция ссылается вместо изобретения своих
+// цветов). Выход жёстко ограничен одним <section> без обвязки документа —
+// сшивкой займётся assembleSections.
+
+function joinBenefits(plan: Plan): string {
+  return (plan.key_benefits ?? [])
+    .map((b) => `  - ${b.title}: ${b.description}`)
+    .join("\n");
+}
+
+function joinPricing(plan: Plan): string {
+  return (plan.pricing_tiers ?? [])
+    .map((t) => {
+      const period = t.period ? ` ${t.period}` : "";
+      const mark = t.highlighted ? " (рекомендуемый)" : "";
+      return `  - ${t.name} — ${t.price}${period}${mark}: ${t.features.join(", ")}`;
+    })
+    .join("\n");
+}
+
+function joinFaq(plan: Plan): string {
+  return (plan.faq ?? []).map((f) => `  - ${f.question} → ${f.answer}`).join("\n");
+}
+
+function joinContacts(plan: Plan): string {
+  const parts: string[] = [];
+  if (plan.contact_phone) parts.push(`телефон ${plan.contact_phone}`);
+  if (plan.contact_email) parts.push(`email ${plan.contact_email}`);
+  if (plan.contact_address) parts.push(`адрес ${plan.contact_address}`);
+  if (plan.hours_text) parts.push(`часы работы: ${plan.hours_text}`);
+  return parts.map((p) => `  - ${p}`).join("\n");
+}
+
+/** Релевантный для секции бриф из плана (или инструкция, если данных нет). */
+function sectionBrief(plan: Plan, name: string): string {
+  const n = name.toLowerCase();
+
+  if (/hero|главн|первый экран/.test(n)) {
+    const lines = [
+      plan.hero_headline
+        ? `Заголовок: ${plan.hero_headline}`
+        : `Заголовок: краткий и конкретный про «${plan.business_type}».`,
+      plan.hero_subheadline
+        ? `Подзаголовок: ${plan.hero_subheadline}`
+        : `Подзаголовок: одно предложение о пользе.`,
+      `Кнопка (CTA): ${plan.cta_primary}.`,
+    ];
+    if (plan.cta_microcopy) lines.push(`Микрокопия под кнопкой: ${plan.cta_microcopy}`);
+    if (plan.social_proof_line) lines.push(`Линия доверия: ${plan.social_proof_line}`);
+    return lines.join("\n");
+  }
+
+  if (/feature|benefit|преимущ|услуг|возможност|выгод/.test(n)) {
+    const b = joinBenefits(plan);
+    return b
+      ? `Преимущества (каждое — карточка .card):\n${b}`
+      : `3-4 конкретных преимущества «${plan.business_type}», каждое карточкой .card с заголовком и пояснением. Без общих слов.`;
+  }
+
+  if (/pricing|price|тариф|цен|стоимост|прайс/.test(n)) {
+    const p = joinPricing(plan);
+    return p
+      ? `Тарифы (каждый — карточка .card, рекомендуемый выделить акцентом):\n${p}`
+      : `Тарифы/цены «${plan.business_type}» карточками .card. Если точных цен нет — опиши пакеты по ценности.`;
+  }
+
+  if (/faq|вопрос|q&a|часто задава/.test(n)) {
+    const f = joinFaq(plan);
+    return f
+      ? `Вопросы и ответы:\n${f}`
+      : `4-5 реальных вопросов клиента «${plan.business_type}» с короткими ответами.`;
+  }
+
+  if (/contact|контакт|связ/.test(n)) {
+    const c = joinContacts(plan);
+    return c
+      ? `Контакты:\n${c}\nКнопка действия: ${plan.cta_primary}.`
+      : `Блок контактов с кнопкой «${plan.cta_primary}». Если данных нет — форма заявки (имя, телефон).`;
+  }
+
+  if (/about|о нас|о компании|о студии|истори/.test(n)) {
+    return `Коротко о «${plan.business_type}»${plan.target_audience ? ` для аудитории: ${plan.target_audience}` : ""}. Конкретика, без воды и штампов.`;
+  }
+
+  return `Конкретный осмысленный контент секции по теме «${plan.business_type}». Без воды и общих фраз.`;
+}
+
+/**
+ * Строит промпт для генерации ОДНОЙ секции. Дизайн-контракт ссылается на
+ * переменные и классы общей системы (buildSectionDesignSystem), поэтому секция
+ * наследует палитру/шрифты, а не изобретает свои. Выход — только <section>.
+ */
+export function buildSectionPrompt(
+  plan: Plan,
+  sectionName: string,
+  design: SectionDesignSystem,
+): string {
+  const langName =
+    plan.language === "en" ? "English" : plan.language === "by" ? "беларуская мова" : "русский";
+  const p = design.palette;
+
+  return `Сгенерируй ОДНУ секцию сайта. Тип бизнеса: «${plan.business_type}».${plan.target_audience ? ` Аудитория: ${plan.target_audience}.` : ""} Тон: ${plan.tone}. Язык контента: ${langName}.
+
+СЕКЦИЯ: «${sectionName}».
+${sectionBrief(plan, sectionName)}
+
+ДИЗАЙН-КОНТРАКТ (общая система уже подключена — НЕ дублируй её):
+  - НЕ пиши <!DOCTYPE>, <html>, <head>, <body> и не подключай шрифты — только сама секция.
+  - Используй готовые CSS-переменные вместо своих цветов: var(--primary) (акцент/CTA), var(--bg), var(--fg), var(--accent), var(--muted).
+  - Опирайся на готовые классы: .section (внешний отступ), .container (центровка), .cards + .card (сетка карточек), .btn (кнопка).
+  - Палитра для справки: фон ${p.background}, текст ${p.foreground}, акцент ${p.primary}. Не вводи чужие цвета.
+  - Семантика: оберни в <section class="section"> … <div class="container"> … </div></section>. У содержательной секции должен быть заголовок (h2, у hero — h1).
+
+ЗАПРЕЩЕНО: штампы «Добро пожаловать», «Наши преимущества», «Почему выбирают нас», lorem ipsum, плейсхолдеры, выдуманные цифры и отзывы.
+
+ВЫВОД: только один блок <section>…</section> на языке «${langName}». Без markdown-ограждений, без пояснений до или после.`;
+}
