@@ -132,6 +132,23 @@ export default function Home() {
     if (mode === "generating") setMobileTab("preview");
   }, [mode]);
 
+  // Устойчивость к обрыву во время генерации: если control-сокет потерял
+  // связь (сеть моргнула) и не восстановился за несколько секунд, серверная
+  // сессия уже потеряна и финальное событие не придёт — не виснем в
+  // «Изучаем запрос…» бесконечно, а сбрасываем и просим повторить. При
+  // нормальной генерации socket.status === "authed", эффект не срабатывает.
+  useEffect(() => {
+    if (mode !== "generating") return;
+    if (socket.status === "authed") return;
+    const t = setTimeout(() => {
+      if (socketRef.current?.status !== "authed") {
+        reset();
+        toast.error("Соединение прервалось во время генерации. Повтори запрос.");
+      }
+    }, 8000);
+    return () => clearTimeout(t);
+  }, [mode, socket.status, reset]);
+
   const handleOpenEntry = useCallback(
     (entry: Parameters<typeof openFromHistory>[0]) => {
       openFromHistory(entry);
