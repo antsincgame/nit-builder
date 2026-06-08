@@ -451,30 +451,89 @@ export function useGenerationFlow(
         }
         case "generate_error": {
           setLoading(false);
+          setGenerationProgress(null);
           activeRequestIdRef.current = null;
 
-          // ABORTED — это эхо нашего же abort: юзер нажал «отмена», и
-          // cancelGeneration уже показал warning-тост и сбросил вид. Живой
-          // браузер получает ABORTED только так (disconnect/revoke-пути
-          // абортят уже после закрытия сокета). Не плодим второй (к тому же
-          // англоязычный) error-тост и красный чат-бабл.
+          // ABORTED — эхо нашего abort (юзер нажал «отмена»): cancelGeneration
+          // уже показал тост и сбросил вид. Не плодим второй бабл.
           if (event.code === "ABORTED") break;
 
           let msg = event.error;
           if (event.code === "NO_TUNNEL") {
             msg = "Твой туннель не подключён. Запусти NIT Tunnel клиент.";
           } else if (event.code === "TUNNEL_DISCONNECTED") {
-            msg = "Туннель отключился во время генерации. Попробуй снова.";
+            msg =
+              "Связь с твоим компьютером прервалась. NIT Tunnel переподключается сам — когда статус вверху снова «Подключён», нажми «Повторить».";
           } else if (event.code === "RATE_LIMITED") {
             msg = "Слишком много параллельных генераций. Дождись завершения.";
           }
-          setChatMessages((prev) => [
-            ...prev,
-            { role: "assistant", text: `❌ ${msg}` },
-          ]);
-          // Stay on split view if we already have a site, otherwise bounce
-          // back to welcome. Через ref — не пересоздаём callback на каждый
-          // setHtml.
+
+          // Промпт для кнопки «Повторить» (кроме abort, обработанного выше).
+          setRetryablePrompt(lastPromptRef.current || null);
+
+          // ─── Спасение накопленного HTML ───
+          // На первой генерации сервер не успевает отдать generate_done, но
+          // клиент уже накопил стрим в pendingHtmlRef. Раньше всё терялось
+          // (setMode("welcome") + чат не сохранялся). Теперь: если успели
+          // собрать заметный кусок — показываем его как результат и сохраняем,
+          // чтобы минуты ожидания и труд модели не пропали. Iframe дорисует
+          // незакрытые теги сам.
+          const salvaged = pendingHtmlRef.current || "";
+          const looksLikeHtml =
+            salvaged.length > 800 && /<(section|div|main|body|header|h1)/i.test(salvaged);
+
+          if (looksLikeHtml && !htmlRef.current) {
+            setHtml(salvaged);
+            setStreamingHtml(salvaged);
+            setMode("editing");
+            setCurrentStep("done");
+            pushVersion({
+              html: salvaged,
+              prompt: lastPromptRef.current,
+              kind: "create",
+              timestamp: Date.now(),
+            });
+            const note =
+              `⚠️ Генерация прервалась, но я сохранил то, что успел собрать — ` +
+              `${salvaged.length.toLocaleString("ru")} символов. Доработай правками справа ` +
+              `или нажми «Повторить», чтобы сгенерировать заново.`;
+            const updated: ChatMessage[] = [
+              ...chatMessagesRef.current,
+              { role: "assistant", text: note },
+            ];
+            setChatMessages((prev) => [...prev, { role: "assistant", text: note }]);
+            try {
+              saveToHistory({
+                id: uuid(),
+                createdAt: Date.now(),
+                prompt: lastPromptRef.current,
+                templateId: "",
+                templateName: "",
+                html: salvaged,
+              });
+              if (authRef.current.status === "authenticated") {
+                void saveRemoteSite({
+                  prompt: lastPromptRef.current,
+                  html: salvaged,
+                  templateId: "",
+                  templateName: "",
+                  chatMessages: JSON.stringify(updated),
+                })
+                  .then((id) => {
+                    if (id) setCurrentSiteId(id);
+                  })
+                  .catch(() => {});
+              }
+            } catch {
+              // ignore storage failures
+            }
+            toast.error("Генерация прервалась — показал, что успел собрать.");
+            break;
+          }
+
+          // Спасать нечего (обрыв на plan-фазе / пустой стрим): сообщение +
+          // повтор. Сайт уже есть (polish-ошибка) — остаёмся в split-view.
+          setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
           if (!htmlRef.current) {
             setMode("welcome");
           }
