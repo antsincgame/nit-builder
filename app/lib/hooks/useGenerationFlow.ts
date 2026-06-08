@@ -582,6 +582,9 @@ export function useGenerationFlow(
       setStreamingChars(0);
       setCurrentStep("plan");
       setLastPrompt(prompt);
+      setGenerationProgress(null);
+      setRetryablePrompt(null);
+      lastStyleRef.current = createOptions.stylePresetId;
       pendingHtmlRef.current = "";
       const artifactMode = inferArtifactModeFromPrompt(prompt);
 
