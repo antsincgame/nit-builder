@@ -271,6 +271,40 @@ describe("phpSqliteArtifactBuilder", () => {
     }
   });
 
+  it("covers storefront themes, languages and fallbacks", () => {
+    const v = (over: Partial<Plan>): Plan => ({ ...PLAN, ...over });
+    const matrix: Plan[] = [
+      v({ language: "en", business_type: "accessories shop", keywords: ["products", "cart", "orders", "admin"], hero_headline: "Accessories with fast delivery", color_mood: "warm-pastel" }),
+      v({ business_type: "салон красоты", keywords: ["салон", "красота", "маникюр", "запись"], hero_headline: "Салон красоты рядом", color_mood: "warm-pastel" }),
+      v({ language: "en", business_type: "beauty salon spa wellness", keywords: ["beauty", "salon", "spa"], hero_headline: "Beauty salon downtown", color_mood: "warm-pastel" }),
+      v({ business_type: "кофейня в центре", keywords: ["кофе", "кофейня", "десерты", "меню"], hero_headline: "Кофейня в центре", color_mood: "warm-pastel" }),
+      v({ language: "en", business_type: "coffee shop", keywords: ["coffee", "cafe", "desserts", "menu"], hero_headline: "Coffee in the center", color_mood: "warm-pastel" }),
+      v({ business_type: "агентство недвижимости", keywords: ["недвижимость", "объекты", "квартиры"], hero_headline: "Объекты для жизни", color_mood: "warm-pastel" }),
+      v({ language: "en", business_type: "real estate agency", keywords: ["real estate", "apartment", "house"], hero_headline: "Homes to live in", color_mood: "warm-pastel" }),
+      v({ business_type: "стоматологическая клиника", keywords: ["клиника", "медицина", "стоматолог"], hero_headline: "Клиника рядом" }),
+      v({ language: "en", business_type: "dental clinic", keywords: ["clinic", "doctor", "dental"], hero_headline: "Dental clinic" }),
+      v({ business_type: "школа курсов", keywords: ["курсы", "школа", "обучение"], hero_headline: "Курсы для роста" }),
+      v({ language: "en", business_type: "online course school", keywords: ["course", "school", "lesson"], hero_headline: "Courses to grow" }),
+      v({ business_type: "автосервис и аренда", keywords: ["авто", "машина", "аренда"], hero_headline: "Автосервис в городе" }),
+      v({ language: "en", business_type: "auto repair and car rental", keywords: ["auto", "car", "rental"], hero_headline: "Auto service" }),
+      v({ business_type: "услуги", keywords: ["услуги"], key_benefits: [], faq: [], pricing_tiers: [], color_mood: "warm-pastel" }),
+      v({ language: "en", business_type: "services", keywords: ["services"], key_benefits: [], faq: [], pricing_tiers: [], color_mood: "warm-pastel" }),
+      v({ business_type: "магазин", keywords: ["магазин"], pricing_tiers: [{ name: "Особый набор", price: "", features: ["a", "b"] }], color_mood: "warm-pastel" }),
+      v({ business_type: "магазин", hero_headline: "Магазин «Северный» уже открыт", color_mood: "warm-pastel" }),
+    ];
+
+    for (const plan of matrix) {
+      const artifact = buildPhpSqliteArtifact({ plan, userMessage: "backend" });
+      const html = renderPhpSqliteArtifactPreview({ artifact, plan, userMessage: "backend" });
+      expect(html).toContain("<!DOCTYPE html>");
+      expect(html).toContain('id="nit-artifact-manifest"');
+      expect(html).toContain("nit-view-db");
+      expect(html).toContain("php-wasm/PhpWeb.mjs");
+      const index = artifact.files.find((f) => f.path === "public/index.php")?.content ?? "";
+      expect(index).toContain("<?php");
+    }
+  });
+
   it("can materialize the generated project as real files on disk", async () => {
     const artifact = buildPhpSqliteArtifact({
       plan: PLAN,
