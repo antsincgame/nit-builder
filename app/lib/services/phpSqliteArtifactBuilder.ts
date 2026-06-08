@@ -1916,7 +1916,7 @@ function buildLivePreviewBootScript(): string {
     Promise.race([import('https://cdn.jsdelivr.net/npm/php-wasm/PhpWeb.mjs'),timeout(25000)]).then(function(mod){
       return import('https://cdn.jsdelivr.net/npm/php-wasm-sqlite').then(function(sqlite){
         php=new mod.PhpWeb({autoTransaction:false,sharedLibs:[sqlite],ini:['display_errors=0','session.save_path=/tmp','session.use_strict_mode=0','date.timezone=UTC'].join(String.fromCharCode(10))});
-        php.addEventListener('output',function(e){outBuf+=e.detail;});
+        php.addEventListener('output',function(e){var d=e.detail;outBuf+=(d&&d.join)?d.join(''):d;});
         php.addEventListener('error',function(){});
         return php.run('<?php echo 1;');
       });
