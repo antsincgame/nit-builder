@@ -1972,8 +1972,8 @@ function buildLivePreviewBootScript(): string {
       var SQ='https://cdn.jsdelivr.net/npm/php-wasm-sqlite@0.1.0/';
       php=new mod.PhpWeb({autoTransaction:false,sharedLibs:[{name:'php'+V+'-sqlite.so',url:SQ+'php'+V+'-sqlite.so',ini:true},{name:'php'+V+'-pdo-sqlite.so',url:SQ+'php'+V+'-pdo-sqlite.so',ini:true},{name:'libsqlite3.so',url:SQ+'libsqlite3.so'}],ini:['display_errors=0','session.save_path=/tmp','session.use_strict_mode=0','date.timezone=UTC'].join(String.fromCharCode(10))});
       php.addEventListener('output',function(e){var d=e.detail;outBuf+=(d&&d.join)?d.join(''):d;});
-      php.addEventListener('error',function(){});
-      return php.run('<?php echo 1;');
+      php.addEventListener('error',function(e){var d=e.detail;phpErr+=(d&&d.join)?d.join(''):(d||'');});
+      outBuf='';return php.run("<?php echo implode(',',PDO::getAvailableDrivers());").then(function(){DRIVERS=outBuf;outBuf='';});
     }).then(function(){return writeProject();})
       .then(function(){return renderStore();})
       .then(function(){return renderAdmin();})
