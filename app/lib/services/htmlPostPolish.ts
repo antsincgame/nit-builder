@@ -343,3 +343,44 @@ export function applyWowLayer(html: string): string {
     ? html.replace("</head>", `${WOW_LAYER_STYLE}\n</head>`)
     : `${WOW_LAYER_STYLE}\n${html}`;
 }
+
+// ─── Лечение оборванного вывода модели ─────────────────────────────
+//
+// Слабая модель (7-9B) часто не дописывает HTML — труба кончается посреди тега
+// (`<div class="...`). Без закрывающих </body></html> последующие детерминированные
+// вставки (SEO-голова, премиум-слой, reveal-скрипт) приклеиваются в конец
+// сломанного DOM, и браузер показывает их как ВИДИМЫЙ ТЕКСТ. Отрезаем
+// незавершённый хвостовой тег и гарантируем закрытие документа (вложенные
+// div/section браузер закроет сам).
+
+export function ensureClosedHtml(html: string): string {
+  let out = html.trimEnd();
+  // Хвост оборван посреди тега: последний '<' стоит позже последнего '>'.
+  const lastLt = out.lastIndexOf("<");
+  const lastGt = out.lastIndexOf(">");
+  if (lastLt > lastGt) {
+    out = out.slice(0, lastLt).trimEnd();
+  }
+  if (!/<\/html>/i.test(out)) {
+    if (!/<\/body>/i.test(out)) out += "\n</body>";
+    out += "\n</html>";
+  }
+  return out;
+}
+
+// ─── Починка битых картинок ────────────────────────────────────────
+//
+// Модель галлюцинирует несуществующие Unsplash photo-id → 404 → битые картинки
+// на всём сайте. Меняем прямые ссылки images.unsplash.com/photo-* на
+// picsum.photos (всегда отдаёт фото), сохраняя размеры из query (?w=&h=).
+// Seed детерминированный из исходного id — разные места получают разные фото,
+// но повторный прогон стабилен.
+
+export function fixBrokenImages(html: string): string {
+  return html.replace(/https?:\/\/images\.unsplash\.com\/[^"'\s)]+/gi, (url) => {
+    const w = url.match(/[?&]w=(\d+)/)?.[1] ?? "800";
+    const h = url.match(/[?&]h=(\d+)/)?.[1] ?? "600";
+    const seed = (url.match(/photo-([a-z0-9]+)/i)?.[1] ?? `nit${url.length}`).slice(0, 16);
+    return `https://picsum.photos/seed/${seed}/${w}/${h}`;
+  });
+}
