@@ -172,6 +172,8 @@ export type UseGenerationFlow = {
   createSite: (prompt: string, createOptions?: CreateSiteOptions) => Promise<void>;
   polishSite: (request: string) => Promise<void>;
   cancelGeneration: () => void;
+  /** Повторить последнюю генерацию после ошибки/обрыва (тот же промпт+стиль). */
+  retryGeneration: () => void;
   /** Используется HistoryPanel при открытии существующего сайта. */
   loadFromHistory: (entry: HistoryEntry) => void;
   reset: () => void;
