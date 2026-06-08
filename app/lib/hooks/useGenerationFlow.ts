@@ -555,6 +555,27 @@ export function useGenerationFlow(
     [scheduleIframeUpdate, pushVersion],
   );
 
+  // Watchdog: если loading идёт, но туннель долго молчит (нет step/text/
+  // progress дольше порога) — генерация зависла (мёртвый сокет, потерянный
+  // запрос). Будим UI тем же путём, что обрыв связи: спасаем накопленный HTML
+  // либо показываем ошибку + «Повторить». Без него веб висел в loading
+  // бесконечно с накручивающимся таймером, хотя запрос до туннеля не дошёл.
+  useEffect(() => {
+    if (!loading) return;
+    const STALL_MS = 90_000;
+    const id = setInterval(() => {
+      if (lastAliveAtRef.current && Date.now() - lastAliveAtRef.current > STALL_MS) {
+        handleWsEvent({
+          type: "generate_error",
+          requestId: "",
+          error: "Генерация зависла — туннель не отвечает",
+          code: "TUNNEL_DISCONNECTED",
+        });
+      }
+    }, 5000);
+    return () => clearInterval(id);
+  }, [loading, handleWsEvent]);
+
   // ─── Actions ──────────────────────────────────────────────────────
 
   const createSite = useCallback(
