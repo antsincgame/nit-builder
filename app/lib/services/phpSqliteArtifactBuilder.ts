@@ -760,6 +760,11 @@ require_once dirname(__DIR__) . '/app/payments.php';
 
 migrate();
 
+if (defined('NIT_PREVIEW') && empty($_SESSION['admin_id'])) {
+    $__pa = db()->query('SELECT id FROM admins ORDER BY id LIMIT 1')->fetchColumn();
+    if ($__pa) { $_SESSION['admin_id'] = (int) $__pa; }
+}
+
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $appName = ${appName};
