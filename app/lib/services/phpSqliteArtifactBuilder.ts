@@ -1978,7 +1978,7 @@ function buildLivePreviewBootScript(): string {
       .then(function(){return renderStore();})
       .then(function(){return renderAdmin();})
       .then(function(){return renderDb();})
-      .then(function(){chip.textContent=isRu?'\u25CF live':'\u25CF live';chip.style.color='var(--ok)';})
+      .then(function(){chip.textContent='\u25CF live ['+DRIVERS+']';chip.style.color=(DRIVERS.indexOf('sqlite')>=0?'var(--ok)':'var(--warn)');})
       .catch(function(err){try{console.error('[nit-live]',err);}catch(_e){}chip.style.color='var(--warn)';chip.textContent='static: '+String((err&&err.message)||err||'fail').slice(0,90);chip.title=String((err&&err.stack)||err||'');});
   })();
 })();
