@@ -267,7 +267,7 @@ function storefrontDisplayName(plan: Plan): string {
   if (quoted?.[1]) return quoted[1].trim();
   const latinBrand = source.match(/\b([A-Z][A-Za-z0-9]*(?:\s*&\s*|\s+)[A-Z][A-Za-z0-9]+(?:\s+[A-Z][A-Za-z0-9]+)?)\b/);
   if (latinBrand?.[1]) return latinBrand[1].trim();
-  return plan.business_type;
+  return cleanBrand(plan);
 }
 
 function buildConfigPhp(plan: Plan): string {
