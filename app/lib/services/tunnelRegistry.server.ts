@@ -824,6 +824,44 @@ export function handleTunnelResponse(
         const tier = tunnel ? classifyModel(tunnel.capabilities, tunnel.runtimeStats) : "S";
         try {
           const plan = parseTunnelPlan(piece, req.userMessage ?? "");
+
+          // ─── Гибрид backend (php-sqlite) ───
+          // План наполнила модель юзера (бизнес, каталог/услуги, тексты, FAQ),
+          // а безопасный детерминированный билдер собирает из него PHP+SQLite —
+          // без кодер-фазы. Так наполнение осмысленное по запросу, а исполняемый
+          // код остаётся проверенным (PDO prepared, экранирование, CSRF, auth).
+          if (req.artifactMode === "php-sqlite") {
+            const artifact = buildPhpSqliteArtifact({ plan, userMessage: req.userMessage ?? "" });
+            const previewHtml = renderPhpSqliteArtifactPreview({
+              artifact,
+              plan,
+              userMessage: req.userMessage ?? "",
+            });
+            req.plan = plan;
+            req.templateId = "php-sqlite-app";
+            req.templateName = "PHP + SQLite backend";
+            sendToBrowser(browser.ws, {
+              type: "generate_step",
+              requestId,
+              step: "template",
+              templateId: "php-sqlite-app",
+              templateName: "PHP + SQLite backend",
+            });
+            sendToBrowser(browser.ws, {
+              type: "generate_done",
+              requestId,
+              html: previewHtml,
+              templateId: "php-sqlite-app",
+              templateName: "PHP + SQLite backend",
+              durationMs: event.durationMs,
+            });
+            if (req.onComplete) req.onComplete(previewHtml);
+            recordTunnelOutcome(req, "success", "tunnel-php-sqlite", "coder");
+            pendingRequests.delete(requestId);
+            stats.totalRequestsCompleted++;
+            break;
+          }
+
           const resolution = resolveTunnelPlan(plan, req.userMessage ?? "", req.stylePresetId, tier);
           req.plan = plan;
           req.templateId = resolution.templateId;
