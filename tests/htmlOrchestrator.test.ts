@@ -290,7 +290,9 @@ describe("executeHtmlSimple", () => {
 
     expect((memory.planJson as { business_type: string }).business_type).toBe("сервис аренды авто");
     expect((memory.planJson as { suggested_template_id: string }).suggested_template_id).toBe("blank-landing");
-    expect(memory.currentHtml).toContain("сервис аренды авто: PHP + SQLite backend");
+    expect(memory.currentHtml).toContain("<!DOCTYPE html>");
+    expect(memory.currentHtml).toContain('id="nit-artifact-manifest"');
+    expect(memory.currentHtml).toContain("public/index.php");
   });
 
   it("falls back to blank-landing when plan JSON is invalid", async () => {
