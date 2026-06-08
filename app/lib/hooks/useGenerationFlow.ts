@@ -29,6 +29,64 @@ import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/arti
 import { uuid } from "~/lib/utils/uuid";
 import type { StylePresetId } from "~/lib/llm/style-presets";
 
+// ─── Человеческое описание собранного лендинга ─────────────────────
+// Из data-nit-section собираем понятный список блоков для completion-сообщения
+// (вместо внутреннего template_id вроде «Языковая школа», который путает людей).
+const SECTION_LABELS: Record<string, string> = {
+  hero: "первый экран",
+  about: "о школе",
+  story: "история",
+  "how-it-works": "как это работает",
+  "why-us": "почему мы",
+  features: "преимущества",
+  services: "услуги",
+  programs: "программы",
+  program: "программы",
+  classes: "программы",
+  schedule: "расписание",
+  team: "преподаватели",
+  instructors: "преподаватели",
+  masters: "мастера",
+  doctors: "специалисты",
+  testimonials: "отзывы",
+  pricing: "тарифы",
+  menu: "меню",
+  gallery: "галерея",
+  projects: "работы",
+  skills: "навыки",
+  faq: "вопросы",
+  contact: "контакты",
+  location: "как добраться",
+  hours: "часы работы",
+  booking: "форма записи",
+  "order-form": "форма записи",
+  rsvp: "форма записи",
+  cta: "призыв к действию",
+  events: "события",
+  tracks: "треки",
+};
+
+function describeSections(html: string): string[] {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const m of html.matchAll(/data-nit-section="([^"]+)"/g)) {
+    const label = SECTION_LABELS[m[1]];
+    if (label && !seen.has(label)) {
+      seen.add(label);
+      labels.push(label);
+    }
+  }
+  return labels;
+}
+
+function pluralBlocks(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "блок";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "блока";
+  return "блоков";
+}
+
 // ─── Public types ──────────────────────────────────────────────────
 
 export type ViewMode = "welcome" | "generating" | "editing";
