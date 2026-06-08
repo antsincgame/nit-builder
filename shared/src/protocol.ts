@@ -143,6 +143,16 @@ export type ServerToBrowser =
       templateId?: string;
       templateName?: string;
     }
+  | {
+      type: "generate_progress";
+      requestId: string;
+      /** plan — думает над планом; thinking — reasoning <think>; code — пишет HTML */
+      phase: "plan" | "thinking" | "code";
+      /** накоплено токенов/чанков с начала фазы */
+      tokens: number;
+      /** мс с начала генерации */
+      elapsedMs: number;
+    }
   | { type: "generate_text"; requestId: string; text: string }
   | {
       type: "generate_done";
