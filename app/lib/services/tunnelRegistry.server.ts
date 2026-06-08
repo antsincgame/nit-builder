@@ -739,16 +739,38 @@ export function handleTunnelResponse(
       }
       break;
 
-    case "text":
-      // Пустой text — keepalive от туннеля (thinking-фаза reasoning-модели,
-      // см. tunnel.rs): lastActivityAt уже обновлён выше, чтобы sweeper не
-      // считал долгие размышления зависанием. Браузеру пустышку не шлём.
+    case "text": {
+      // ─── Прогресс генерации (живой счётчик токенов/таймер) ───
+      // Считаем чанки во ВСЕХ фазах, включая plan/repair/sections, где
+      // контент в превью не идёт. В plan-фазе крупная модель молчит в
+      // превью минутами — без этого кажется, что «зависло». Шлём с
+      // троттлингом PROGRESS_THROTTLE_MS. Пустой text — keepalive
+      // reasoning-модели (<think>), считаем его тиком фазы thinking.
+      const nowTs = req.lastActivityAt; // = Date.now(), выставлен выше
+      if (event.text) req.progressTokens = (req.progressTokens ?? 0) + 1;
+      if (nowTs - (req.lastProgressSentAt ?? 0) >= PROGRESS_THROTTLE_MS) {
+        req.lastProgressSentAt = nowTs;
+        const progressPhase: "plan" | "thinking" | "code" = !event.text
+          ? "thinking"
+          : req.phase === "plan"
+            ? "plan"
+            : "code";
+        sendToBrowser(browser.ws, {
+          type: "generate_progress",
+          requestId,
+          phase: progressPhase,
+          tokens: req.progressTokens ?? 0,
+          elapsedMs: nowTs - (req.progressStartedAt ?? nowTs),
+        });
+      }
+
+      // Пустой text — keepalive: прогресс-тик уже ушёл, контент не шлём.
       if (!event.text) break;
       // В plan-фазе туннель стримит JSON-план — его НЕ показываем браузеру
       // (иначе сырой JSON попадёт в превью как «сайт»). В repair-фазе туннель
       // стримит НОВЫЙ полный HTML — дописывание его к превью фазы code дало
-      // бы кашу из двух документов. Глотаем оба; браузер получит финальный
-      // HTML в generate_done.
+      // бы кашу из двух документов. sections — аналогично. Глотаем; браузер
+      // получит финальный HTML в generate_done.
       if (req.phase === "plan" || req.phase === "repair" || req.phase === "sections") break;
       sendToBrowser(browser.ws, {
         type: "generate_text",
@@ -756,6 +778,7 @@ export function handleTunnelResponse(
         text: event.text,
       });
       break;
+    }
 
     case "done": {
       // Reasoning-модели (Qwen3 GGUF и т.п.) шлют размышления <think>...</think>
