@@ -357,12 +357,24 @@ export function useGenerationFlow(
           scheduleIframeUpdate(next, next.length);
           break;
         }
+        case "generate_progress": {
+          // Живой прогресс из туннеля: счётчик токенов + таймер фазы. Снимает
+          // ощущение «зависло», пока крупная модель молчит в plan-фазе.
+          setGenerationProgress({
+            phase: event.phase,
+            tokens: event.tokens,
+            elapsedMs: event.elapsedMs,
+          });
+          break;
+        }
         case "generate_done": {
           setHtml(event.html);
           setStreamingHtml(event.html);
           setMode("editing");
           setLoading(false);
           setCurrentStep("done");
+          setGenerationProgress(null);
+          setRetryablePrompt(null);
           activeRequestIdRef.current = null;
 
           // Polish undo/redo: новая версия в стек. Различаем create vs
