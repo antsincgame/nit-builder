@@ -175,8 +175,10 @@ export function tierProfile(tier: ModelTier): TierProfile {
       return { tier, approach: "coder", codeMaxTokens: 12_000, heavyHarness: true };
     case "S":
     default:
-      // Слабая (3–9B) или неизвестная: шаблонный coder, скромный бюджет,
-      // максимальная обвязка — компенсируем слабость модели работой оркестратора.
-      return { tier, approach: "coder", codeMaxTokens: 8_000, heavyHarness: true };
+      // Слабая (3–9B) или неизвестная: шаблонный coder, тяжёлая обвязка.
+      // Бюджет вывода поднят до 16k — на 6-8 секций монолитного лендинга 8k не
+      // хватало (обрыв на хвосте). Реальный потолок ограничен n_ctx модели в
+      // LM Studio: если контекст мал, надо поднять и его.
+      return { tier, approach: "coder", codeMaxTokens: 16_000, heavyHarness: true };
   }
 }
