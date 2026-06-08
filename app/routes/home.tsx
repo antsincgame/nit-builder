@@ -6,6 +6,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { Plus, Download, Share2, X, Undo2, Redo2, Loader2, PanelLeft, ArrowUpRight } from "lucide-react";
 import { SimplePromptInput } from "~/components/simple/SimplePromptInput";
 import { PolishChat } from "~/components/simple/PolishChat";
+import { GenerationStage } from "~/components/simple/GenerationStage";
 import { HistorySidebar } from "~/components/simple/HistorySidebar";
 import { ToastContainer } from "~/components/simple/ToastContainer";
 import { useKeyboardShortcuts } from "~/lib/hooks/useKeyboardShortcuts";
