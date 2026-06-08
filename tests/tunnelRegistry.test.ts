@@ -555,10 +555,12 @@ describe("tunnelRegistry", () => {
         maxOutputTokens: 1000,
         temperature: 0,
       });
-      // Вывод без разметки — finalizeTunnelDone посчитает его битым.
+      // Пустой вывод (после strip ничего не остаётся) — finalizeTunnelDone
+      // посчитает его битым. Непустой текст stripCodeFences достроил бы
+      // тегами </body></html> и счёл валидным, поэтому именно пустота.
       handleTunnelResponse("req-inv", {
         type: "done",
-        fullText: "это просто текст без html-разметки",
+        fullText: "   ",
         durationMs: 100,
       });
       expect(conn.runtimeStats?.lastOutputInvalid).toBe(true);
