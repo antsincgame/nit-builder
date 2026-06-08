@@ -74,6 +74,8 @@ function applySecurityHeaders(headers: Headers): void {
       `connect-src 'self' https://cdn.jsdelivr.net ${wsConnectSrc}`,
       // frame-src 'self' blob: — для preview iframe (srcDoc генерирует blob)
       "frame-src 'self' blob:",
+      // worker-src 'self' blob: — запас на случай blob-воркера php-wasm
+      "worker-src 'self' blob:",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
