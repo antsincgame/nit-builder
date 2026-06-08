@@ -224,6 +224,53 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(html).toContain("public/index.php");
   });
 
+  it("renders storefront preview across languages and niches", () => {
+    const variants: Plan[] = [
+      {
+        ...PLAN,
+        language: "en",
+        business_type: "accessories shop",
+        keywords: ["products", "cart", "orders", "admin"],
+        hero_headline: "Accessories with fast delivery",
+        hero_subheadline: "Catalog, cart and admin in one PHP project.",
+      },
+      {
+        ...PLAN,
+        business_type: "салон красоты",
+        keywords: ["салон", "красота", "маникюр", "запись"],
+        hero_headline: "Салон красоты рядом с домом",
+      },
+      {
+        ...PLAN,
+        business_type: "кофейня в центре",
+        keywords: ["кофе", "кофейня", "десерты", "меню"],
+        hero_headline: "Кофейня в центре города",
+      },
+      {
+        ...PLAN,
+        language: "en",
+        business_type: "coffee shop",
+        keywords: ["coffee", "cafe", "desserts", "menu"],
+        hero_headline: "Coffee in the center",
+      },
+      {
+        ...PLAN,
+        business_type: "агентство недвижимости",
+        keywords: ["недвижимость", "объекты", "квартиры"],
+        hero_headline: "Объекты для жизни и инвестиций",
+      },
+    ];
+
+    for (const plan of variants) {
+      const artifact = buildPhpSqliteArtifact({ plan, userMessage: "backend" });
+      const html = renderPhpSqliteArtifactPreview({ artifact, plan, userMessage: "backend" });
+      expect(html).toContain("<!DOCTYPE html>");
+      expect(html).toContain('id="nit-artifact-manifest"');
+      expect(html).toContain("store-hero");
+      expect(html).toContain("nit-view-db");
+    }
+  });
+
   it("can materialize the generated project as real files on disk", async () => {
     const artifact = buildPhpSqliteArtifact({
       plan: PLAN,
