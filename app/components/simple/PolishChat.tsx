@@ -86,6 +86,18 @@ export function PolishChat({ onPolish, messages, loading, loadingLabel, onRetry,
           );
         })}
 
+        {retryAvailable && !loading && onRetry && (
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={onRetry}
+              className="px-3.5 py-2.5 text-[13px] rounded-2xl border border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-300 hover:bg-emerald-500/[0.15] hover:text-white transition inline-flex items-center gap-2"
+            >
+              <RotateCcw size={13} /> Повторить генерацию
+            </button>
+          </div>
+        )}
+
         {loading && (
           <div className="flex justify-start">
             <div className="px-3.5 py-2.5 flex items-center gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.04]">
