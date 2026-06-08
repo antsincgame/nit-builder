@@ -240,10 +240,14 @@ export function registerTunnel(conn: TunnelConnection): void {
   // туннель запроса НЕ видит, сайт висит в «Изучаем запрос». Поэтому при
   // новом hello сразу закрываем прежние соединения того же устройства
   // (per-device токен) либо того же юзера (legacy per-account токен).
+  // Только per-device токены: legacy per-account токен (без deviceId) может
+  // легитимно держать несколько туннелей (ноут + десктоп), их не трогаем —
+  // мёртвые там подберёт ping-таймаут keepalive. Для per-device токена
+  // дубль того же устройства = гарантированно зомби после реконнекта.
   const prior = tunnels.get(conn.userId) ?? [];
-  const stale = prior.filter((c) =>
-    conn.deviceId ? c.deviceId === conn.deviceId : true,
-  );
+  const stale = conn.deviceId
+    ? prior.filter((c) => c.deviceId === conn.deviceId)
+    : [];
   for (const c of stale) {
     if (c.connectionId === conn.connectionId) continue;
     try {
