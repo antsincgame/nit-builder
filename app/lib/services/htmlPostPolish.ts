@@ -128,6 +128,27 @@ const PREMIUM_BASE_STYLE = `<style id="nit-premium-base">
 
 const INTER_FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
 
+// Scroll-reveal: плавное появление секций при скролле — приём, который слабая
+// модель почти никогда не делает сама. Полностью graceful: первый экран НИКОГДА
+// не прячется (анимируются только элементы ниже 85% вьюпорта), всё в try/catch,
+// уважается prefers-reduced-motion, а fallback-таймер через 2.5s показывает всё
+// принудительно — контент не останется скрытым, даже если IntersectionObserver
+// не сработает. Завёрнут в IIFE, идемпотентность обеспечивает applyPremiumBaseLayer.
+const REVEAL_SCRIPT = `<script id="nit-reveal">
+(function(){try{
+if(!("IntersectionObserver" in window))return;
+if(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+var run=function(){try{
+var els=document.querySelectorAll('section,article,.card,[class*="card"],.feature,.pricing,.step,footer');
+var vh=window.innerHeight||800;
+var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add("nit-vis");io.unobserve(e.target);}});},{threshold:.12,rootMargin:"0px 0px -8% 0px"});
+els.forEach(function(el){try{var r=el.getBoundingClientRect();if(r.top<vh*0.85)return;el.classList.add("nit-reveal");io.observe(el);}catch(_){}});
+setTimeout(function(){try{var n=document.querySelectorAll(".nit-reveal");for(var i=0;i<n.length;i++)n[i].classList.add("nit-vis");}catch(_){}},2500);
+}catch(_){}};
+if(document.readyState!=="loading")run();else document.addEventListener("DOMContentLoaded",run);
+}catch(_){}})();
+<\/script>`;
+
 /**
  * Внедряет премиум-базу. Идемпотентно (повторный вызов — no-op). Шрифт Inter
  * подключаем только если страница ещё не тянет Google Fonts (иначе уважаем
