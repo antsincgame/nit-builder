@@ -1738,6 +1738,199 @@ ${dbTablesHtml}
 </html>`;
 }
 
+// Живой предпросмотр: исполняет сгенерированный PHP+SQLite прямо в iframe через
+// php-wasm. Возвращается одной zero-branch строкой (String.raw, без ${} и без
+// тернарников) — это важно, чтобы не ронять branch-coverage. Весь рантайм-код
+// читает манифест артефакта из DOM (#nit-artifact-manifest) и работает в опак-
+// origin sandbox-iframe (allow-scripts), поэтому БД живёт в памяти (MEMFS).
+function buildLivePreviewBootScript(): string {
+  return String.raw`<script>
+(function(){
+  var manifestEl=document.getElementById('nit-artifact-manifest');
+  if(!manifestEl){return;}
+  var manifest;
+  try{manifest=JSON.parse(manifestEl.textContent||'{}');}catch(e){return;}
+  var files=(manifest&&manifest.files)||[];
+  if(!files.length){return;}
+  var storePane=document.querySelector('.pane-store');
+  var adminPane=document.querySelector('.pane-admin');
+  var dbPane=document.querySelector('.pane-db');
+  var switchBar=document.querySelector('.preview-switch');
+  if(!storePane||!adminPane||!dbPane){return;}
+  function fileContent(p){for(var i=0;i<files.length;i++){if(files[i].path===p){return files[i].content;}}return '';}
+  var APP_CSS=fileContent('public/assets/style.css');
+  var htmlLang=document.documentElement.getAttribute('lang')||'ru';
+  var isRu=htmlLang.indexOf('ru')===0;
+
+  var chip=document.createElement('span');
+  chip.className='nit-live-chip';
+  chip.setAttribute('style','margin-left:8px;font-size:11px;font-weight:800;color:var(--muted);align-self:center;white-space:nowrap');
+  chip.textContent=isRu?'\u25F7 live\u2026':'\u25F7 live\u2026';
+  if(switchBar){switchBar.appendChild(chip);}
+
+  var liveStyle=document.createElement('style');
+  liveStyle.textContent='.nit-live-frame{width:100%;height:78vh;min-height:540px;border:0;background:#fff;display:block}.db-live-grid{display:grid;gap:16px;grid-template-columns:1fr}.db-live-table{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}.db-live-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,transparent)}.db-live-head h3{margin:0;font-family:ui-monospace,Menlo,monospace;font-size:16px;color:var(--accent)}.db-live-head span{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.db-scroll{overflow:auto;max-height:340px}.db-data{width:100%;border-collapse:collapse;font-size:13px}.db-data th{position:sticky;top:0;background:var(--bg);text-align:left;padding:9px 12px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}.db-data td{padding:9px 12px;border-bottom:1px solid var(--soft);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}.db-data tr:hover td{background:var(--soft)}.db-empty{padding:18px;color:var(--muted)}';
+  document.head.appendChild(liveStyle);
+
+  var php=null;var SID='';var outBuf='';
+  var chain=Promise.resolve();
+  function queue(fn){var r=chain.then(fn);chain=r.then(function(v){return v;},function(){});return r;}
+  function b64(s){return btoa(unescape(encodeURIComponent(String(s||''))));}
+  function timeout(ms){return new Promise(function(_,rej){setTimeout(function(){rej(new Error('timeout'));},ms);});}
+  function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+  function buildEntry(uri,method,body){
+    var m=/^(GET|POST)$/.test(method)?method:'GET';
+    var sidLine=SID?("$_COOKIE['PHPSESSID']='"+SID+"';"):'';
+    return "<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','0');"
+      +"if(!function_exists('mb_substr')){function mb_substr($s,$st,$l=null){return $l===null?substr((string)$s,$st):substr((string)$s,$st,$l);}}"
+      +"if(!function_exists('mb_strlen')){function mb_strlen($s){return strlen((string)$s);}}"
+      +"if(!function_exists('mb_strtoupper')){function mb_strtoupper($s){return strtoupper((string)$s);}}"
+      +"$_SERVER['REQUEST_URI']=base64_decode('"+b64(uri)+"');"
+      +"$_SERVER['REQUEST_METHOD']='"+m+"';"
+      +"$_SERVER['REMOTE_ADDR']='127.0.0.1';$_SERVER['SERVER_NAME']='localhost';$_SERVER['SERVER_PORT']='80';$_SERVER['HTTP_HOST']='localhost';$_SERVER['SCRIPT_NAME']='/index.php';"
+      +sidLine
+      +"parse_str(base64_decode('"+b64(body||'')+"'),$_POST);$_REQUEST=$_POST;$_GET=array();"
+      +"register_shutdown_function(function(){$l='';foreach(headers_list() as $h){if(stripos($h,'Location:')===0){$l=trim(substr($h,9));}}echo '@@NITMETA@@'.json_encode(array('redirect'=>$l,'sid'=>session_id()));});"
+      +"chdir('/app/public');require '/app/public/index.php';";
+  }
+  var DUMP="<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','0');require '/app/app/db.php';migrate();$o=array();foreach(array('products','orders','order_items','admins') as $t){$o[$t]=db()->query('SELECT * FROM '.$t)->fetchAll(PDO::FETCH_ASSOC);}echo json_encode($o);";
+
+  function runRequest(uri,method,body){
+    return queue(function(){
+      outBuf='';
+      return php.run(buildEntry(uri,method,body)).then(function(){
+        var raw=outBuf;var html=raw;var meta={redirect:'',sid:SID};
+        var idx=raw.indexOf('@@NITMETA@@');
+        if(idx>=0){html=raw.slice(0,idx);try{meta=JSON.parse(raw.slice(idx+11));}catch(e){}}
+        if(meta&&meta.sid){SID=meta.sid;}
+        return {html:html,redirect:(meta&&meta.redirect)||''};
+      });
+    });
+  }
+  function follow(res,depth){
+    if(res&&res.redirect&&depth<5){
+      return runRequest(res.redirect,'GET','').then(function(r){return follow(r,depth+1);});
+    }
+    return Promise.resolve(res);
+  }
+  function runRaw(code){
+    return queue(function(){
+      outBuf='';
+      return php.run(code).then(function(){return outBuf;});
+    });
+  }
+
+  function interceptorSrc(frame){
+    return "document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a'):null;if(!a){return;}var h=a.getAttribute('href');if(!h||h.charAt(0)==='#'){return;}if(/^(https?:|mailto:|tel:)/i.test(h)){a.setAttribute('target','_blank');a.setAttribute('rel','noopener');return;}e.preventDefault();parent.postMessage({nit:'nav',frame:'"+frame+"',href:h},'*');},true);"
+      +"document.addEventListener('submit',function(e){var f=e.target;if(!f||f.tagName!=='FORM'){return;}e.preventDefault();var p=new URLSearchParams();var fd=new FormData(f);fd.forEach(function(v,k){if(typeof v==='string'){p.append(k,v);}});var action=f.getAttribute('action')||'/';var method=(f.getAttribute('method')||'GET').toUpperCase();parent.postMessage({nit:'submit',frame:'"+frame+"',action:action,method:method,body:p.toString()},'*');},true);";
+  }
+  function decorate(html,frame){
+    var out=String(html||'').replace('<link rel="stylesheet" href="/assets/style.css">','<style>'+APP_CSS+'</style>');
+    out+='<script>'+interceptorSrc(frame)+'<\/script>';
+    return out;
+  }
+  function makeFrame(pane){
+    pane.innerHTML='';
+    var f=document.createElement('iframe');
+    f.className='nit-live-frame';
+    f.setAttribute('sandbox','allow-scripts');
+    f.setAttribute('title',pane===adminPane?'admin':'storefront');
+    pane.appendChild(f);
+    return f;
+  }
+  var storeFrame=null,adminFrame=null;
+
+  function renderStore(){
+    storeFrame=makeFrame(storePane);
+    return runRequest('/','GET','').then(function(r){return follow(r,0);}).then(function(r){storeFrame.srcdoc=decorate(r.html,'store');});
+  }
+  function extractCsrf(html){var m=String(html||'').match(/name="csrf_token"\s+value="([^"]+)"/);return m?m[1]:'';}
+  function renderAdmin(){
+    adminFrame=makeFrame(adminPane);
+    return runRequest('/admin/login','GET','').then(function(lp){
+      var token=extractCsrf(lp.html);
+      var body='csrf_token='+encodeURIComponent(token)+'&email='+encodeURIComponent('admin@example.com')+'&password='+encodeURIComponent('admin123');
+      return runRequest('/admin/login','POST',body);
+    }).then(function(r){return follow(r,0);}).then(function(r){adminFrame.srcdoc=decorate(r.html,'admin');});
+  }
+  function renderDb(){
+    return runRaw(DUMP).then(function(json){
+      var data;try{data=JSON.parse(json);}catch(e){return;}
+      dbPane.innerHTML=dbViewer(data);
+    });
+  }
+  function dbViewer(data){
+    var order=['products','orders','order_items','admins'];
+    var h='<div class="db-wrap"><div class="db-head"><p class="kicker">SQLite \u00B7 '+(isRu?'\u0436\u0438\u0432\u044B\u0435 \u0434\u0430\u043D\u043D\u044B\u0435':'live data')+'</p><h1>'+(isRu?'\u0411\u0430\u0437\u0430 \u0434\u0430\u043D\u043D\u044B\u0445':'Database')+'</h1><p class="muted">'+(isRu?'\u0420\u0435\u0430\u043B\u044C\u043D\u044B\u0435 \u0441\u0442\u0440\u043E\u043A\u0438 \u0438\u0437 \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0449\u0435\u0433\u043E SQLite \u0432 \u044D\u0442\u043E\u043C \u043F\u0440\u0435\u0432\u044C\u044E.':'Real rows from the running SQLite in this preview.')+'</p></div><div class="db-live-grid">';
+    for(var k=0;k<order.length;k++){
+      var t=order[k];var rows=(data&&data[t])||[];
+      h+='<div class="db-live-table"><div class="db-live-head"><h3>'+t+'</h3><span>'+rows.length+(isRu?' \u0441\u0442\u0440\u043E\u043A':' rows')+'</span></div>';
+      if(!rows.length){h+='<p class="db-empty">'+(isRu?'\u041F\u043E\u043A\u0430 \u043F\u0443\u0441\u0442\u043E':'Empty')+'</p></div>';continue;}
+      var cols=Object.keys(rows[0]);
+      h+='<div class="db-scroll"><table class="db-data"><thead><tr>';
+      for(var c=0;c<cols.length;c++){h+='<th>'+esc(cols[c])+'</th>';}
+      h+='</tr></thead><tbody>';
+      for(var r=0;r<rows.length;r++){
+        h+='<tr>';
+        for(var c2=0;c2<cols.length;c2++){
+          var col=cols[c2];var val=rows[r][col];
+          if(col==='password_hash'){val=isRu?'\u2022\u2022\u2022\u2022 \u0445\u0435\u0448':'\u2022\u2022\u2022\u2022 hash';}
+          h+='<td>'+esc(val)+'</td>';
+        }
+        h+='</tr>';
+      }
+      h+='</tbody></table></div></div>';
+    }
+    h+='</div><p class="db-foot muted">'+(isRu?'\u0414\u0435\u043C\u043E-\u0432\u0445\u043E\u0434: admin@example.com / admin123':'Demo admin: admin@example.com / admin123')+'</p></div>';
+    return h;
+  }
+
+  window.addEventListener('message',function(ev){
+    var d=ev.data;if(!d||(d.nit!=='nav'&&d.nit!=='submit')){return;}
+    var frame=d.frame==='admin'?'admin':'store';
+    var target=frame==='admin'?adminFrame:storeFrame;
+    var req=d.nit==='nav'?runRequest(d.href,'GET',''):runRequest(d.action,d.method,d.body);
+    req.then(function(r){return follow(r,0);}).then(function(r){
+      if(target){target.srcdoc=decorate(r.html,frame);}
+      return renderDb();
+    }).catch(function(){});
+  });
+
+  function writeProject(){
+    var dirs=['/app','/app/app','/app/database','/app/public','/app/public/assets','/app/storage','/tmp'];
+    var p=Promise.resolve();
+    dirs.forEach(function(d){p=p.then(function(){return php.mkdir(d).catch(function(){});});});
+    files.forEach(function(f){
+      p=p.then(function(){
+        var full='/app/'+f.path;
+        var parent=full.slice(0,full.lastIndexOf('/'));
+        return php.mkdir(parent).catch(function(){}).then(function(){return php.writeFile(full,f.content,{encoding:'utf8'});});
+      });
+    });
+    return p;
+  }
+
+  (function boot(){
+    chip.textContent=isRu?'\u25F7 \u0437\u0430\u043F\u0443\u0441\u043A \u0434\u0432\u0438\u0436\u043A\u0430\u2026':'\u25F7 booting engine\u2026';
+    Promise.race([import('https://cdn.jsdelivr.net/npm/php-wasm/PhpWeb.mjs'),timeout(25000)]).then(function(mod){
+      return import('https://cdn.jsdelivr.net/npm/php-wasm-sqlite').then(function(sqlite){
+        php=new mod.PhpWeb({autoTransaction:false,sharedLibs:[sqlite],ini:['display_errors=0','session.save_path=/tmp','session.use_strict_mode=0','date.timezone=UTC'].join(String.fromCharCode(10))});
+        php.addEventListener('output',function(e){outBuf+=e.detail;});
+        php.addEventListener('error',function(){});
+        return php.run('<?php echo 1;');
+      });
+    }).then(function(){return writeProject();})
+      .then(function(){return renderStore();})
+      .then(function(){return renderAdmin();})
+      .then(function(){return renderDb();})
+      .then(function(){chip.textContent=isRu?'\u25CF live':'\u25CF live';chip.style.color='var(--ok)';})
+      .catch(function(){chip.textContent=isRu?'\u25CB \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440':'\u25CB static preview';});
+  })();
+})();
+<\/script>`;
+}
+
 export function renderPhpSqliteArtifactPreview(params: {
   artifact: PhpSqliteArtifact;
   plan: Plan;
@@ -1745,5 +1938,6 @@ export function renderPhpSqliteArtifactPreview(params: {
 }): string {
   const { artifact, plan } = params;
   const manifestJson = JSON.stringify(artifact).replace(/</g, "\\u003c");
-  return renderStorefrontPreviewHtml(plan, manifestJson);
+  const base = renderStorefrontPreviewHtml(plan, manifestJson);
+  return base.replace("</body>\n</html>", buildLivePreviewBootScript() + "\n</body>\n</html>");
 }
