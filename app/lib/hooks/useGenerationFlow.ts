@@ -130,12 +130,23 @@ export type UseGenerationFlowOptions = {
   getSocket: () => ControlSocketLike;
 };
 
+/** Живой прогресс генерации (счётчик токенов + таймер) для loading-экрана. */
+export type GenerationProgress = {
+  phase: "plan" | "thinking" | "code";
+  tokens: number;
+  elapsedMs: number;
+};
+
 export type UseGenerationFlow = {
   // ─── State ──────────────────────────────────────────
   mode: ViewMode;
   html: string;
   streamingHtml: string;
   streamingChars: number;
+  /** Живой прогресс от туннеля (null когда не генерим). */
+  generationProgress: GenerationProgress | null;
+  /** Доступен ли повтор после ошибки/обрыва. */
+  retryAvailable: boolean;
   loading: boolean;
   currentStep: PipelineStep;
   templateName: string;
