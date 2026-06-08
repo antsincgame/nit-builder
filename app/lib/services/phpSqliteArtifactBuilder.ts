@@ -1842,7 +1842,7 @@ function buildLivePreviewBootScript(): string {
   function buildEntry(uri,method,body){
     var m=/^(GET|POST)$/.test(method)?method:'GET';
     var sidLine=SID?("$_COOKIE['PHPSESSID']='"+SID+"';"):'';
-    return "<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','1');"
+    return "<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','1');define('NIT_PREVIEW',true);"
       +"if(!function_exists('mb_substr')){function mb_substr($s,$st,$l=null){return $l===null?substr((string)$s,$st):substr((string)$s,$st,$l);}}"
       +"if(!function_exists('mb_strlen')){function mb_strlen($s){return strlen((string)$s);}}"
       +"if(!function_exists('mb_strtoupper')){function mb_strtoupper($s){return strtoupper((string)$s);}}"
