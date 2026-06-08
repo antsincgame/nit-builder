@@ -636,6 +636,7 @@ export function routeRequest(params: RouteRequestParams): boolean {
     accumulatedHtml: "",
     continuationAttempts: 0,
     phase: params.phase ?? "code",
+    artifactMode: params.artifactMode,
     stylePresetId: params.stylePresetId,
     progressTokens: 0,
     progressStartedAt: now,
