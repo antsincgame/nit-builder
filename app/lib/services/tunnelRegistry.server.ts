@@ -41,7 +41,7 @@ import {
 } from "~/lib/services/tunnelPipeline.server";
 import type { Plan } from "~/lib/utils/planSchema";
 import type { StylePresetId } from "~/lib/llm/style-presets";
-import { classifyModel, tierProfile } from "~/lib/llm/modelTier";
+import { classifyModel, tierProfile, type RuntimeStats } from "~/lib/llm/modelTier";
 
 // ─── Types ────────────────────────────────────────────────────────
 
