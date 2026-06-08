@@ -147,7 +147,7 @@ setTimeout(function(){try{var n=document.querySelectorAll(".nit-reveal");for(var
 }catch(_){}};
 if(document.readyState!=="loading")run();else document.addEventListener("DOMContentLoaded",run);
 }catch(_){}})();
-<\/script>`;
+</script>`;
 
 /**
  * Внедряет премиум-базу. Идемпотентно (повторный вызов — no-op). Шрифт Inter
