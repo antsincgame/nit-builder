@@ -132,3 +132,44 @@ describe("applyWowLayer", () => {
     expect(twice).toBe(once);
   });
 });
+
+describe("ensureClosedHtml", () => {
+  it("отрезает оборванный хвостовой тег и закрывает документ", () => {
+    const broken = '<html><head></head><body><section><div class="bg-[#1a1a24] p-8 rounded-2';
+    const out = ensureClosedHtml(broken);
+    expect(out).not.toContain("rounded-2");
+    expect(out).toMatch(/<\/body>\s*<\/html>\s*$/);
+  });
+
+  it("не трогает уже закрытый валидный HTML", () => {
+    const ok = "<html><head></head><body><h1>Привет</h1></body></html>";
+    expect(ensureClosedHtml(ok)).toBe(ok);
+  });
+
+  it("дописывает </body></html> если их нет", () => {
+    const out = ensureClosedHtml("<html><head></head><body><p>текст</p>");
+    expect(out).toContain("</body>");
+    expect(out).toContain("</html>");
+  });
+});
+
+describe("fixBrokenImages", () => {
+  it("меняет unsplash на picsum, сохраняя размеры", () => {
+    const html =
+      '<img src="https://images.unsplash.com/photo-1635070041078-c33e5db362d9?q=80&w=1000&h=500&auto=format">';
+    const out = fixBrokenImages(html);
+    expect(out).toContain("picsum.photos");
+    expect(out).not.toContain("images.unsplash.com");
+    expect(out).toContain("/1000/500");
+  });
+
+  it("детерминирован — повторный прогон даёт тот же результат", () => {
+    const html = '<img src="https://images.unsplash.com/photo-abc123?w=400">';
+    expect(fixBrokenImages(html)).toBe(fixBrokenImages(html));
+  });
+
+  it("не трогает не-unsplash картинки", () => {
+    const html = '<img src="https://picsum.photos/seed/x/800/600"><img src="/local.png">';
+    expect(fixBrokenImages(html)).toBe(html);
+  });
+});
