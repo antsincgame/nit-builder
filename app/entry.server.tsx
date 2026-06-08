@@ -63,7 +63,11 @@ function applySecurityHeaders(headers: Headers): void {
     [
       "default-src 'self'",
       // 'unsafe-eval' исключён намеренно — см. блок-комментарий выше.
-      "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://unpkg.com",
+      // jsdelivr + 'wasm-unsafe-eval' нужны для живого php-wasm превью backend-сайтов.
+      // srcDoc iframe наследует CSP родителя, поэтому без этого WebAssembly и загрузка
+      // движка с CDN блокируются. wasm-unsafe-eval разрешает только компиляцию WASM,
+      // не произвольный JS eval (unsafe-inline и так задаёт основной риск).
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",
