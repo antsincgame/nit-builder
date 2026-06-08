@@ -39,13 +39,6 @@ import {
   TUNNEL_REPAIR_MAX_TOKENS,
   TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
-import {
-  buildSectionDesignSystem,
-  initSectionFlow,
-  startSectionFlow,
-  advanceSectionFlow,
-  type SectionFlowState,
-} from "~/lib/services/sectionAssembly";
 import type { Plan } from "~/lib/utils/planSchema";
 import type { StylePresetId } from "~/lib/llm/style-presets";
 import { classifyModel, tierProfile, type RuntimeStats } from "~/lib/llm/modelTier";
