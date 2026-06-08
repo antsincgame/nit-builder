@@ -478,6 +478,12 @@ export function useGenerationFlow(
               "Связь с твоим компьютером прервалась. NIT Tunnel переподключается сам — когда статус вверху снова «Подключён», нажми «Повторить».";
           } else if (event.code === "RATE_LIMITED") {
             msg = "Слишком много параллельных генераций. Дождись завершения.";
+          } else if (/no models? loaded/i.test(event.error)) {
+            msg =
+              "Модель в LM Studio выгрузилась (так бывает после простоя). Открой LM Studio и загрузи свою модель заново — или включи Just-In-Time загрузку в настройках сервера — затем нажми «Повторить».";
+          } else if (/lm studio|400 bad request|invalid_request_error|no model/i.test(event.error)) {
+            msg =
+              "LM Studio вернул ошибку при генерации. Проверь, что модель загружена и сервер запущен на localhost:1234, затем нажми «Повторить».";
           }
 
           // Промпт для кнопки «Повторить» (кроме abort, обработанного выше).
