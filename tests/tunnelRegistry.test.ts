@@ -100,6 +100,29 @@ describe("tunnelRegistry", () => {
       expect(getTunnelCount("alice")).toBe(2);
     });
 
+    it("закрывает прежнее соединение того же устройства (kill zombie)", () => {
+      const t1 = makeTunnel("alice", "dev-old");
+      t1.conn.deviceId = "device-1";
+      const t2 = makeTunnel("alice", "dev-new");
+      t2.conn.deviceId = "device-1";
+      registerTunnel(t1.conn);
+      registerTunnel(t2.conn);
+      // Реконнект того же устройства: старое соединение закрыто, осталось одно.
+      expect(getTunnelCount("alice")).toBe(1);
+      expect(getTunnelForUser("alice")?.connectionId).toBe("dev-new");
+      expect(t1.ws.closeCalls.length).toBe(1);
+    });
+
+    it("разные устройства одного юзера сосуществуют", () => {
+      const t1 = makeTunnel("alice", "d1");
+      t1.conn.deviceId = "device-A";
+      const t2 = makeTunnel("alice", "d2");
+      t2.conn.deviceId = "device-B";
+      registerTunnel(t1.conn);
+      registerTunnel(t2.conn);
+      expect(getTunnelCount("alice")).toBe(2);
+    });
+
     it("isolates tunnels by user", () => {
       const { conn: a } = makeTunnel("alice", "t-a");
       const { conn: b } = makeTunnel("bob", "t-b");
