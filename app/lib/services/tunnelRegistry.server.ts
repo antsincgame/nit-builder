@@ -848,7 +848,7 @@ export function handleTunnelResponse(
           req.phase = "code";
           req.presetId = resolution.presetId;
           // Бюджет токенов фазы кодера/continuation — по классу модели:
-          // S=8000 (как раньше), M=12000, L=16000. Repair ниже берёт
+          // S=16000, M=12000, L=16000. Repair ниже берёт
           // min(этот бюджет, TUNNEL_REPAIR_MAX_TOKENS), так что L не урезается.
           req.maxOutputTokens = tierProfile(tier).codeMaxTokens;
           req.accumulatedHtml = "";
