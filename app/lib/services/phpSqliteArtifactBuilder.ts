@@ -1966,12 +1966,13 @@ function buildLivePreviewBootScript(): string {
   (function boot(){
     chip.textContent=isRu?'\u25F7 \u0437\u0430\u043F\u0443\u0441\u043A \u0434\u0432\u0438\u0436\u043A\u0430\u2026':'\u25F7 booting engine\u2026';
     Promise.race([import('https://cdn.jsdelivr.net/npm/php-wasm/PhpWeb.mjs'),timeout(25000)]).then(function(mod){
-      return import('https://cdn.jsdelivr.net/npm/php-wasm-sqlite').then(function(sqlite){
-        php=new mod.PhpWeb({autoTransaction:false,sharedLibs:[sqlite],ini:['display_errors=0','session.save_path=/tmp','session.use_strict_mode=0','date.timezone=UTC'].join(String.fromCharCode(10))});
-        php.addEventListener('output',function(e){var d=e.detail;outBuf+=(d&&d.join)?d.join(''):d;});
-        php.addEventListener('error',function(){});
-        return php.run('<?php echo 1;');
-      });
+      var V=(mod.PhpWeb&&mod.PhpWeb.phpVersion)||'8.4';
+      if(['8.0','8.1','8.2','8.3','8.4','8.5'].indexOf(V)<0){V='8.4';}
+      var SQ='https://cdn.jsdelivr.net/npm/php-wasm-sqlite@0.1.0/';
+      php=new mod.PhpWeb({autoTransaction:false,sharedLibs:[{name:'php'+V+'-sqlite.so',url:SQ+'php'+V+'-sqlite.so',ini:true},{name:'php'+V+'-pdo-sqlite.so',url:SQ+'php'+V+'-pdo-sqlite.so',ini:true},{name:'libsqlite3.so',url:SQ+'libsqlite3.so'}],ini:['display_errors=0','session.save_path=/tmp','session.use_strict_mode=0','date.timezone=UTC'].join(String.fromCharCode(10))});
+      php.addEventListener('output',function(e){var d=e.detail;outBuf+=(d&&d.join)?d.join(''):d;});
+      php.addEventListener('error',function(){});
+      return php.run('<?php echo 1;');
     }).then(function(){return writeProject();})
       .then(function(){return renderStore();})
       .then(function(){return renderAdmin();})
