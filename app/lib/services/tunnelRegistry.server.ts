@@ -1034,6 +1034,10 @@ function finalizeTunnelDone(
   if (!isUsableHtml(html)) {
     // Локальная модель вернула пустоту/мусор/отказ — раньше это уходило
     // юзеру «как готовый сайт». Теперь — честная ошибка.
+    // Метим вывод битым для динамической деградации класса.
+    updateTunnelRuntimeStats(req.tunnelConnectionId, (s) => {
+      s.lastOutputInvalid = true;
+    });
     sendToBrowser(browserWs, {
       type: "generate_error",
       requestId: req.requestId,
