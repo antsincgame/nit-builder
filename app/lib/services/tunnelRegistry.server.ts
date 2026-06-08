@@ -353,9 +353,21 @@ export function unregisterTunnel(connectionId: string): void {
   }
 }
 
+/** WebSocket.OPEN === 1. Моки в тестах выставляют readyState: 1. */
+function isSocketOpen(ws: WebSocket): boolean {
+  return ws.readyState === 1;
+}
+
 export function getTunnelForUser(userId: string): TunnelConnection | null {
-  const conns = tunnels.get(userId);
-  if (!conns || conns.length === 0) return null;
+  const all = tunnels.get(userId);
+  if (!all || all.length === 0) return null;
+
+  // Берём только живые сокеты. После обрыва+реконнекта туннеля старая запись
+  // может ненадолго остаться в реестре (onClose не успел сработать). least-busy
+  // выбрал бы её (0 pending) и отправил generate в мёртвый сокет — туннель
+  // «Ожидает запросов», а браузер висит бесконечно. Фильтр по OPEN это чинит.
+  const conns = all.filter((c) => isSocketOpen(c.ws));
+  if (conns.length === 0) return null;
   if (conns.length === 1) return conns[0]!;
 
   // Least-busy strategy: считаем pending-requests per connection и выбираем
