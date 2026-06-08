@@ -226,6 +226,10 @@ export function useGenerationFlow(
   const [lastPrompt, setLastPrompt] = useState("");
   const [lastTemplateId, setLastTemplateId] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  // Живой прогресс генерации (токены/таймер из туннеля) + промпт для повтора
+  // после ошибки/обрыва.
+  const [generationProgress, setGenerationProgress] = useState<GenerationProgress | null>(null);
+  const [retryablePrompt, setRetryablePrompt] = useState<string | null>(null);
 
   // ID последнего сохранённого в Appwrite сайта — нужен для шеринга
   // (ShareDialog требует siteId). Null если юзер guest или save ещё в полёте.
