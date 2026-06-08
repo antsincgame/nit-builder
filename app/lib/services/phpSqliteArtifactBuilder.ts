@@ -207,6 +207,55 @@ function publicText(value: string, fallback: string): string {
   return cleaned;
 }
 
+function stripPromptPrefix(value: string): string {
+  let s = String(value || "").trim();
+  const verbs = ["сделайте","сделай","создайте","создай","сделать","создать","построй","построить","сгенерируй","разработай","сверстай","нужен","нужна","нужно","хочу","хотим","please make","make","please create","create","build","generate","develop","design"];
+  let strippedVerb = false;
+  const lower0 = s.toLowerCase();
+  for (const v of verbs) {
+    if (lower0.startsWith(v + " ")) { s = s.slice(v.length).trim(); strippedVerb = true; break; }
+  }
+  if (!strippedVerb) return s;
+  const nouns = ["веб-сайт","веб сайт","website","web site","сайт","site","лендинг","landing page","landing","страничку","страницу","приложение","application","app","магазин","store","shop","мне","me","для","про","for","about","a","an","the"];
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const lo = s.toLowerCase();
+    for (const n of nouns) {
+      if (lo.startsWith(n + " ")) { s = s.slice(n.length).trim(); changed = true; break; }
+    }
+  }
+  return s.trim();
+}
+function firstSentence(value: string): string {
+  const s = String(value || "");
+  let idx = s.length;
+  for (const sep of [".", "!", "?", "\n", ";", " — ", " – "]) {
+    const i = s.indexOf(sep);
+    if (i >= 0 && i < idx) idx = i;
+  }
+  return s.slice(0, idx).trim();
+}
+function clampText(value: string, maxLen: number): string {
+  const s = String(value || "").trim();
+  if (s.length <= maxLen) return s;
+  const cut = s.slice(0, maxLen);
+  const sp = cut.lastIndexOf(" ");
+  const trimmed = sp > maxLen / 2 ? cut.slice(0, sp).trim() : cut.trim();
+  return trimmed || cut.trim();
+}
+function cleanBrand(plan: Plan): string {
+  const base = stripPromptPrefix(plan.business_type);
+  return clampText(firstSentence(base) || base || plan.business_type, 40) || plan.business_type;
+}
+function heroHeadline(plan: Plan): string {
+  const raw = plan.hero_headline || plan.business_type;
+  const stripped = stripPromptPrefix(raw);
+  const candidate = clampText(firstSentence(stripped) || stripped || raw, 90);
+  const fallback = clampText(stripPromptPrefix(plan.business_type) || plan.business_type, 60) || plan.business_type;
+  return publicText(candidate || fallback, fallback);
+}
+
 function storefrontDisplayName(plan: Plan): string {
   const source = [
     plan.hero_headline,
