@@ -1792,6 +1792,9 @@ ${dbTablesHtml}
 // тернарников) — это важно, чтобы не ронять branch-coverage. Весь рантайм-код
 // читает манифест артефакта из DOM (#nit-artifact-manifest) и работает в опак-
 // origin sandbox-iframe (allow-scripts), поэтому БД живёт в памяти (MEMFS).
+// ВАЖНО: живой движок грузит php-wasm с cdn.jsdelivr.net и компилирует WASM —
+// требует в CSP (app/entry.server.tsx): script-src+connect-src с jsdelivr и
+// 'wasm-unsafe-eval'. Без этого boot падает в catch и остаётся статика.
 function buildLivePreviewBootScript(): string {
   return String.raw`<script>
 (function(){
