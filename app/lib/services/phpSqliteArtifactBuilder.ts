@@ -1974,7 +1974,7 @@ function buildLivePreviewBootScript(): string {
       .then(function(){return renderAdmin();})
       .then(function(){return renderDb();})
       .then(function(){chip.textContent=isRu?'\u25CF live':'\u25CF live';chip.style.color='var(--ok)';})
-      .catch(function(){chip.textContent=isRu?'\u25CB \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440':'\u25CB static preview';});
+      .catch(function(err){try{console.error('[nit-live]',err);}catch(_e){}chip.style.color='var(--warn)';chip.textContent='static: '+String((err&&err.message)||err||'fail').slice(0,90);chip.title=String((err&&err.stack)||err||'');});
   })();
 })();
 </script>`;
