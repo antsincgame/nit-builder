@@ -710,11 +710,10 @@ export default function Home() {
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-[#71717A]">
                 <Loader2 size={32} className="text-emerald-400 animate-spin mb-5" />
-                <p className="text-sm text-[#A1A1AA]">Готовимся…</p>
+                <p className="text-sm text-[#A1A1AA]">{genLabel}</p>
                 <p className="text-xs text-[#71717A]/60 mt-2 max-w-[320px] text-center leading-relaxed">
                   ИИ на вашем компьютере уже работает. Большие модели могут
-                  думать несколько минут — живой прогресс (токены и таймер)
-                  виден в окне nitgen.
+                  думать несколько минут — это нормально, прогресс идёт.
                 </p>
               </div>
             )}
