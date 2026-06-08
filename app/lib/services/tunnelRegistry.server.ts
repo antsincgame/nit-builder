@@ -133,13 +133,7 @@ export type PendingRequest = {
    * глотается (это НОВЫЙ полный HTML, дописывание к превью фазы code дало бы
    * кашу), результат принимается через acceptTunnelRepair. Отсутствие = "code".
    */
-  phase?: "plan" | "code" | "repair" | "sections";
-  /**
-   * Состояние посекционной генерации (когда phase==="sections"). Чистый
-   * редьюсер SectionFlow держит очередь секций, накопленные блоки и ретраи;
-   * registry лишь шлёт его шаги в туннель. undefined вне секционного режима.
-   */
-  sectionFlow?: SectionFlowState;
+  phase?: "plan" | "code" | "repair";
   /** Стиль-пресет (для resolveTunnelPlan и post-polish финализации). */
   stylePresetId?: StylePresetId;
   /** План, полученный в фазе 1 — нужен для post-polish финализации HTML. */
