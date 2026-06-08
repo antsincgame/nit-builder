@@ -596,6 +596,7 @@ export function useGenerationFlow(
       setRetryablePrompt(null);
       lastStyleRef.current = createOptions.stylePresetId;
       pendingHtmlRef.current = "";
+      lastAliveAtRef.current = Date.now();
       const artifactMode = inferArtifactModeFromPrompt(prompt);
 
       // Seed chat с первым сообщением юзера для split-view.
