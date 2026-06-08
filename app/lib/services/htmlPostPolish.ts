@@ -102,3 +102,40 @@ export function postPolishHtml(params: HtmlPostPolishParams): HtmlPostPolishResu
 
   return { html, fixes: Array.from(new Set(fixes)) };
 }
+
+// ─── Детерминированный премиум-слой (база красоты для слабых моделей) ───
+//
+// Цель: «навести красоту» на ЛЮБОЙ вывод, не завися от вкуса модели. Все
+// правила завёрнуты в :where() — специфичность 0, поэтому слой только
+// ЗАПОЛНЯЕТ пустоту: любой стиль, который модель задала сама, перебивает наш
+// дефолт. Сломать чужую вёрстку он физически не может. Добавляет лоск,
+// который слабая 7-9B обычно забывает: сглаживание шрифтов, smooth-scroll,
+// тонкую типографику заголовков, плавные transition, focus-visible, корректный
+// reduced-motion и адаптивные медиа.
+
+const PREMIUM_BASE_STYLE = `<style id="nit-premium-base">
+:where(html){scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+:where(body){-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+:where(h1,h2,h3,h4){letter-spacing:-.02em;line-height:1.12;text-wrap:balance}
+:where(p,li){text-wrap:pretty}
+:where(a,button,.btn,[role="button"]){transition:color .2s ease,background-color .2s ease,border-color .2s ease,transform .15s ease,box-shadow .2s ease}
+:where(img,svg,video){max-width:100%;height:auto}
+:where(::selection){background:rgba(99,102,241,.18)}
+:where(:focus-visible){outline:2px solid currentColor;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){:where(html){scroll-behavior:auto}*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>`;
+
+const INTER_FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
+
+/**
+ * Внедряет премиум-базу. Идемпотентно (повторный вызов — no-op). Шрифт Inter
+ * подключаем только если страница ещё не тянет Google Fonts (иначе уважаем
+ * выбор модели). :where(body) с Inter всё равно не перебьёт явный font-family.
+ */
+export function applyPremiumBaseLayer(html: string): string {
+  if (html.includes('id="nit-premium-base"')) return html;
+  const hasGoogleFonts = /fonts\.googleapis\.com/i.test(html);
+  const inject = `${hasGoogleFonts ? "" : INTER_FONT_LINK}${PREMIUM_BASE_STYLE}`;
+  if (html.includes("</head>")) return html.replace("</head>", `${inject}\n</head>`);
+  return `${inject}\n${html}`;
+}
