@@ -70,6 +70,29 @@ describe("tunnelPipeline", () => {
         expect(res.presetId).toBe("neon-cyber");
       }
     });
+
+    it("класс L уходит в artifact-режим (bespoke), S — в шаблонный coder", () => {
+      const plan = parseTunnelPlan(
+        JSON.stringify({
+          business_type: "кофейня",
+          sections: ["hero", "menu", "contact"],
+          suggested_template_id: "coffee-shop",
+        }),
+        "кофейня",
+      );
+      const sRes = resolveTunnelPlan(plan, "кофейня", "neon-cyber", "S");
+      const lRes = resolveTunnelPlan(plan, "кофейня", "neon-cyber", "L");
+      expect(sRes.kind).toBe("coder");
+      expect(lRes.kind).toBe("coder");
+      if (sRes.kind === "coder" && lRes.kind === "coder") {
+        // artifact (L) использует ДРУГОЙ — bespoke — системный промпт и
+        // user-message (генерация с нуля, без адаптации шаблона), а не coder.
+        expect(lRes.system).not.toBe(sRes.system);
+        expect(lRes.prompt).not.toBe(sRes.prompt);
+        // Пресет пробрасывается в обоих режимах.
+        expect(lRes.presetId).toBe("neon-cyber");
+      }
+    });
   });
 
   describe("finalizeTunnelHtml", () => {
