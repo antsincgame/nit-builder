@@ -382,8 +382,15 @@ export function finalizeTunnelHtml(
   presetId: StylePresetId,
 ): string {
   const cleaned = stripCodeFences(rawHtml);
-  const polished = postPolishHtml({ html: cleaned, presetId, plan }).html;
+  let html = postPolishHtml({ html: cleaned, presetId, plan }).html;
+  // SEO-голова из плана (детерминированно, идемпотентно) — слабая модель её почти
+  // не ставит.
+  if (TUNNEL_SEO_ENABLED) html = applySeoHead(html, plan);
   // Премиум-база поверх — :where-слой нулевой специфичности, только заполняет
   // пустоту, не ломая то, что задала модель. Главный вклад в красоту на 7-9B.
-  return TUNNEL_POLISH_ENABLED ? applyPremiumBaseLayer(polished) : polished;
+  if (TUNNEL_POLISH_ENABLED) html = applyPremiumBaseLayer(html);
+  // Вау-слой — фирменный характер, только для нейтральной ветки (тематические
+  // пресеты имеют свой и вызваны юзером явно).
+  if (TUNNEL_WOW_ENABLED && isNeutralPreset(presetId)) html = applyWowLayer(html);
+  return html;
 }
