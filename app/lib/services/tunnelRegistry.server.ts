@@ -591,6 +591,8 @@ export type RouteRequestParams = {
   stylePresetId?: StylePresetId;
   /** Бюджет токенов фазы кодера/continuation (initial send юзает maxOutputTokens). */
   codeMaxOutputTokens?: number;
+  /** "php-sqlite" — после plan-фазы собрать backend-артефакт вместо кодера. */
+  artifactMode?: "php-sqlite";
 };
 
 /**
