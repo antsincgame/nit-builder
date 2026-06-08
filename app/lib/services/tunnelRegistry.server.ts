@@ -734,7 +734,7 @@ export function handleTunnelResponse(
       // стримит НОВЫЙ полный HTML — дописывание его к превью фазы code дало
       // бы кашу из двух документов. Глотаем оба; браузер получит финальный
       // HTML в generate_done.
-      if (req.phase === "plan" || req.phase === "repair") break;
+      if (req.phase === "plan" || req.phase === "repair" || req.phase === "sections") break;
       sendToBrowser(browser.ws, {
         type: "generate_text",
         requestId,
