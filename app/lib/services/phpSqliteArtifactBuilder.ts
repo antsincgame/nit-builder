@@ -1461,7 +1461,7 @@ function renderStorefrontPreviewHtml(plan: Plan, manifestJson: string): string {
   const appName = storefrontDisplayName(plan);
   const lang = plan.language || "ru";
 
-  const headline = publicText(plan.hero_headline || plan.business_type, plan.business_type);
+  const headline = heroHeadline(plan);
   const subheadline = publicText(
     plan.hero_subheadline || plan.target_audience,
     ru ? "Выберите предложение и оставьте заявку онлайн." : "Choose an offer and submit a request online.",
