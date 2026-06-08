@@ -540,6 +540,56 @@ describe("tunnelRegistry", () => {
     });
   });
 
+  describe("динамическая деградация класса", () => {
+    it("битый вывод метит lastOutputInvalid в runtimeStats соединения", () => {
+      const { conn } = makeTunnel("alice", "t-inv");
+      const { session } = makeBrowser("alice", "s-inv");
+      registerTunnel(conn);
+      registerBrowser(session);
+      routeRequest({
+        requestId: "req-inv",
+        userId: "alice",
+        browserSessionId: "s-inv",
+        system: "",
+        prompt: "",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+      // Вывод без разметки — finalizeTunnelDone посчитает его битым.
+      handleTunnelResponse("req-inv", {
+        type: "done",
+        fullText: "это просто текст без html-разметки",
+        durationMs: 100,
+      });
+      expect(conn.runtimeStats?.lastOutputInvalid).toBe(true);
+    });
+
+    it("чистый успех сбрасывает накопленные счётчики деградации", () => {
+      const { conn } = makeTunnel("alice", "t-ok");
+      const { session } = makeBrowser("alice", "s-ok");
+      registerTunnel(conn);
+      registerBrowser(session);
+      // Предыстория: соединение уже помечено как проблемное.
+      conn.runtimeStats = { lengthTruncations: 2, lastOutputInvalid: true };
+      routeRequest({
+        requestId: "req-ok",
+        userId: "alice",
+        browserSessionId: "s-ok",
+        system: "",
+        prompt: "",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+      handleTunnelResponse("req-ok", {
+        type: "done",
+        fullText: "<!DOCTYPE html><html><body><h1>OK</h1></body></html>",
+        durationMs: 100,
+      });
+      expect(conn.runtimeStats?.lastOutputInvalid).toBe(false);
+      expect(conn.runtimeStats?.lengthTruncations).toBe(0);
+    });
+  });
+
   describe("stats", () => {
     it("tracks counters correctly", () => {
       const { conn } = makeTunnel("alice", "t-s1");
