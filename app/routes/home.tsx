@@ -508,6 +508,22 @@ export default function Home() {
         : `Пишу код${genTokensSuffix}${genSec}`
       : `Думаю над структурой${genTokensSuffix}${genSec}`;
 
+    // Живой прогресс для loading-экрана. Токены текут с туннеля через
+    // generationProgress (во всех фазах, включая долгую plan-фазу), символы
+    // кода — из streamingChars, секунды — локальный таймер. Раньше на анализе
+    // висел статичный текст и казалось, что всё зависло; теперь видно, что
+    // модель реально печатает.
+    const genTokens = generationProgress?.tokens ?? 0;
+    const genSec = elapsedSec > 0 ? ` · ${elapsedSec}с` : "";
+    const genTokensSuffix =
+      genTokens > 0 ? ` · ${genTokens.toLocaleString("ru-RU")} ток.` : "";
+    const genCoding = currentStep === "code" || currentStep === "done";
+    const genLabel = genCoding
+      ? streamingChars > 0
+        ? `Пишу код · ${streamingChars.toLocaleString("ru-RU")} симв.${genSec}`
+        : `Пишу код${genTokensSuffix}${genSec}`
+      : `Думаю над структурой${genTokensSuffix}${genSec}`;
+
     return (
       <div className="h-screen text-white flex flex-col overflow-hidden bg-[#0A0A0A]">
         <ToastContainer />
