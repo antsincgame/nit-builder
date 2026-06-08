@@ -1908,11 +1908,7 @@ function buildLivePreviewBootScript(): string {
   function extractCsrf(html){var m=String(html||'').match(/name="csrf_token"\s+value="([^"]+)"/);return m?m[1]:'';}
   function renderAdmin(){
     adminFrame=makeFrame(adminPane);
-    return runRequest('/admin/login','GET','').then(function(lp){
-      var token=extractCsrf(lp.html);
-      var body='csrf_token='+encodeURIComponent(token)+'&email='+encodeURIComponent('admin@example.com')+'&password='+encodeURIComponent('admin123');
-      return runRequest('/admin/login','POST',body);
-    }).then(function(r){return follow(r,0);}).then(function(r){adminFrame.srcdoc=decorate(r.html,'admin');});
+    return runRequest('/admin','GET','').then(function(r){return follow(r,0);}).then(function(r){var h=(r.html&&r.html.replace(/\s/g,''))?r.html:('<pre style="padding:16px;white-space:pre-wrap;color:#c0392b;font:13px ui-monospace,monospace">[admin empty]\ndrivers: '+esc(DRIVERS)+'\nstderr: '+esc(phpErr).slice(0,3000)+'</pre>');adminFrame.srcdoc=decorate(h,'admin');});
   }
   function renderDb(){
     return runRaw(DUMP).then(function(json){
