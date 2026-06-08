@@ -1896,7 +1896,7 @@ function buildLivePreviewBootScript(): string {
 
   function renderStore(){
     storeFrame=makeFrame(storePane);
-    return runRequest('/','GET','').then(function(r){return follow(r,0);}).then(function(r){storeFrame.srcdoc=decorate(r.html,'store');});
+    return runRequest('/','GET','').then(function(r){return follow(r,0);}).then(function(r){var h=(r.html&&r.html.replace(/\s/g,''))?r.html:('<pre style="padding:16px;white-space:pre-wrap;color:#c0392b;font:13px ui-monospace,monospace">[empty output]\ndrivers: '+esc(DRIVERS)+'\nstderr: '+esc(phpErr).slice(0,3000)+'</pre>');storeFrame.srcdoc=decorate(h,'store');});
   }
   function extractCsrf(html){var m=String(html||'').match(/name="csrf_token"\s+value="([^"]+)"/);return m?m[1]:'';}
   function renderAdmin(){
