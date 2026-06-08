@@ -27,7 +27,7 @@ const SUGGESTIONS = [
   "Убери секцию с ценами",
 ];
 
-export function PolishChat({ onPolish, messages, loading, loadingLabel }: Props) {
+export function PolishChat({ onPolish, messages, loading, loadingLabel, onRetry, retryAvailable }: Props) {
   const [value, setValue] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
 
