@@ -726,7 +726,7 @@ export default function Home() {
           <div
             className={`flex-col overflow-hidden relative bg-[#141414] ${mobileTab === "preview" ? "flex" : "hidden"} md:flex`}
           >
-            {previewHtml ? (
+            {showLiveSite ? (
               <iframe
                 title="Предпросмотр сайта"
                 srcDoc={previewHtml}
