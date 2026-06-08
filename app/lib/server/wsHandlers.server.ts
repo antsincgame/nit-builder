@@ -500,41 +500,61 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
         const analysis = analyzePrompt(msg.prompt);
 
         if ((msg.artifactMode ?? inferArtifactModeFromPrompt(msg.prompt)) === "php-sqlite") {
-          const plan = planFromPromptAnalysis(msg.prompt, analysis);
-          const artifact = buildPhpSqliteArtifact({
-            plan,
-            userMessage: msg.prompt,
-          });
-          const html = renderPhpSqliteArtifactPreview({
-            artifact,
-            plan,
-            userMessage: msg.prompt,
-          });
-          send({
-            type: "generate_step",
-            requestId: msg.requestId,
-            step: "template",
-            templateId: "php-sqlite-app",
-            templateName: "PHP + SQLite backend",
-          });
-          send({
-            type: "generate_step",
-            requestId: msg.requestId,
-            step: "code",
-          });
-          send({
-            type: "generate_text",
-            requestId: msg.requestId,
-            text: html,
-          });
-          send({
-            type: "generate_done",
-            requestId: msg.requestId,
-            html,
-            templateId: "php-sqlite-app",
-            templateName: "PHP + SQLite backend",
-            durationMs: 0,
-          });
+          // Гибрид backend: план наполняет модель юзера (осмысленный каталог,
+          // тексты, FAQ по запросу), а детерминированный билдер собирает из
+          // плана безопасный PHP+SQLite (plan-done в tunnelRegistry). Туннель
+          // обязателен; если его нет / занят / planner-промпт не собрался —
+          // мгновенный fallback на эвристический план, чтобы backend работал.
+          const reqId = msg.requestId;
+          const userPrompt = msg.prompt;
+          const uid = authed.userId;
+
+          const sendArtifactFallback = (): void => {
+            const plan = planFromPromptAnalysis(userPrompt, analysis);
+            const artifact = buildPhpSqliteArtifact({ plan, userMessage: userPrompt });
+            const html = renderPhpSqliteArtifactPreview({ artifact, plan, userMessage: userPrompt });
+            send({
+              type: "generate_step",
+              requestId: reqId,
+              step: "template",
+              templateId: "php-sqlite-app",
+              templateName: "PHP + SQLite backend",
+            });
+            send({ type: "generate_step", requestId: reqId, step: "code" });
+            send({ type: "generate_text", requestId: reqId, text: html });
+            send({
+              type: "generate_done",
+              requestId: reqId,
+              html,
+              templateId: "php-sqlite-app",
+              templateName: "PHP + SQLite backend",
+              durationMs: 0,
+            });
+          };
+
+          void (async () => {
+            let routed = false;
+            try {
+              const planPrompt = await buildTunnelPlanPrompt(userPrompt);
+              routed = routeRequest({
+                requestId: reqId,
+                userId: uid,
+                browserSessionId: sessionId,
+                system: planPrompt.system,
+                prompt: planPrompt.prompt,
+                maxOutputTokens: TUNNEL_PLAN_MAX_TOKENS,
+                temperature: 0.3,
+                phase: "plan",
+                originalPrompt: userPrompt,
+                artifactMode: "php-sqlite",
+              });
+            } catch {
+              routed = false;
+            }
+            // Туннеля нет / лимит / дубль / promtt не собрался — собираем
+            // мгновенно эвристикой (прежнее поведение, backend всё равно есть).
+            if (!routed) sendArtifactFallback();
+          })();
           return;
         }
 
