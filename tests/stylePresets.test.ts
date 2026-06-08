@@ -87,8 +87,11 @@ describe("getAvailablePresets", () => {
 describe("injectStylePreset", () => {
   const BASE = "Base system prompt.";
 
-  it("generic не меняет base", () => {
-    expect(injectStylePreset(BASE, "generic")).toBe(BASE);
+  it("generic несёт универсальный премиум-язык (не no-op)", () => {
+    const result = injectStylePreset(BASE, "generic");
+    expect(result).toContain(BASE);
+    expect(result).toContain("СОВРЕМЕННЫЙ ПРЕМИУМ");
+    expect(result.length).toBeGreaterThan(BASE.length + 100);
   });
 
   it("neon-cyber инжектит addon", () => {
