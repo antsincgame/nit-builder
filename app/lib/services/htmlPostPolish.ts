@@ -103,6 +103,142 @@ export function postPolishHtml(params: HtmlPostPolishParams): HtmlPostPolishResu
   return { html, fixes: Array.from(new Set(fixes)) };
 }
 
+// ─── SEO из коробки (детерминированный, из плана) ──────────────────
+//
+// Слабая модель почти не ставит SEO-голову (description, OpenGraph, JSON-LD).
+// Делаем это детерминированно из полей плана — не завися от модели. Идемпотентно:
+// маркер data-nit-seo + проверка уже стоящих тегов исключают дубли.
+
+function escAttr(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escJsonLd(s: string): string {
+  // Безопасная вставка JSON в <script>: гасим угловые скобки и амперсанд.
+  return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+}
+
+function ogLocale(lang: Plan["language"]): string {
+  return lang === "en" ? "en_US" : lang === "by" ? "be_BY" : "ru_RU";
+}
+
+function seoDescription(plan: Plan): string {
+  const raw =
+    plan.hero_subheadline?.trim() ||
+    plan.social_proof_line?.trim() ||
+    `${plan.business_type}. ${plan.target_audience ?? ""}`.trim();
+  const flat = raw.replace(/\s+/g, " ").trim();
+  return flat.length > 160 ? `${flat.slice(0, 157).trimEnd()}…` : flat;
+}
+
+function buildJsonLd(plan: Plan, desc: string): string {
+  const graph: Record<string, unknown>[] = [];
+
+  const org: Record<string, unknown> = {
+    "@type": "Organization",
+    name: plan.business_type,
+    description: desc,
+  };
+  const contactPoint: Record<string, unknown> = {};
+  if (plan.contact_phone) contactPoint.telephone = plan.contact_phone;
+  if (plan.contact_email) contactPoint.email = plan.contact_email;
+  if (Object.keys(contactPoint).length > 0) {
+    contactPoint["@type"] = "ContactPoint";
+    contactPoint.contactType = "customer service";
+    org.contactPoint = contactPoint;
+  }
+  graph.push(org);
+
+  if (plan.contact_address) {
+    const lb: Record<string, unknown> = {
+      "@type": "LocalBusiness",
+      name: plan.business_type,
+      description: desc,
+      address: { "@type": "PostalAddress", streetAddress: plan.contact_address },
+    };
+    if (plan.contact_phone) lb.telephone = plan.contact_phone;
+    if (plan.hours_text) lb.openingHours = plan.hours_text;
+    graph.push(lb);
+  }
+
+  if (plan.faq && plan.faq.length > 0) {
+    graph.push({
+      "@type": "FAQPage",
+      mainEntity: plan.faq.map((f) => ({
+        "@type": "Question",
+        name: f.question,
+        acceptedAnswer: { "@type": "Answer", text: f.answer },
+      })),
+    });
+  }
+
+  const doc = { "@context": "https://schema.org", "@graph": graph };
+  return `<script type="application/ld+json">${escJsonLd(JSON.stringify(doc))}</script>`;
+}
+
+const SEO_MARKER = "data-nit-seo";
+
+/**
+ * Внедряет SEO-голову из плана. Идемпотентно. Не перетирает теги, которые
+ * модель уже поставила сама (description/og/twitter/json-ld) — только дополняет
+ * отсутствующее. Пустые alt у картинок заполняет бизнес-контекстом.
+ */
+export function applySeoHead(html: string, plan: Plan): string {
+  if (html.includes(SEO_MARKER)) return html;
+
+  const desc = seoDescription(plan);
+  const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  const title = (titleMatch?.[1]?.trim() || plan.hero_headline || plan.business_type).replace(
+    /\s+/g,
+    " ",
+  );
+  const locale = ogLocale(plan.language);
+
+  const tags: string[] = [`<meta ${SEO_MARKER}="1" name="robots" content="index, follow">`];
+
+  if (!/<meta\s+name=["']description["']/i.test(html)) {
+    tags.push(`<meta name="description" content="${escAttr(desc)}">`);
+  }
+  if (plan.keywords && plan.keywords.length > 0 && !/<meta\s+name=["']keywords["']/i.test(html)) {
+    tags.push(`<meta name="keywords" content="${escAttr(plan.keywords.slice(0, 12).join(", "))}">`);
+  }
+  if (!/property=["']og:title["']/i.test(html)) {
+    tags.push(
+      `<meta property="og:type" content="website">`,
+      `<meta property="og:locale" content="${locale}">`,
+      `<meta property="og:title" content="${escAttr(title)}">`,
+      `<meta property="og:description" content="${escAttr(desc)}">`,
+    );
+  }
+  if (!/name=["']twitter:card["']/i.test(html)) {
+    tags.push(
+      `<meta name="twitter:card" content="summary_large_image">`,
+      `<meta name="twitter:title" content="${escAttr(title)}">`,
+      `<meta name="twitter:description" content="${escAttr(desc)}">`,
+    );
+  }
+  if (!/application\/ld\+json/i.test(html)) {
+    tags.push(buildJsonLd(plan, desc));
+  }
+
+  const head = tags.join("\n");
+  let out = html.includes("</head>")
+    ? html.replace("</head>", `${head}\n</head>`)
+    : `${head}\n${html}`;
+
+  // Пустые alt → бизнес-контекст (непустые не трогаем).
+  out = out.replace(
+    /<img((?:[^>]*?\s)?)alt=""([^>]*)>/gi,
+    (_m, pre: string, post: string) => `<img${pre}alt="${escAttr(plan.business_type)}"${post}>`,
+  );
+
+  return out;
+}
+
 // ─── Детерминированный премиум-слой (база красоты для слабых моделей) ───
 //
 // Цель: «навести красоту» на ЛЮБОЙ вывод, не завися от вкуса модели. Все
