@@ -1060,6 +1060,12 @@ function finalizeTunnelDone(
     templateName: req.templateName ?? "Unknown",
     durationMs,
   });
+  // Чистая успешная генерация — сбрасываем счётчики деградации, чтобы
+  // единичный прошлый сбой не топил класс навсегда (самовосстановление).
+  updateTunnelRuntimeStats(req.tunnelConnectionId, (s) => {
+    s.lengthTruncations = 0;
+    s.lastOutputInvalid = false;
+  });
   if (req.onComplete) req.onComplete(html);
   recordTunnelOutcome(
     req,
