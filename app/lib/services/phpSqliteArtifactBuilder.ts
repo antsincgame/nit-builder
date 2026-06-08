@@ -1928,7 +1928,7 @@ function buildLivePreviewBootScript(): string {
       .catch(function(){chip.textContent=isRu?'\u25CB \u0441\u0442\u0430\u0442\u0438\u0447\u043D\u044B\u0439 \u043F\u0440\u0435\u0434\u043F\u0440\u043E\u0441\u043C\u043E\u0442\u0440':'\u25CB static preview';});
   })();
 })();
-<\/script>`;
+</script>`;
 }
 
 export function renderPhpSqliteArtifactPreview(params: {
