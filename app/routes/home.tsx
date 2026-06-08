@@ -508,6 +508,16 @@ export default function Home() {
     const isGenerating = mode === "generating";
     const isBackendArtifact = !!extractPhpSqliteArtifact(previewHtml);
 
+    // Когда показывать живой iframe. Готовый сайт (editing) — сразу. Во время
+    // генерации ранний поток (`<!doctype><head>…`) рендерится пустой белой
+    // страницей, поэтому ждём «созревания»: открытый <body> + первый закрытый
+    // блок (или заметный объём). До этого держим скелетон с прогрессом —
+    // иначе виден белый экран всё время, пока модель медленно пишет.
+    const htmlHasVisibleContent =
+      /<body[^>]*>/i.test(previewHtml) &&
+      (/<\/(section|header|main|footer)>/i.test(previewHtml) || previewHtml.length > 2800);
+    const showLiveSite = previewHtml.length > 0 && (!isGenerating || htmlHasVisibleContent);
+
     // Живой прогресс для loading-экрана. Токены текут с туннеля через
     // generationProgress (во всех фазах, включая долгую plan-фазу), символы
     // кода — из streamingChars, секунды — локальный таймер. Раньше на анализе
