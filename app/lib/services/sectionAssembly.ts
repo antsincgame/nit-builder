@@ -311,3 +311,101 @@ ${sectionBrief(plan, sectionName)}
 
 ВЫВОД: только один блок <section>…</section> на языке «${langName}». Без markdown-ограждений, без пояснений до или после.`;
 }
+
+// ─── Редьюсер посекционной генерации (SectionFlow) ───
+//
+// Машина состояний как ЧИСТАЯ функция: оркестратор (tunnelRegistry) держит
+// state в pending-запросе и на каждый ответ модели зовёт advanceSectionFlow,
+// получая либо «пошли такой промпт в туннель», либо «готово, вот документ».
+// Сам LLM-вызов делает оркестратор тем же туннельным generate, что и фазы
+// plan/code/repair — здесь только детерминированная логика, поэтому всё
+// покрывается юнит-тестами без реального туннеля.
+
+export type SectionFlowState = {
+  plan: Plan;
+  design: SectionDesignSystem;
+  /** Очередь имён секций (snapshot plan.sections на старте). */
+  queue: string[];
+  /** Индекс текущей секции в очереди. */
+  index: number;
+  /** Накопленные готовые блоки. */
+  blocks: SectionBlock[];
+  /** Ретраи ТЕКУЩЕЙ секции (сбрасывается при переходе к следующей). */
+  retries: number;
+};
+
+export type SectionFlowStep =
+  | { kind: "generate"; system: string; prompt: string; sectionName: string }
+  | { kind: "done"; html: string };
+
+/** Системный промпт секционного кодера: одна секция, без обвязки документа. */
+export const SECTION_GENERATE_SYSTEM =
+  "Ты — опытный HTML/CSS-разработчик. Генерируешь ОДНУ секцию лендинга по брифу. Дизайн-система (CSS-переменные и классы) уже подключена глобально — не дублируй её. Возвращаешь ТОЛЬКО валидный <section>…</section>: без <!DOCTYPE>, <html>, <head>, <body>, без markdown-ограждений и без комментариев.";
+
+/**
+ * Вытаскивает один <section> из ответа модели: снимает markdown-ограждения и
+ * берёт первый …последний <section>. Если тегов нет — возвращает очищенный
+ * текст как есть (валидатор затем решит, годен ли он).
+ */
+export function extractSectionHtml(raw: string): string {
+  let s = raw.trim();
+  s = s.replace(/^```[a-z]*\s*/i, "").replace(/\s*```$/i, "").trim();
+  const m = s.match(/<section[\s\S]*<\/section>/i);
+  return m ? m[0] : s;
+}
+
+export function initSectionFlow(plan: Plan, design: SectionDesignSystem): SectionFlowState {
+  return { plan, design, queue: [...plan.sections], index: 0, blocks: [], retries: 0 };
+}
+
+/** Шаг для текущего индекса: generate очередной секции либо done (всё готово). */
+function nextSectionStep(state: SectionFlowState): SectionFlowStep {
+  if (state.index >= state.queue.length) {
+    return {
+      kind: "done",
+      html: assembleSections(state.blocks, { plan: state.plan, design: state.design }),
+    };
+  }
+  const name = state.queue[state.index]!;
+  return {
+    kind: "generate",
+    system: SECTION_GENERATE_SYSTEM,
+    prompt: buildSectionPrompt(state.plan, name, state.design),
+    sectionName: name,
+  };
+}
+
+/** Первый шаг потока (generate первой секции, либо done если секций нет). */
+export function startSectionFlow(state: SectionFlowState): SectionFlowStep {
+  return nextSectionStep(state);
+}
+
+/**
+ * Принимает ответ модели на текущую секцию и возвращает новое состояние +
+ * следующий шаг. Секция принимается, если прошла валидатор и не оборвана по
+ * длине; иначе ретраится, пока не исчерпан лимит (после лимита берём что есть,
+ * чтобы не зациклиться). Чистая функция — старое состояние не мутируется.
+ */
+export function advanceSectionFlow(
+  state: SectionFlowState,
+  output: string,
+  opts: { maxRetries: number; truncated?: boolean },
+): { state: SectionFlowState; step: SectionFlowStep } {
+  const name = state.queue[state.index] ?? "section";
+  const html = extractSectionHtml(output);
+  const valid = validateSectionHtml(html, { name, language: state.plan.language });
+  const accept = (valid.ok && !opts.truncated) || state.retries >= opts.maxRetries;
+
+  if (accept) {
+    const next: SectionFlowState = {
+      ...state,
+      blocks: [...state.blocks, { name, html }],
+      index: state.index + 1,
+      retries: 0,
+    };
+    return { state: next, step: nextSectionStep(next) };
+  }
+
+  const next: SectionFlowState = { ...state, retries: state.retries + 1 };
+  return { state: next, step: nextSectionStep(next) };
+}
