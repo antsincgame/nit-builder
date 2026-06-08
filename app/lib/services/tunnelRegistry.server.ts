@@ -727,7 +727,9 @@ export function handleTunnelResponse(
         const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
         // Класс модели туннеля определяет режим (skeleton/coder/artifact) и
         // бюджет токенов фазы кодера. Без туннеля (отвалился) — безопасный S.
-        const tier = tunnel ? classifyModel(tunnel.capabilities) : "S";
+        // runtimeStats понижает класс на лету, если модель по факту не тянет
+        // текущий режим (обрывы по длине / битый вывод в прошлых генерациях).
+        const tier = tunnel ? classifyModel(tunnel.capabilities, tunnel.runtimeStats) : "S";
         try {
           const plan = parseTunnelPlan(piece, req.userMessage ?? "");
           const resolution = resolveTunnelPlan(plan, req.userMessage ?? "", req.stylePresetId, tier);
