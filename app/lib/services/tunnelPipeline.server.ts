@@ -181,10 +181,27 @@ export function resolveTunnelPlan(
   plan: Plan,
   sanitizedMessage: string,
   stylePresetIdInput?: StylePresetId,
+  tier: ModelTier = "S",
 ): PlanResolution {
   const template = getTemplateById(plan.suggested_template_id) ?? getFallbackTemplate();
   const presetId: StylePresetId =
     stylePresetIdInput ?? inferStylePresetId(sanitizedMessage, plan);
+
+  // Artifact-режим для сильных моделей (класс L): bespoke microsite с нуля,
+  // БЕЗ адаптации шаблона. Сильная локальная модель тянет award-уровень, и
+  // шаблонная адаптация ей только мешает. tierProfile решает, что L → artifact;
+  // S/M остаются на шаблонном coder/skeleton — слабая модель не вытянет 900
+  // строк bespoke (получился бы обрыв/каша). Гейтится env-флагом для отката.
+  if (tierProfile(tier).approach === "artifact" && TUNNEL_ARTIFACT_ENABLED) {
+    return {
+      kind: "coder",
+      system: injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, presetId),
+      prompt: buildCustomArtifactUserMessage({ userMessage: sanitizedMessage, plan }),
+      templateId: template.id,
+      templateName: template.name,
+      presetId,
+    };
+  }
 
   // Skeleton-injection пробуем только для generic-пресета (как в pipelineCreate)
   // и только для русских планов: шаблоны lang="ru", без Кодера их статичные
