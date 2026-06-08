@@ -363,7 +363,15 @@ export function useGenerationFlow(
           // добавленный assistant-ответ) — на момент здесь setChatMessages
           // ещё не application-state'нулся, поэтому собираем "ручками"
           // из ref + новый.
-          const assistantText = `Готово ✨ Шаблон: ${event.templateName}. Сгенерировано за ${(event.durationMs / 1000).toFixed(1)}s. Опиши правки — применю.`;
+          const blocks = describeSections(event.html);
+          const secs = (event.durationMs / 1000).toFixed(0);
+          const blocksLine = blocks.length
+            ? `Внутри ${blocks.length} ${pluralBlocks(blocks.length)}: ${blocks.join(", ")}.`
+            : "Сайт готов.";
+          const assistantText =
+            `Готово ✨ ${blocksLine} Собрал за ${secs}с.\n\n` +
+            `Что можно поправить прямо в чате: сменить заголовок или тексты, поменять цвета, ` +
+            `убрать или добавить блок, заменить фото, поправить цены. Опиши, что изменить, — применю к нужному месту.`;
           const updatedMessages: ChatMessage[] = [
             ...chatMessagesRef.current,
             { role: "assistant", text: assistantText },
