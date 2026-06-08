@@ -870,6 +870,15 @@ export function handleTunnelResponse(
         // туннеля нет — финализируем накопленным (ниже)
       }
 
+      // Докрутка исчерпана, а модель всё ещё обрывается по длине — сильный
+      // сигнал «не тянет объём текущего режима». Копим для динамической
+      // деградации: на следующей генерации classifyModel понизит класс.
+      if (event.finishReason === "length" && attempts >= TUNNEL_MAX_CONTINUATIONS) {
+        updateTunnelRuntimeStats(req.tunnelConnectionId, (s) => {
+          s.lengthTruncations = (s.lengthTruncations ?? 0) + 1;
+        });
+      }
+
       // ─── Tier 6: запуск repair-фазы (зеркало pipelineCreate) ───
       // Только двухфазный путь (есть план) и только один раунд
       // (htmlBeforeRepair служит маркером). merged здесь — полный HTML
