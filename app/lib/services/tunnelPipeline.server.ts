@@ -387,8 +387,12 @@ export function finalizeTunnelHtml(
   plan: Plan,
   presetId: StylePresetId,
 ): string {
-  const cleaned = stripCodeFences(rawHtml);
+  // Сначала лечим оборванный вывод модели — иначе вставки ниже приклеятся в конец
+  // сломанного DOM и станут видимым текстом.
+  const cleaned = ensureClosedHtml(stripCodeFences(rawHtml));
   let html = postPolishHtml({ html: cleaned, presetId, plan }).html;
+  // Битые Unsplash-картинки (модель галлюцинирует photo-id) → picsum.
+  html = fixBrokenImages(html);
   // SEO-голова из плана (детерминированно, идемпотентно) — слабая модель её почти
   // не ставит.
   if (TUNNEL_SEO_ENABLED) html = applySeoHead(html, plan);
