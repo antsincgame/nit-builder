@@ -405,6 +405,21 @@ export default function Home() {
               </div>
             )}
 
+            {retryAvailable && (
+              <div className="mb-4 p-3.5 flex items-center gap-3 rounded-xl border border-rose-500/25 bg-rose-500/[0.06]">
+                <div className="flex-1 text-[13px] text-[#A1A1AA]">
+                  Прошлая генерация не завершилась. Можно повторить тот же запрос.
+                </div>
+                <button
+                  type="button"
+                  onClick={retryGeneration}
+                  className="shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-lg text-[13px] bg-emerald-500 hover:bg-emerald-400 text-[#0A0A0A] font-semibold transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                >
+                  <RotateCcw size={14} /> Повторить
+                </button>
+              </div>
+            )}
+
             <div className="mb-5">
               <SimplePromptInput
                 onSubmit={createSite}
