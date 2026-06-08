@@ -1835,7 +1835,7 @@ function buildLivePreviewBootScript(): string {
   function buildEntry(uri,method,body){
     var m=/^(GET|POST)$/.test(method)?method:'GET';
     var sidLine=SID?("$_COOKIE['PHPSESSID']='"+SID+"';"):'';
-    return "<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','0');"
+    return "<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','1');"
       +"if(!function_exists('mb_substr')){function mb_substr($s,$st,$l=null){return $l===null?substr((string)$s,$st):substr((string)$s,$st,$l);}}"
       +"if(!function_exists('mb_strlen')){function mb_strlen($s){return strlen((string)$s);}}"
       +"if(!function_exists('mb_strtoupper')){function mb_strtoupper($s){return strtoupper((string)$s);}}"
@@ -1847,7 +1847,7 @@ function buildLivePreviewBootScript(): string {
       +"register_shutdown_function(function(){$l='';foreach(headers_list() as $h){if(stripos($h,'Location:')===0){$l=trim(substr($h,9));}}echo '@@NITMETA@@'.json_encode(array('redirect'=>$l,'sid'=>session_id()));});"
       +"chdir('/app/public');require '/app/public/index.php';";
   }
-  var DUMP="<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','0');require '/app/app/db.php';migrate();$o=array();foreach(array('products','orders','order_items','admins') as $t){$o[$t]=db()->query('SELECT * FROM '.$t)->fetchAll(PDO::FETCH_ASSOC);}echo json_encode($o);";
+  var DUMP="<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','1');require '/app/app/db.php';migrate();$o=array();foreach(array('products','orders','order_items','admins') as $t){$o[$t]=db()->query('SELECT * FROM '.$t)->fetchAll(PDO::FETCH_ASSOC);}echo json_encode($o);";
 
   function runRequest(uri,method,body){
     return queue(function(){
