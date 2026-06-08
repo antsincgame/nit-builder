@@ -702,9 +702,12 @@ export function handleTunnelResponse(
       // Иначе шлём coder-промпт фазы 2 в туннель.
       if (req.phase === "plan") {
         const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
+        // Класс модели туннеля определяет режим (skeleton/coder/artifact) и
+        // бюджет токенов фазы кодера. Без туннеля (отвалился) — безопасный S.
+        const tier = tunnel ? classifyModel(tunnel.capabilities) : "S";
         try {
           const plan = parseTunnelPlan(piece, req.userMessage ?? "");
-          const resolution = resolveTunnelPlan(plan, req.userMessage ?? "", req.stylePresetId);
+          const resolution = resolveTunnelPlan(plan, req.userMessage ?? "", req.stylePresetId, tier);
           req.plan = plan;
           req.templateId = resolution.templateId;
           req.templateName = resolution.templateName;
