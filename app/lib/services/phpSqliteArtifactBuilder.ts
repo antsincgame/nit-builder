@@ -251,9 +251,10 @@ function cleanBrand(plan: Plan): string {
 function heroHeadline(plan: Plan): string {
   const raw = plan.hero_headline || plan.business_type;
   const stripped = stripPromptPrefix(raw);
-  const candidate = clampText(firstSentence(stripped) || stripped || raw, 90);
-  const fallback = clampText(stripPromptPrefix(plan.business_type) || plan.business_type, 60) || plan.business_type;
-  return publicText(candidate || fallback, fallback);
+  const candidate = clampText(firstSentence(stripped) || stripped || raw, 52);
+  const fallback = clampText(stripPromptPrefix(plan.business_type) || plan.business_type, 52) || plan.business_type;
+  const out = publicText(candidate || fallback, fallback).replace(/\s+(и|или|с|в|во|на|по|для|из|от|до|у|о|об|а|но|за|к|ко)$/i, "").trim();
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : out;
 }
 
 function storefrontDisplayName(plan: Plan): string {
