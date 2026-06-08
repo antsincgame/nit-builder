@@ -74,6 +74,15 @@ export const TUNNEL_CODE_MAX_TOKENS = 8000;
  *  embeddings-провайдер недоступен/медленный. */
 const RETRIEVAL_TIMEOUT_MS = 4000;
 
+/**
+ * Разблокирует artifact-режим (bespoke microsite с нуля) для класса L на
+ * туннельном пути. Раньше CUSTOM_ARTIFACT был только на серверном HTTP-пути,
+ * поэтому через туннель (BYO-GPU) дизайн с нуля был недоступен в принципе.
+ * NIT_TUNNEL_ARTIFACT="0" — отключить (L пойдёт обычным шаблонным coder):
+ * мгновенный откат без релиза, если bespoke на чьей-то L-модели даёт регресс.
+ */
+const TUNNEL_ARTIFACT_ENABLED = process.env.NIT_TUNNEL_ARTIFACT !== "0";
+
 export type TunnelPlanPrompt = { system: string; prompt: string };
 
 /**
