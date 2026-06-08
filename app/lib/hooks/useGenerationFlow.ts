@@ -938,6 +938,7 @@ export function useGenerationFlow(
     createSite,
     polishSite,
     cancelGeneration,
+    retryGeneration,
     loadFromHistory,
     reset,
     undoVersion,
