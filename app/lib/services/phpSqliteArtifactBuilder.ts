@@ -1950,15 +1950,16 @@ function buildLivePreviewBootScript(): string {
     }).catch(function(){});
   });
 
+  function ensureDir(d){return php.analyzePath(d).then(function(a){if(a&&a.exists){return;}return php.mkdir(d).catch(function(){});});}
   function writeProject(){
     var dirs=['/app','/app/app','/app/database','/app/public','/app/public/assets','/app/storage','/tmp'];
     var p=Promise.resolve();
-    dirs.forEach(function(d){p=p.then(function(){return php.mkdir(d).catch(function(){});});});
+    dirs.forEach(function(d){p=p.then(function(){return ensureDir(d);});});
     files.forEach(function(f){
       p=p.then(function(){
         var full='/app/'+f.path;
         var parent=full.slice(0,full.lastIndexOf('/'));
-        return php.mkdir(parent).catch(function(){}).then(function(){return php.writeFile(full,f.content,{encoding:'utf8'});});
+        return ensureDir(parent).then(function(){return php.writeFile(full,f.content,{encoding:'utf8'});});
       });
     });
     return p;
