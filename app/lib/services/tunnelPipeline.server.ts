@@ -36,9 +36,12 @@ import { normalizePlanForRequest } from "~/lib/services/planQuality";
 import {
   buildPlannerSystemPrompt,
   CODER_SYSTEM_PROMPT,
+  CUSTOM_ARTIFACT_SYSTEM_PROMPT,
   buildCoderUserMessage,
+  buildCustomArtifactUserMessage,
   buildAdminRepairPrompt,
 } from "~/lib/config/htmlPrompts";
+import { tierProfile, type ModelTier } from "~/lib/llm/modelTier";
 import { retrieveTemplates } from "~/lib/services/templateRetriever";
 import { buildFewShotPlansAdaptive } from "~/lib/services/fewShotBuilder";
 import {
