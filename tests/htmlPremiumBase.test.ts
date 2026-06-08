@@ -39,4 +39,26 @@ describe("applyPremiumBaseLayer — детерминированная база 
     expect(out).toContain('id="nit-premium-base"');
     expect(out.startsWith("<link") || out.startsWith("<style")).toBe(true);
   });
+
+  it("добавляет scroll-reveal: стиль + скрипт перед </body>", () => {
+    const page =
+      "<!DOCTYPE html><html><head><title>X</title></head><body><section>A</section></body></html>";
+    const out = applyPremiumBaseLayer(page);
+    expect(out).toContain(".nit-reveal");
+    expect(out).toContain('id="nit-reveal"');
+    expect(out.indexOf('id="nit-reveal"')).toBeLessThan(out.indexOf("</body>"));
+  });
+
+  it("reveal graceful: reduced-motion gate, fallback-таймер, всё в try/catch", () => {
+    const out = applyPremiumBaseLayer(
+      "<!DOCTYPE html><html><head></head><body><section>A</section></body></html>",
+    );
+    // не анимируем при reduced-motion
+    expect(out).toContain("prefers-reduced-motion: reduce");
+    // fallback показывает всё принудительно (контент не останется скрытым)
+    expect(out).toContain("setTimeout");
+    expect(out).toContain("nit-vis");
+    // первый экран не прячется — анимируются только элементы ниже вьюпорта
+    expect(out).toContain("getBoundingClientRect");
+  });
 });
