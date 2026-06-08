@@ -58,6 +58,10 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     // не плодили дубли страницы в индексе.
     const canonical = new URL(request.url);
     canonical.search = "";
+    // За Traefik/Caddy внутренний запрос идёт по http — берём реальный протокол
+    // из X-Forwarded-Proto, иначе https (прод всегда за TLS).
+    const fwdProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    canonical.protocol = fwdProto ? `${fwdProto}:` : "https:";
     const canonicalUrl = canonical.toString();
     headers["X-Robots-Tag"] = "index, follow";
     headers["Link"] = `<${canonicalUrl}>; rel="canonical"`;
