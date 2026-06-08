@@ -691,17 +691,9 @@ export default function Home() {
               onPolish={polishSite}
               messages={chatMessages}
               loading={loading}
-              loadingLabel={
-                isGenerating
-                  ? currentStep === "plan"
-                    ? "Изучаем запрос… (большая модель может думать несколько минут)"
-                    : currentStep === "template"
-                      ? "Подбираем вариант…"
-                      : currentStep === "code"
-                        ? `Создаём сайт · ${streamingChars} симв.`
-                        : "Работаем…"
-                  : "Применяем правки…"
-              }
+              loadingLabel={isGenerating ? genLabel : "Применяем правки…"}
+              onRetry={retryGeneration}
+              retryAvailable={retryAvailable}
             />
           </div>
 
