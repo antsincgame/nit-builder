@@ -1587,8 +1587,8 @@ ${t.columns
   const chromeCss = `
 body{padding:0}
 .nit-view-radio{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
-.preview-switch{position:sticky;top:0;z-index:60;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:14px;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(22px);border-bottom:1px solid var(--line)}
-.preview-switch label{cursor:pointer;font-weight:900;font-size:13px;letter-spacing:.02em;padding:10px 20px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:color-mix(in srgb,var(--card) 60%,transparent);transition:all .15s}
+.preview-switch{position:sticky;top:0;z-index:60;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(22px);border-bottom:1px solid var(--line);box-shadow:0 14px 34px rgba(15,23,42,.10)}
+.preview-switch label{cursor:pointer;font-weight:900;font-size:14px;letter-spacing:.02em;padding:11px 24px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:color-mix(in srgb,var(--card) 70%,transparent);transition:all .15s}
 .preview-switch label:hover{color:var(--ink)}
 #nit-view-store:checked~.preview-switch label[for="nit-view-store"],#nit-view-admin:checked~.preview-switch label[for="nit-view-admin"],#nit-view-db:checked~.preview-switch label[for="nit-view-db"]{color:#fff;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#fff));border-color:transparent;box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 24%,transparent)}
 .preview-pane{display:none}
