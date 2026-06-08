@@ -123,6 +123,7 @@ const PREMIUM_BASE_STYLE = `<style id="nit-premium-base">
 :where(::selection){background:rgba(99,102,241,.18)}
 :where(:focus-visible){outline:2px solid currentColor;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){:where(html){scroll-behavior:auto}*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+@media (prefers-reduced-motion:no-preference){.nit-reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}.nit-reveal.nit-vis{opacity:1;transform:none}}
 </style>`;
 
 const INTER_FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
