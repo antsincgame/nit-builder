@@ -91,6 +91,23 @@ const TUNNEL_ARTIFACT_ENABLED = process.env.NIT_TUNNEL_ARTIFACT !== "0";
  */
 const TUNNEL_POLISH_ENABLED = process.env.NIT_TUNNEL_POLISH !== "0";
 
+/**
+ * SEO-голова из плана (description/OG/Twitter/JSON-LD). Полезна всем — дефолт ON.
+ * NIT_TUNNEL_SEO="0" — отключить.
+ */
+const TUNNEL_SEO_ENABLED = process.env.NIT_TUNNEL_SEO !== "0";
+
+/**
+ * Вау-слой (фирменный характер) для нейтральной ветки. Дефолт OFF —
+ * NIT_TUNNEL_WOW="1" включает. Тематические пресеты не трогает.
+ */
+const TUNNEL_WOW_ENABLED = process.env.NIT_TUNNEL_WOW === "1";
+
+/** Нейтральные пресеты, к которым применим вау-слой (у остальных свой характер). */
+function isNeutralPreset(id: StylePresetId): boolean {
+  return id === "generic" || id === "clean-saas";
+}
+
 export type TunnelPlanPrompt = { system: string; prompt: string };
 
 /**
