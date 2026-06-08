@@ -303,3 +303,43 @@ export function applyPremiumBaseLayer(html: string): string {
     : `${out}\n${REVEAL_SCRIPT}`;
   return out;
 }
+
+// ─── Вау-слой (фирменный характер для нейтральной ветки generic/clean-saas) ───
+//
+// Нейтральные пресеты намеренно монохромны, и слабая модель рисует пресный ч/б.
+// Этот слой добавляет фирменный характер по СТАБИЛЬНЫМ якорям, которые движок
+// ставит единообразно: data-nit-section (скелет), h1, eyebrow'ы (.text-accent),
+// скругления карточек, капсулы иконок. Применять ТОЛЬКО для нейтральной ветки —
+// тематические пресеты (dark-luxe/neon/bold-pop) имеют свой характер и вызваны
+// юзером явно. Идемпотентно. Перекраски токенов (#0a0a0a/bg-primary) самогасятся,
+// если промпт уже заставил модель задать акцентный primary нативно.
+
+const WOW_LAYER_STYLE = `<style id="nit-wow-layer">
+:root{--wow-a1:#6366f1;--wow-a2:#8b5cf6;--wow-a3:#d946ef;--wow-grad:linear-gradient(120deg,var(--wow-a1) 0%,var(--wow-a2) 52%,var(--wow-a3) 100%)}
+[data-nit-section="hero"]{background:radial-gradient(58% 52% at 12% -8%,rgba(99,102,241,.20),transparent 60%),radial-gradient(50% 46% at 104% 0%,rgba(217,70,239,.16),transparent 58%),radial-gradient(60% 60% at 50% 120%,rgba(139,92,246,.12),transparent 60%),#fbfbff !important}
+[data-nit-section="hero"] h1{background:linear-gradient(118deg,#0b1020 0%,#4338ca 48%,#7c3aed 78%,#c026d3 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+p.text-accent{color:var(--wow-a1) !important}
+p.text-accent::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--wow-grad);margin-right:9px;vertical-align:middle;transform:translateY(-1px)}
+a.group:hover .text-accent,a:hover .text-accent{color:rgba(255,255,255,.92) !important}
+.text-primary{color:var(--wow-a1) !important}
+[class~="bg-black/5"]{background:var(--wow-grad) !important;color:#fff !important;box-shadow:0 10px 24px -8px rgba(99,102,241,.6) !important}
+[class~="bg-[#0a0a0a]"],[class~="bg-primary"]{background:var(--wow-grad) !important;border:none !important;color:#fff !important;box-shadow:0 14px 30px -10px rgba(99,102,241,.55) !important}
+[class~="bg-[#0a0a0a]"]:hover,[class~="bg-primary"]:hover{transform:translateY(-2px);box-shadow:0 20px 40px -10px rgba(124,58,237,.6) !important}
+.border-slate-200{border-color:rgba(99,102,241,.35) !important}
+.rounded-3xl{box-shadow:0 24px 60px -22px rgba(79,70,229,.40) !important;transition:transform .2s ease,box-shadow .25s ease}
+.rounded-3xl:hover{transform:translateY(-4px);box-shadow:0 34px 80px -22px rgba(124,58,237,.5) !important}
+.bg-muted{background:linear-gradient(180deg,#f6f5ff 0%,#fdfcff 100%) !important}
+[data-nit-section="programs"] .grid > *:nth-child(2){outline:2px solid rgba(124,58,237,.55);outline-offset:-2px;border-radius:24px;transform:translateY(-8px);box-shadow:0 40px 90px -30px rgba(124,58,237,.55) !important}
+::selection{background:rgba(124,58,237,.22)}
+</style>`;
+
+/**
+ * Накладывает вау-слой. Идемпотентно (повторный вызов — no-op). Вызывать ТОЛЬКО
+ * для нейтральных пресетов — решает caller (finalizeTunnelHtml).
+ */
+export function applyWowLayer(html: string): string {
+  if (html.includes('id="nit-wow-layer"')) return html;
+  return html.includes("</head>")
+    ? html.replace("</head>", `${WOW_LAYER_STYLE}\n</head>`)
+    : `${WOW_LAYER_STYLE}\n${html}`;
+}
