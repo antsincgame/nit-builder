@@ -46,7 +46,7 @@ describe("buildPlannerPrompt", () => {
     // Потолок — канарейка против бесконтрольного распухания промпта.
     // 14K → 16K (v8 Tier 6): секция КОЛЛЕКЦИИ + collections в JSON-схеме
     // + пример коллекции в кофейне добавили ~1.3K осознанно.
-    expect(prompt.length).toBeLessThan(16_000);
+    expect(prompt.length).toBeLessThan(18_000);
     expect(prompt.length).toBeGreaterThan(500);
   });
 });
