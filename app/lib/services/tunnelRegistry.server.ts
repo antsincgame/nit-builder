@@ -232,6 +232,30 @@ const stats = _state.stats;
 // ─── Tunnel management ────────────────────────────────────────────
 
 export function registerTunnel(conn: TunnelConnection): void {
+  // Kill stale connections: при нестабильной сети туннель переподключается,
+  // а старый WS умирает «тихо» (TCP полузакрыт) — его close-frame доходит
+  // только через ping-таймаут (до 30-60с). Всё это окно старое соединение
+  // висит в реестре, и getTunnelForUser может зароутить generate именно в
+  // него (least-busy: 0 pending) → ws.send уходит в мёртвый сокет, реальный
+  // туннель запроса НЕ видит, сайт висит в «Изучаем запрос». Поэтому при
+  // новом hello сразу закрываем прежние соединения того же устройства
+  // (per-device токен) либо того же юзера (legacy per-account токен).
+  const prior = tunnels.get(conn.userId) ?? [];
+  const stale = prior.filter((c) =>
+    conn.deviceId ? c.deviceId === conn.deviceId : true,
+  );
+  for (const c of stale) {
+    if (c.connectionId === conn.connectionId) continue;
+    try {
+      c.ws.close(4002, "Replaced by newer connection");
+    } catch {
+      // ws уже мёртв — unregisterTunnel ниже всё равно уберёт из реестра
+    }
+    // Синхронно фейлит pending этого соединения (TUNNEL_DISCONNECTED) и
+    // убирает его из реестра, не дожидаясь запоздалого close-события.
+    unregisterTunnel(c.connectionId);
+  }
+
   const existing = tunnels.get(conn.userId) ?? [];
   existing.push(conn);
   tunnels.set(conn.userId, existing);
