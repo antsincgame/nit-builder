@@ -709,14 +709,13 @@ export default function Home() {
                 className="nit-preview w-full h-full border-0 bg-white"
               />
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-[#71717A]">
-                <Loader2 size={32} className="text-emerald-400 animate-spin mb-5" />
-                <p className="text-sm text-[#A1A1AA]">{genLabel}</p>
-                <p className="text-xs text-[#71717A]/60 mt-2 max-w-[320px] text-center leading-relaxed">
-                  ИИ на вашем компьютере уже работает. Большие модели могут
-                  думать несколько минут — это нормально, прогресс идёт.
-                </p>
-              </div>
+              <GenerationStage
+                currentStep={currentStep}
+                tokens={genTokens}
+                chars={streamingChars}
+                seconds={elapsedSec}
+                templateName={templateName}
+              />
             )}
           </div>
         </div>
