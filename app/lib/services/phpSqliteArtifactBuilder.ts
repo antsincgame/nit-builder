@@ -646,7 +646,7 @@ ${rows}
 function buildIndexPhp(plan: Plan): string {
   const theme = storefrontTheme(plan);
   const appName = phpString(storefrontDisplayName(plan));
-  const headline = phpString(publicText(plan.hero_headline || plan.business_type, plan.business_type));
+  const headline = phpString(heroHeadline(plan));
   const subheadline = phpString(publicText(plan.hero_subheadline || plan.target_audience, isRu(plan) ? "Выберите предложение и оставьте заявку онлайн." : "Choose an offer and submit a request online."));
   const cta = phpString(theme === "food"
     ? (isRu(plan) ? "Добавить в заказ" : "Add to order")
