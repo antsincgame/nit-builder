@@ -522,7 +522,7 @@ describe("useGenerationFlow > handleWsEvent", () => {
     expect(result.current.loading).toBe(false);
     expect(result.current.currentStep).toBe("done");
     expect(result.current.chatMessages.at(-1)?.role).toBe("assistant");
-    expect(result.current.chatMessages.at(-1)?.text).toContain("Barbershop");
+    expect(result.current.chatMessages.at(-1)?.text).toContain("Собрал за");
 
     // saveToHistory должен получить именно тот prompt что юзер вводил
     expect(mockedSaveLocal).toHaveBeenCalledWith(
