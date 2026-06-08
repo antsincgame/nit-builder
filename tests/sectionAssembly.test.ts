@@ -130,3 +130,70 @@ describe("validateSectionHtml", () => {
     expect(v.issues.some((i) => i.includes("нет заголовка"))).toBe(true);
   });
 });
+
+describe("buildSectionPrompt", () => {
+  const ds = buildSectionDesignSystem(basePlan);
+
+  it("несёт тип бизнеса, дизайн-контракт и требование вернуть только секцию", () => {
+    const out = buildSectionPrompt(basePlan, "hero", ds);
+    expect(out).toContain("Кофейня");
+    expect(out).toContain("var(--primary)");
+    expect(out).toContain("<section");
+    expect(out).toContain(".container");
+    expect(out.toLowerCase()).toContain("только один");
+  });
+
+  it("hero включает заголовок и CTA из плана", () => {
+    const out = buildSectionPrompt(basePlan, "hero", ds);
+    expect(out).toContain("Лучший кофе в городе");
+    expect(out).toContain("Забронировать");
+  });
+
+  it("features подставляет key_benefits", () => {
+    const plan = {
+      ...basePlan,
+      key_benefits: [
+        { title: "Своя обжарка", description: "Жарим зёрна каждое утро" },
+        { title: "Завтраки", description: "С 8 утра" },
+        { title: "Wi-Fi", description: "Быстрый интернет для работы" },
+      ],
+    } as Plan;
+    const out = buildSectionPrompt(plan, "features", ds);
+    expect(out).toContain("Своя обжарка");
+    expect(out).toContain("Жарим зёрна каждое утро");
+  });
+
+  it("pricing подставляет тарифы с ценами и метит рекомендуемый", () => {
+    const plan = {
+      ...basePlan,
+      pricing_tiers: [
+        { name: "Базовый", price: "₽990", period: "в месяц", features: ["10 чашек"] },
+        { name: "Про", price: "₽1990", features: ["безлимит"], highlighted: true },
+      ],
+    } as Plan;
+    const out = buildSectionPrompt(plan, "Тарифы", ds);
+    expect(out).toContain("Базовый");
+    expect(out).toContain("₽990");
+    expect(out).toContain("рекомендуемый");
+  });
+
+  it("faq подставляет вопросы", () => {
+    const plan = {
+      ...basePlan,
+      faq: [{ question: "Есть ли веранда?", answer: "Да, открыта летом" }],
+    } as Plan;
+    const out = buildSectionPrompt(plan, "FAQ", ds);
+    expect(out).toContain("Есть ли веранда?");
+  });
+
+  it("неизвестная секция → общий бриф по бизнесу, не падает", () => {
+    const out = buildSectionPrompt(basePlan, "галерея-чего-то", ds);
+    expect(out).toContain("Кофейня");
+    expect(out).toContain("<section");
+  });
+
+  it("en → язык контента English", () => {
+    const out = buildSectionPrompt({ ...basePlan, language: "en" } as Plan, "hero", ds);
+    expect(out).toContain("English");
+  });
+});
