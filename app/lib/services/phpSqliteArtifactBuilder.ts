@@ -1356,81 +1356,402 @@ export function buildPhpSqliteArtifact(params: {
   };
 }
 
+type PreviewDbColumn = { name: string; type: string; key?: "pk" | "fk" };
+type PreviewDbTable = { name: string; purpose: string; columns: PreviewDbColumn[] };
+
+function previewDatabaseSchema(plan: Plan): PreviewDbTable[] {
+  const ru = isRu(plan);
+  return [
+    {
+      name: "admins",
+      purpose: ru ? "Администраторы панели" : "Panel admins",
+      columns: [
+        { name: "id", type: "INTEGER", key: "pk" },
+        { name: "email", type: "TEXT UNIQUE" },
+        { name: "password_hash", type: "TEXT" },
+        { name: "created_at", type: "TEXT" },
+      ],
+    },
+    {
+      name: "products",
+      purpose: ru ? "Каталог товаров и услуг" : "Catalog",
+      columns: [
+        { name: "id", type: "INTEGER", key: "pk" },
+        { name: "name", type: "TEXT" },
+        { name: "description", type: "TEXT" },
+        { name: "price", type: "REAL" },
+        { name: "sort_order", type: "INTEGER" },
+        { name: "is_active", type: "INTEGER" },
+        { name: "created_at", type: "TEXT" },
+      ],
+    },
+    {
+      name: "orders",
+      purpose: ru ? "Заказы и заявки" : "Orders and leads",
+      columns: [
+        { name: "id", type: "INTEGER", key: "pk" },
+        { name: "customer_name", type: "TEXT" },
+        { name: "customer_email", type: "TEXT" },
+        { name: "customer_phone", type: "TEXT" },
+        { name: "status", type: "TEXT" },
+        { name: "total", type: "REAL" },
+        { name: "created_at", type: "TEXT" },
+      ],
+    },
+    {
+      name: "order_items",
+      purpose: ru ? "Позиции заказов" : "Order line items",
+      columns: [
+        { name: "id", type: "INTEGER", key: "pk" },
+        { name: "order_id", type: "INTEGER", key: "fk" },
+        { name: "product_id", type: "INTEGER", key: "fk" },
+        { name: "name", type: "TEXT" },
+        { name: "qty", type: "INTEGER" },
+        { name: "price", type: "REAL" },
+      ],
+    },
+  ];
+}
+
+function renderStorefrontPreviewHtml(plan: Plan, manifestJson: string): string {
+  const ru = isRu(plan);
+  const theme = storefrontTheme(plan);
+  const products = productSeeds(plan);
+  const appName = storefrontDisplayName(plan);
+  const lang = plan.language || "ru";
+
+  const headline = publicText(plan.hero_headline || plan.business_type, plan.business_type);
+  const subheadline = publicText(
+    plan.hero_subheadline || plan.target_audience,
+    ru ? "Выберите предложение и оставьте заявку онлайн." : "Choose an offer and submit a request online.",
+  );
+  const cta =
+    theme === "food"
+      ? ru ? "Добавить в заказ" : "Add to order"
+      : publicText(plan.cta_primary || (ru ? "В корзину" : "Add to cart"), ru ? "Оформить заявку" : "Submit request");
+  const heroEyebrow =
+    theme === "beauty"
+      ? ru ? "Запись без предоплаты" : "Booking without prepayment"
+      : theme === "food"
+        ? ru ? "Меню, корзина и заказы без лишних звонков" : "Menu, cart, and orders"
+        : publicText(
+            plan.cta_microcopy || (ru ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply."),
+            ru ? "Без предоплаты. Ответ за 15 минут." : "No prepayment. Fast reply.",
+          );
+  const heroVisualTitle =
+    theme === "beauty"
+      ? ru ? "персональный уход" : "personal care"
+      : theme === "food"
+        ? ru ? "кофе и десерты" : "coffee and desserts"
+        : ru ? "подбор предложения" : "tailored offer";
+  const heroVisualMetric =
+    theme === "beauty"
+      ? ru ? "мастера и услуги" : "masters and services"
+      : theme === "food"
+        ? ru ? "позиций меню" : "menu items"
+        : ru ? "активные предложения" : "active offers";
+  const catalogHeading =
+    theme === "beauty"
+      ? ru ? "Выберите формат визита" : "Choose your visit"
+      : theme === "food"
+        ? ru ? "Меню напитков и десертов" : "Coffee and dessert menu"
+        : ru ? "Витрина предложений" : "Offer showcase";
+  const benefitsHeading =
+    theme === "beauty"
+      ? ru ? "Сервис ощущается ещё до визита" : "Service felt before the visit"
+      : theme === "food"
+        ? ru ? "Заказ проходит быстро и понятно" : "Ordering is fast and clear"
+        : ru ? "Понятный путь к заявке" : "A clear path to a request";
+  const trustOne = publicText(
+    plan.social_proof_line || (ru ? "Более 500 заказов и заявок" : "500+ orders and leads"),
+    ru ? "Более 500 заявок" : "500+ requests",
+  );
+  const trustTwo = publicText(
+    plan.hours_text || (ru ? "Онлайн-заявки 24/7" : "Online requests 24/7"),
+    ru ? "Онлайн-заявки 24/7" : "Online requests 24/7",
+  );
+  const brandTagline =
+    theme === "food"
+      ? ru ? "кофе · десерты · заказы" : "coffee · desserts · orders"
+      : ru ? "онлайн-витрина" : "online storefront";
+  const contactLine = publicText(
+    plan.contact_phone || plan.contact_email || (ru ? "Ответим в течение дня" : "We reply within a day"),
+    ru ? "Ответим в течение дня" : "We reply within a day",
+  );
+
+  const benefits = plan.key_benefits?.length
+    ? plan.key_benefits
+    : [
+        { title: ru ? "Быстрый ответ" : "Fast reply", description: ru ? "Заявка сразу уходит менеджеру." : "The request is sent immediately." },
+        { title: ru ? "Понятные предложения" : "Clear offers", description: ru ? "Видно состав и цену, легко выбрать." : "Each offer has a clear scope and price." },
+        { title: ru ? "Удобная запись" : "Easy booking", description: ru ? "Оформление занимает меньше минуты." : "The request takes under a minute." },
+      ];
+  const faqs = plan.faq?.length
+    ? plan.faq
+    : [
+        { question: ru ? "Как быстро вы отвечаете?" : "How fast do you reply?", answer: ru ? "Обычно в течение 15 минут в рабочее время." : "Usually within 15 minutes." },
+        { question: ru ? "Нужна ли предоплата?" : "Do I need to prepay?", answer: ru ? "Можно оставить заявку без предоплаты." : "You can submit a request without prepayment." },
+        { question: ru ? "Можно изменить заявку?" : "Can I change my request?", answer: ru ? "Да, менеджер уточнит детали." : "Yes, the manager confirms details." },
+      ];
+  const reviews = [
+    { name: ru ? "Анна" : "Anna", text: ru ? "Оставила заявку утром, быстро согласовали время и услугу." : "Sent a request in the morning, quickly agreed on time." },
+    { name: ru ? "Мария" : "Maria", text: ru ? "Удобно выбирать пакет: видно, что входит и сколько стоит." : "Packages are easy to compare." },
+    { name: ru ? "Елена" : "Elena", text: ru ? "После заявки менеджер написал почти сразу." : "The manager replied almost immediately." },
+  ];
+  const showcaseTitle =
+    theme === "beauty"
+      ? ru ? "Атмосфера, мастер и запись в одном сценарии" : "Atmosphere, master and booking in one flow"
+      : theme === "food"
+        ? ru ? "От витрины меню до готового заказа" : "From menu to ready order"
+        : ru ? "Как устроен путь клиента" : "How the customer journey works";
+  const showcaseLead =
+    theme === "beauty"
+      ? ru ? "Сайт передаёт ощущение салона: спокойствие, аккуратность и быстрый контакт." : "The site conveys the salon feel."
+      : theme === "food"
+        ? ru ? "Гость выбирает напитки и десерты и оставляет заказ без звонка." : "Guests pick drinks and order without a call."
+        : ru ? "Показываем предложение, помогаем выбрать и сохраняем заявку." : "Show the offer, help choose, save the request.";
+  const showcaseItems =
+    theme === "beauty"
+      ? [
+          { title: ru ? "Атмосфера" : "Atmosphere", text: ru ? "Мягкая подача помогает почувствовать уровень сервиса." : "Soft visuals convey the service level." },
+          { title: ru ? "Мастера" : "Masters", text: ru ? "Пакеты оформлены так, чтобы видеть разницу." : "Packages make the difference clear." },
+          { title: ru ? "Запись" : "Booking", text: ru ? "Заявка без лишних полей сразу в работе." : "A lean request goes straight to work." },
+        ]
+      : theme === "food"
+        ? [
+            { title: ru ? "Меню" : "Menu", text: ru ? "Позиции выглядят как настоящие напитки и десерты." : "Items look like real drinks and desserts." },
+            { title: ru ? "Корзина" : "Cart", text: ru ? "Гость собирает заказ и видит сумму." : "Guests build an order and see the total." },
+            { title: ru ? "Админка" : "Admin", text: ru ? "Владелец меняет цены и статусы без программиста." : "The owner edits prices and statuses." },
+          ]
+        : [
+            { title: ru ? "Выбор" : "Choose", text: ru ? "Клиент сравнивает предложения без шума." : "Compare offers without noise." },
+            { title: ru ? "Заявка" : "Request", text: ru ? "Форма собирает контакты и фиксирует заказ." : "The form captures contacts and the order." },
+            { title: ru ? "Статус" : "Status", text: ru ? "Администратор ведёт заявку по статусам." : "The admin moves it through statuses." },
+          ];
+
+  const tables = previewDatabaseSchema(plan);
+
+  const productsHtml = products
+    .map(
+      (p) => `      <article class="product">
+        <div class="product-art" aria-hidden="true"><span></span><i></i><b></b></div>
+        <div class="product-body">
+          <h2>${esc(p.name)}</h2>
+          <p>${esc(p.features.join(" · "))}</p>
+          <strong>${esc(p.price)}</strong>
+          <button type="button">${esc(cta)}</button>
+        </div>
+      </article>`,
+    )
+    .join("\n");
+
+  const showcaseHtml = showcaseItems
+    .map(
+      (item, i) => `      <article class="showcase-card"><span>0${i + 1}</span><h3>${esc(item.title)}</h3><p>${esc(item.text)}</p></article>`,
+    )
+    .join("\n");
+
+  const benefitsHtml = benefits
+    .map(
+      (b) => `      <article class="benefit-card"><span></span><h3>${esc(b.title)}</h3><p>${esc(b.description)}</p></article>`,
+    )
+    .join("\n");
+
+  const reviewsHtml = reviews
+    .map(
+      (r) => `      <article class="review-card"><div class="review-avatar">${esc(r.name.slice(0, 1))}</div><div><div class="stars">★★★★★</div><p>${esc(r.text)}</p><strong>${esc(r.name)}</strong></div></article>`,
+    )
+    .join("\n");
+
+  const faqHtml = faqs
+    .map((f) => `      <article><h3>${esc(f.question)}</h3><p>${esc(f.answer)}</p></article>`)
+    .join("\n");
+
+  const adminProductsHtml = products
+    .map(
+      (p) => `        <details class="product-editor"><summary class="product-summary"><span class="summary-title">${esc(p.name)}</span><span class="summary-price">${esc(p.price)}</span><span class="summary-status on">${ru ? "активна" : "active"}</span><span class="summary-action">${ru ? "Редактировать" : "Edit"}</span></summary></details>`,
+    )
+    .join("\n");
+
+  const dbTablesHtml = tables
+    .map(
+      (t) => `      <div class="db-table">
+        <div class="db-table-head"><h3>${esc(t.name)}</h3><span>${esc(t.purpose)}</span></div>
+        <ul class="db-cols">
+${t.columns
+  .map(
+    (c) => `          <li><span class="db-col-name">${esc(c.name)}</span><span class="db-col-meta"><span class="db-col-type">${esc(c.type)}</span>${c.key === "pk" ? `<span class="db-key">PK</span>` : c.key === "fk" ? `<span class="db-key fk">FK</span>` : ""}</span></li>`,
+  )
+  .join("\n")}
+        </ul>
+      </div>`,
+    )
+    .join("\n");
+
+  const tabStore = ru ? "Витрина" : "Storefront";
+  const tabAdmin = ru ? "Админка" : "Admin";
+  const tabDb = ru ? "База данных" : "Database";
+
+  const chromeCss = `
+body{padding:0}
+.nit-view-radio{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.preview-switch{position:sticky;top:0;z-index:60;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:14px;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(22px);border-bottom:1px solid var(--line)}
+.preview-switch label{cursor:pointer;font-weight:900;font-size:13px;letter-spacing:.02em;padding:10px 20px;border-radius:999px;border:1px solid var(--line);color:var(--muted);background:color-mix(in srgb,var(--card) 60%,transparent);transition:all .15s}
+.preview-switch label:hover{color:var(--ink)}
+#nit-view-store:checked~.preview-switch label[for="nit-view-store"],#nit-view-admin:checked~.preview-switch label[for="nit-view-admin"],#nit-view-db:checked~.preview-switch label[for="nit-view-db"]{color:#fff;background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 72%,#fff));border-color:transparent;box-shadow:0 12px 30px color-mix(in srgb,var(--accent) 24%,transparent)}
+.preview-pane{display:none}
+#nit-view-store:checked~.pane-store,#nit-view-admin:checked~.pane-admin,#nit-view-db:checked~.pane-db{display:block}
+.preview-pane .topbar{position:static}
+.preview-pane .page-shell{min-height:auto}
+.db-wrap{width:min(1180px,88vw);margin:0 auto;padding:52px 0 84px}
+.db-head{margin-bottom:28px}
+.db-head h1{font-size:clamp(40px,6vw,72px);letter-spacing:-.06em;line-height:.92;margin:14px 0 12px}
+.db-head p{max-width:680px}
+.db-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.db-table{background:var(--card);border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:var(--shadow)}
+.db-table-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.db-table-head h3{margin:0;font-size:18px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--accent)}
+.db-table-head span{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.07em;text-align:right}
+.db-cols{list-style:none;margin:0;padding:8px}
+.db-cols li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-radius:12px}
+.db-cols li+li{border-top:1px solid var(--soft)}
+.db-col-name{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:800;font-size:14px}
+.db-col-meta{display:flex;align-items:center;gap:8px}
+.db-col-type{font-size:12px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.db-key{font-size:10px;font-weight:900;letter-spacing:.05em;border-radius:999px;padding:3px 8px;background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.db-key.fk{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+.db-foot{margin-top:20px}
+`;
+
+  return `<!DOCTYPE html>
+<html lang="${esc(lang)}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${esc(appName)}</title>
+<style>
+${buildStyleCss(plan)}
+${chromeCss}
+</style>
+</head>
+<body class="theme-${esc(theme)} nit-preview">
+<input class="nit-view-radio" type="radio" name="nit-view" id="nit-view-store" checked>
+<input class="nit-view-radio" type="radio" name="nit-view" id="nit-view-admin">
+<input class="nit-view-radio" type="radio" name="nit-view" id="nit-view-db">
+<div class="preview-switch">
+  <label for="nit-view-store">${esc(tabStore)}</label>
+  <label for="nit-view-admin">${esc(tabAdmin)}</label>
+  <label for="nit-view-db">${esc(tabDb)}</label>
+</div>
+
+<div class="preview-pane pane-store"><div class="page-shell">
+  <header class="topbar"><div class="topbar-inner">
+    <a class="brand" href="#"><span class="brand-mark"></span><span class="brand-copy"><strong>${esc(appName)}</strong><small>${esc(brandTagline)}</small></span></a>
+    <nav class="nav-pill"><a class="active" href="#">${ru ? "Главная" : "Home"}</a><a href="#catalog">${ru ? "Каталог" : "Catalog"}</a><a href="#catalog">${ru ? "Корзина" : "Cart"}</a></nav>
+    <div class="top-actions"><span class="runtime-chip">${esc(contactLine)}</span><a class="top-cta" href="#catalog">${ru ? "Оформить заказ" : "Order"}</a></div>
+  </div></header>
+  <main>
+    <section class="store-hero">
+      <div class="hero-copy">
+        <p class="kicker">${esc(heroEyebrow)}</p>
+        <h1>${esc(headline)}</h1>
+        <p>${esc(subheadline)}</p>
+        <div class="hero-actions"><a class="hero-btn" href="#catalog">${esc(cta)}</a><a class="hero-link" href="#catalog">${ru ? "Посмотреть предложения" : "See offers"}</a></div>
+      </div>
+      <div class="hero-visual">
+        <div class="visual-photo"><span>${esc(heroVisualTitle)}</span></div>
+        <div class="visual-card main"><span>${ru ? "Доступно" : "Available"}</span><strong>${products.length}</strong><small>${esc(heroVisualMetric)}</small></div>
+        <div class="visual-card floating one">${ru ? "Ответ 15 мин" : "Reply 15 min"}</div>
+        <div class="visual-card floating two">${ru ? "Без предоплаты" : "No prepay"}</div>
+      </div>
+    </section>
+    <section class="trust-strip">
+      <article><strong>${esc(trustOne)}</strong><span>${ru ? "социальное доказательство" : "social proof"}</span></article>
+      <article><strong>${esc(trustTwo)}</strong><span>${ru ? "режим обработки" : "processing"}</span></article>
+      <article><strong>${ru ? "Безопасное оформление" : "Secure checkout"}</strong><span>${ru ? "заявка сохраняется сразу" : "saved instantly"}</span></article>
+    </section>
+    <section class="catalog-head" id="catalog"><div><p class="eyebrow">${ru ? "Витрина" : "Showcase"}</p><h2>${esc(catalogHeading)}</h2></div><p class="muted">${ru ? "Выберите предложение и оставьте заявку за пару кликов." : "Pick an offer and submit a request in a couple of clicks."}</p></section>
+    <section class="products">
+${productsHtml}
+    </section>
+    <section class="showcase-section">
+      <div class="showcase-copy"><p class="eyebrow">${ru ? "Опыт клиента" : "Experience"}</p><h2>${esc(showcaseTitle)}</h2><p>${esc(showcaseLead)}</p></div>
+      <div class="showcase-grid">
+${showcaseHtml}
+      </div>
+    </section>
+    <section class="benefits-section">
+      <div class="section-kicker"><p class="eyebrow">${ru ? "Почему удобно" : "Why"}</p><h2>${esc(benefitsHeading)}</h2></div>
+      <div class="benefit-grid">
+${benefitsHtml}
+      </div>
+    </section>
+    <section class="reviews-section">
+      <div class="section-kicker"><p class="eyebrow">${ru ? "Отзывы" : "Reviews"}</p><h2>${ru ? "Приходят за понятным сервисом" : "People come for clear service"}</h2></div>
+      <div class="review-grid">
+${reviewsHtml}
+      </div>
+    </section>
+    <section class="proof-section">
+      <div><p class="eyebrow">${ru ? "Вопросы перед заявкой" : "Before you ask"}</p><h2>${ru ? "Ответы, которые снимают сомнения" : "Answers that remove doubts"}</h2></div>
+      <div class="faq-grid">
+${faqHtml}
+      </div>
+    </section>
+  </main>
+  <footer>${esc(appName)} · ${theme === "food" ? (ru ? "меню, корзина и заказы" : "menu, cart and orders") : ru ? "онлайн-витрина и заявки" : "storefront and requests"}</footer>
+</div></div>
+
+<div class="preview-pane pane-admin"><div class="page-shell">
+  <header class="topbar admin-topbar"><div class="topbar-inner">
+    <a class="brand" href="#"><span class="brand-mark"></span><span class="brand-copy"><strong>${esc(appName)}</strong><small>${ru ? "панель управления" : "control room"}</small></span></a>
+    <nav class="nav-pill admin-nav"><a href="#">${ru ? "На сайт" : "Site"}</a><a href="#">${ru ? "Выйти" : "Logout"}</a></nav>
+  </div></header>
+  <main>
+    <section class="admin-hero"><div><p class="kicker">Admin dashboard</p><h1>${ru ? "Управление проектом" : "Project control room"}</h1><p class="muted">${ru ? "Каталог, заявки, заказы и статусы в одном месте." : "Catalog, leads, orders and statuses in one place."}</p></div><a class="admin-logout" href="#">${ru ? "Выйти" : "Logout"}</a></section>
+    <section class="admin-stats">
+      <article><span>${ru ? "Позиции" : "Items"}</span><strong>${products.length}</strong></article>
+      <article><span>${ru ? "Активных" : "Active"}</span><strong>${products.length}</strong></article>
+      <article><span>${ru ? "Заказы" : "Orders"}</span><strong>0</strong></article>
+      <article><span>${ru ? "Оборот" : "Revenue"}</span><strong>0.00</strong></article>
+    </section>
+    <section class="admin-grid">
+      <div class="panel admin-products">
+        <div class="section-title"><div><p class="eyebrow">${ru ? "Каталог" : "Catalog"}</p><h2>${ru ? "Позиции" : "Items"}</h2></div><span class="badge">${products.length} active</span></div>
+        <div class="product-list">
+${adminProductsHtml}
+        </div>
+      </div>
+      <div class="panel admin-orders">
+        <div class="section-title"><div><p class="eyebrow">Orders</p><h2>${ru ? "Заказы" : "Orders"}</h2></div><span class="badge">0 total</span></div>
+        <p class="empty">${ru ? "Заказов пока нет. Они появятся здесь после первой заявки из корзины." : "No orders yet. They appear after the first checkout."}</p>
+      </div>
+    </section>
+  </main>
+  <footer>${esc(appName)} · ${ru ? "защищённая админка" : "secure admin"}</footer>
+</div></div>
+
+<div class="preview-pane pane-db"><div class="page-shell">
+  <div class="db-wrap">
+    <div class="db-head"><p class="kicker">SQLite · ${tables.length} ${ru ? "таблицы" : "tables"}</p><h1>${ru ? "База данных" : "Database"}</h1><p class="muted">${ru ? "Структура создаётся автоматически при первом запуске. PDO prepared statements, внешние ключи и каскады уже настроены." : "Schema is created automatically on first run. PDO prepared statements and foreign keys are configured."}</p></div>
+    <div class="db-grid">
+${dbTablesHtml}
+    </div>
+    <p class="db-foot muted">${ru ? "Демо-вход в админку: admin@example.com / admin123 — смените перед продакшеном." : "Demo admin: admin@example.com / admin123 — change before production."}</p>
+  </div>
+</div></div>
+
+<script id="nit-artifact-manifest" type="application/json">${manifestJson}</script>
+</body>
+</html>`;
+}
+
 export function renderPhpSqliteArtifactPreview(params: {
   artifact: PhpSqliteArtifact;
   plan: Plan;
   userMessage: string;
 }): string {
-  const { artifact, plan, userMessage } = params;
-  const title = `${plan.business_type}: PHP + SQLite backend`;
-  const subtitle =
-    plan.hero_subheadline ||
-    plan.target_audience ||
-    userMessage;
-  const files = artifact.files
-    .map((file) => `<li><code>${esc(file.path)}</code><span>${esc(String(file.content.length))} chars</span></li>`)
-    .join("");
-  const notes = artifact.notes.map((note) => `<li>${esc(note)}</li>`).join("");
+  const { artifact, plan } = params;
   const manifestJson = JSON.stringify(artifact).replace(/</g, "\\u003c");
-  const projectSlug = slug(plan.business_type);
-
-  return `<!DOCTYPE html>
-<html lang="${esc(plan.language || "ru")}">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${esc(title)} · NIT backend artifact</title>
-<style>
-:root{--bg:#080b12;--panel:#101624;--ink:#f7f8fb;--muted:#9aa4b2;--accent:#5eead4;--line:rgba(255,255,255,.12);--warn:#fbbf24}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,rgba(94,234,212,.18),transparent 32%),#080b12;color:var(--ink);font-family:Inter,system-ui,sans-serif;line-height:1.55}
-main{width:min(1180px,90vw);margin:0 auto;padding:48px 0 70px}.hero{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;align-items:stretch;margin-bottom:24px}
-.card{background:color-mix(in srgb,var(--panel) 92%,transparent);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 30px 100px rgba(0,0,0,.28)}
-.kicker{display:inline-flex;color:var(--accent);border:1px solid var(--line);border-radius:999px;padding:8px 12px;font-size:13px}h1{font-size:clamp(42px,7vw,82px);line-height:.92;letter-spacing:-.06em;margin:22px 0}p{color:var(--muted);font-size:17px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:24px 0}.stat b{display:block;font-size:32px;color:var(--accent)}.stat span{color:var(--muted);font-size:13px}
-ul.files{list-style:none;padding:0;margin:0;display:grid;gap:10px}.files li{display:flex;justify-content:space-between;gap:16px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:rgba(255,255,255,.03)}code{color:var(--accent)}.terminal{background:#020617;border-radius:20px;padding:20px;border:1px solid var(--line);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#d1fae5;overflow:auto}.badge{display:inline-flex;background:rgba(251,191,36,.12);color:var(--warn);border:1px solid rgba(251,191,36,.28);border-radius:999px;padding:6px 10px;font-size:12px}.notes{display:grid;gap:8px;color:var(--muted)}.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}.btn{border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--ink);text-decoration:none}.btn.primary{background:var(--accent);color:#06211e;font-weight:900}
-@media(max-width:860px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
-</style>
-</head>
-<body>
-<main>
-  <section class="hero">
-    <div class="card">
-      <span class="kicker">NIT backend artifact · PHP + SQLite</span>
-      <h1>${esc(title)}</h1>
-      <p>${esc(subtitle)}</p>
-      <div class="grid">
-        <div class="stat"><b>${artifact.files.length}</b><span>files</span></div>
-        <div class="stat"><b>SQLite</b><span>default DB</span></div>
-        <div class="stat"><b>CRUD</b><span>products admin</span></div>
-        <div class="stat"><b>PDO</b><span>prepared SQL</span></div>
-      </div>
-      <div class="actions">
-        <a class="btn primary" href="#manifest">View manifest</a>
-        <a class="btn" href="#run">Run command</a>
-      </div>
-    </div>
-    <div class="card">
-      <span class="badge">Payments: hosted checkout adapter point</span>
-      <h2>Generated app surface</h2>
-      <ul class="notes">${notes}</ul>
-    </div>
-  </section>
-  <section class="card">
-    <h2>Project files</h2>
-    <ul class="files">${files}</ul>
-  </section>
-  <section class="card" id="run" style="margin-top:24px">
-    <h2>Run locally</h2>
-    <div class="terminal">mkdir ${esc(projectSlug)} && cd ${esc(projectSlug)}
-# write files from the embedded manifest, then:
-php -S localhost:8080 -t public</div>
-  </section>
-  <section class="card" id="manifest" style="margin-top:24px">
-    <h2>Embedded artifact manifest</h2>
-    <p>The generated PHP project is embedded below for export/download tooling.</p>
-    <script id="nit-artifact-manifest" type="application/json">${manifestJson}</script>
-    <div class="terminal">window.NIT_ARTIFACT_KIND = "php-sqlite-app"</div>
-  </section>
-</main>
-</body>
-</html>`;
+  return renderStorefrontPreviewHtml(plan, manifestJson);
 }
