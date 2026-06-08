@@ -805,6 +805,42 @@ export function handleTunnelResponse(
             break;
           }
 
+          // Посекционный режим (опц., классы S/M): дробим сайт на секции
+          // вместо монолитного HTML. tier!=="L" — L идёт bespoke artifact,
+          // ему дробление не нужно (и resolution.system был бы artifact-
+          // промптом, не coder). Строго opt-in через NIT_TUNNEL_SECTIONS.
+          if (
+            TUNNEL_SECTIONS_ENABLED &&
+            tier !== "L" &&
+            plan.sections.length >= SECTION_MIN_COUNT
+          ) {
+            const design = buildSectionDesignSystem(plan);
+            const flow = initSectionFlow(plan, design);
+            const first = startSectionFlow(flow);
+            if (first.kind === "generate") {
+              req.sectionFlow = flow;
+              req.phase = "sections";
+              req.presetId = resolution.presetId;
+              req.accumulatedHtml = "";
+              req.continuationAttempts = 0;
+              req.currentStep = "code";
+              sendToBrowser(browser.ws, { type: "generate_step", requestId, step: "code" });
+              tunnel.ws.send(
+                JSON.stringify({
+                  type: "generate",
+                  requestId,
+                  system: first.system,
+                  prompt: first.prompt,
+                  maxOutputTokens: SECTION_MAX_TOKENS,
+                  temperature: req.temperature ?? 0.4,
+                } satisfies ServerToTunnel),
+              );
+              return; // ждём done первой секции
+            }
+            // first.kind==="done" (секций нет) маловероятно при length>=MIN —
+            // безопасно проваливаемся в обычный coder ниже.
+          }
+
           req.phase = "code";
           req.presetId = resolution.presetId;
           // Бюджет токенов фазы кодера/continuation — по классу модели:
