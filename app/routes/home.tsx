@@ -136,22 +136,29 @@ export default function Home() {
     if (mode === "generating") setMobileTab("preview");
   }, [mode]);
 
-  // Устойчивость к обрыву во время генерации: если control-сокет потерял
-  // связь (сеть моргнула) и не восстановился за несколько секунд, серверная
-  // сессия уже потеряна и финальное событие не придёт — не виснем в
-  // «Изучаем запрос…» бесконечно, а сбрасываем и просим повторить. При
-  // нормальной генерации socket.status === "authed", эффект не срабатывает.
+  // Устойчивость к обрыву во время генерации. Сеть могла моргнуть — NIT
+  // Tunnel и control-сокет переподключаются сами (туннель ретраит ~60с),
+  // поэтому даём щедрый grace: если за это время связь вернулась, генерация
+  // продолжится и финальное событие придёт. Если нет — не виснем молча и не
+  // делаем грубый reset (он раньше и «выкидывал» работу), а прогоняем тот же
+  // путь, что серверный обрыв: спасаем накопленный HTML (если успели собрать)
+  // и предлагаем «Повторить». При нормальной генерации socket.status ===
+  // "authed", эффект не срабатывает.
   useEffect(() => {
     if (mode !== "generating") return;
     if (socket.status === "authed") return;
     const t = setTimeout(() => {
       if (socketRef.current?.status !== "authed") {
-        reset();
-        toast.error("Соединение прервалось во время генерации. Повтори запрос.");
+        handleWsEvent({
+          type: "generate_error",
+          requestId: "",
+          error: "Соединение потеряно",
+          code: "TUNNEL_DISCONNECTED",
+        });
       }
-    }, 8000);
+    }, 45000);
     return () => clearTimeout(t);
-  }, [mode, socket.status, reset]);
+  }, [mode, socket.status, handleWsEvent]);
 
   const handleOpenEntry = useCallback(
     (entry: Parameters<typeof openFromHistory>[0]) => {
