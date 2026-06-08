@@ -262,6 +262,8 @@ export function useGenerationFlow(
   const sessionIdRef = useRef<string | undefined>(undefined);
   const activeRequestIdRef = useRef<string | null>(null);
   const pendingHtmlRef = useRef<string>("");
+  // Стиль последней генерации — для повтора с тем же пресетом.
+  const lastStyleRef = useRef<StylePresetId | undefined>(undefined);
   const rafIdRef = useRef<number | null>(null);
   const abortCtrlRef = useRef<AbortController | null>(null);
 
