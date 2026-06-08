@@ -84,6 +84,13 @@ const RETRIEVAL_TIMEOUT_MS = 4000;
  */
 const TUNNEL_ARTIFACT_ENABLED = process.env.NIT_TUNNEL_ARTIFACT !== "0";
 
+/**
+ * Детерминированный премиум-слой (база красоты) поверх любого вывода. На него
+ * сильнее всего опираются слабые модели (7-9B). NIT_TUNNEL_POLISH="0" —
+ * отключить (мгновенный откат без релиза).
+ */
+const TUNNEL_POLISH_ENABLED = process.env.NIT_TUNNEL_POLISH !== "0";
+
 export type TunnelPlanPrompt = { system: string; prompt: string };
 
 /**
