@@ -55,3 +55,74 @@ describe("postPolishHtml", () => {
     expect(result.html).not.toContain("nit-post-polish-style");
   });
 });
+
+const SEO_PLAN: Plan = {
+  ...PLAN,
+  business_type: "Кофейня в Гродно",
+  hero_headline: "Свежая обжарка каждое утро",
+  hero_subheadline: "Спешелти-кофейня в центре Гродно: своя обжарка, сезонное меню, уютный зал.",
+  keywords: ["кофейня гродно", "спешелти кофе"],
+  contact_phone: "+375 (29) 123-45-67",
+  contact_address: "Гродно, ул. Советская 10",
+  faq: [
+    { question: "Есть ли веранда?", answer: "Да, открыта с мая по сентябрь." },
+    { question: "Можно с ноутбуком?", answer: "Конечно, есть розетки и быстрый Wi-Fi." },
+    { question: "Делаете навынос?", answer: "Да, весь ассортимент доступен навынос." },
+  ],
+};
+
+describe("applySeoHead", () => {
+  it("вставляет description, OpenGraph и JSON-LD из плана", () => {
+    const html = "<html><head><title>Кофейня</title></head><body><h1>Привет</h1></body></html>";
+    const out = applySeoHead(html, SEO_PLAN);
+    expect(out).toContain('name="description"');
+    expect(out).toContain('property="og:title"');
+    expect(out).toContain("application/ld+json");
+    expect(out).toContain('"@type":"Organization"');
+  });
+
+  it("включает FAQPage и LocalBusiness когда есть faq и адрес", () => {
+    const html = "<html><head><title>X</title></head><body></body></html>";
+    const out = applySeoHead(html, SEO_PLAN);
+    expect(out).toContain('"@type":"FAQPage"');
+    expect(out).toContain('"@type":"LocalBusiness"');
+  });
+
+  it("идемпотентен — повторный вызов не дублирует SEO-голову", () => {
+    const html = "<html><head><title>X</title></head><body></body></html>";
+    const once = applySeoHead(html, SEO_PLAN);
+    const twice = applySeoHead(once, SEO_PLAN);
+    expect(twice).toBe(once);
+  });
+
+  it("не перетирает description, который уже задан моделью", () => {
+    const html =
+      '<html><head><title>X</title><meta name="description" content="ручное описание"></head><body></body></html>';
+    const out = applySeoHead(html, SEO_PLAN);
+    expect(out).toContain("ручное описание");
+    expect(out.match(/name="description"/g)?.length).toBe(1);
+  });
+
+  it("заполняет пустой alt бизнес-контекстом, не трогая непустые", () => {
+    const html =
+      '<html><head><title>X</title></head><body><img src="a.jpg" alt=""><img src="b.jpg" alt="готовый"></body></html>';
+    const out = applySeoHead(html, SEO_PLAN);
+    expect(out).toContain('alt="Кофейня в Гродно"');
+    expect(out).toContain('alt="готовый"');
+  });
+});
+
+describe("applyWowLayer", () => {
+  it("вставляет вау-слой по маркеру", () => {
+    const html = "<html><head></head><body></body></html>";
+    const out = applyWowLayer(html);
+    expect(out).toContain('id="nit-wow-layer"');
+  });
+
+  it("идемпотентен — повторный вызов не дублирует слой", () => {
+    const html = "<html><head></head><body></body></html>";
+    const once = applyWowLayer(html);
+    const twice = applyWowLayer(once);
+    expect(twice).toBe(once);
+  });
+});
