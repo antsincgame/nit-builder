@@ -199,6 +199,8 @@ const TUNNEL_MAX_CONTINUATIONS = (() => {
 // NIT_TUNNEL_SECTIONS="1" включает. По умолчанию ВЫКЛ — поток генерации
 // остаётся прежним (двухфазный plan→code), прод не затронут. Активен только
 // для классов S/M (L идёт bespoke artifact, ему дробление не нужно).
+// Прод nitgen.org: флаг ВКЛЮЧЁН (NIT_TUNNEL_SECTIONS=1 в env Coolify) —
+// обкатка посекционного режима на рабочей модели; откат = снять переменную.
 const TUNNEL_SECTIONS_ENABLED = process.env.NIT_TUNNEL_SECTIONS === "1";
 /** Ретраи одной секции при провале валидатора/обрыве (потом берём что есть). */
 const SECTION_MAX_RETRIES = 1;
