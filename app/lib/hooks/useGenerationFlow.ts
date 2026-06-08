@@ -557,6 +557,14 @@ export function useGenerationFlow(
         return;
       }
 
+      if (currentAuth.status === "authenticated" && currentSocket.status !== "authed") {
+        const msg = "Соединение с сервером восстанавливается — повтори через пару секунд.";
+        setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
+        setLoading(false);
+        toast.error(msg);
+        return;
+      }
+
       if (
         currentAuth.status === "authenticated" &&
         currentSocket.status === "authed" &&
