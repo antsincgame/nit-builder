@@ -303,6 +303,21 @@ describe("phpSqliteArtifactBuilder", () => {
       const index = artifact.files.find((f) => f.path === "public/index.php")?.content ?? "";
       expect(index).toContain("<?php");
     }
+
+    // промпт-образный business_type/headline не должен утекать в H1 как есть
+    const promptyPlan = v({
+      business_type: "Сделай сайт магазина рыбалки для рыбаков. Каталог снастей и доставка по стране.",
+      hero_headline: "Сделай сайт магазина рыбалки для рыбаков с большим каталогом снастей удочек катушек приманок и быстрой доставкой по всей стране без выходных и предоплаты",
+      keywords: ["снасти", "доставка", "каталог"],
+      color_mood: "warm-pastel",
+    });
+    const promptyHtml = renderPhpSqliteArtifactPreview({
+      artifact: buildPhpSqliteArtifact({ plan: promptyPlan, userMessage: "backend" }),
+      plan: promptyPlan,
+      userMessage: "backend",
+    });
+    expect(promptyHtml).not.toContain("<h1>Сделай сайт");
+    expect(promptyHtml).toContain('id="nit-artifact-manifest"');
   });
 
   it("can materialize the generated project as real files on disk", async () => {
