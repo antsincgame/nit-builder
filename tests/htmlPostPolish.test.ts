@@ -1,6 +1,6 @@
 // Verifies deterministic post-polish fixes common generated HTML failures.
 import { describe, expect, it } from "vitest";
-import { postPolishHtml } from "~/lib/services/htmlPostPolish";
+import { applySeoHead, applyWowLayer, postPolishHtml } from "~/lib/services/htmlPostPolish";
 import type { Plan } from "~/lib/utils/planSchema";
 
 const PLAN: Plan = {
