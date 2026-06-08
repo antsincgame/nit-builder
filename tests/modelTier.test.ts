@@ -135,7 +135,7 @@ describe("tierProfile — профиль поведения", () => {
   it("S → coder, скромный бюджет, тяжёлая обвязка", () => {
     const p = tierProfile("S");
     expect(p.approach).toBe("coder");
-    expect(p.codeMaxTokens).toBe(8_000);
+    expect(p.codeMaxTokens).toBe(16_000);
     expect(p.heavyHarness).toBe(true);
   });
 
