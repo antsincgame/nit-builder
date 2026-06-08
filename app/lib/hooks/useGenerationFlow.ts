@@ -262,6 +262,10 @@ export function useGenerationFlow(
   const sessionIdRef = useRef<string | undefined>(undefined);
   const activeRequestIdRef = useRef<string | null>(null);
   const pendingHtmlRef = useRef<string>("");
+  // Время последнего «признака жизни» генерации (step/text/progress). Watchdog
+  // ниже будит зависший loading, если туннель долго молчит (мёртвый сокет,
+  // потерянный запрос) — иначе веб висит бесконечно.
+  const lastAliveAtRef = useRef<number>(0);
   // Стиль последней генерации — для повтора с тем же пресетом.
   const lastStyleRef = useRef<StylePresetId | undefined>(undefined);
   const rafIdRef = useRef<number | null>(null);
