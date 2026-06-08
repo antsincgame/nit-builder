@@ -184,6 +184,10 @@ const MAX_CONCURRENT_PER_USER = (() => {
 const PENDING_TIMEOUT_MS = 5 * 60_000;
 const PENDING_SWEEP_INTERVAL_MS = 30_000;
 
+// Прогресс генерации шлём браузеру не чаще раза в N мс (на чанк-токен).
+// 400мс — достаточно «живо» для счётчика токенов/таймера и не спамит WS.
+const PROGRESS_THROTTLE_MS = 400;
+
 // Сколько раз сервер сам до-генерирует HTML если локальная модель оборвалась
 // на maxOutputTokens (finishReason==="length"). По умолчанию — общий лимит
 // continuation-пайплайна (3). Конфигурируется через NIT_TUNNEL_MAX_CONTINUATIONS.
