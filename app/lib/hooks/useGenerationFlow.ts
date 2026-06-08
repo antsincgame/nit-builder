@@ -909,11 +909,21 @@ export function useGenerationFlow(
     });
   }, [versions]);
 
+  // Повтор последней генерации после ошибки/обрыва — тот же промпт и стиль.
+  const retryGeneration = useCallback(() => {
+    const prompt = retryablePrompt;
+    if (!prompt) return;
+    setRetryablePrompt(null);
+    void createSite(prompt, { stylePresetId: lastStyleRef.current });
+  }, [retryablePrompt, createSite]);
+
   return {
     mode,
     html,
     streamingHtml,
     streamingChars,
+    generationProgress,
+    retryAvailable: retryablePrompt !== null,
     loading,
     currentStep,
     templateName,
