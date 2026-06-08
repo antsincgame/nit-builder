@@ -365,5 +365,8 @@ export function finalizeTunnelHtml(
   presetId: StylePresetId,
 ): string {
   const cleaned = stripCodeFences(rawHtml);
-  return postPolishHtml({ html: cleaned, presetId, plan }).html;
+  const polished = postPolishHtml({ html: cleaned, presetId, plan }).html;
+  // Премиум-база поверх — :where-слой нулевой специфичности, только заполняет
+  // пустоту, не ломая то, что задала модель. Главный вклад в красоту на 7-9B.
+  return TUNNEL_POLISH_ENABLED ? applyPremiumBaseLayer(polished) : polished;
 }
