@@ -5,7 +5,7 @@
  */
 
 import { useState, useRef, useEffect } from "react";
-import { Send } from "lucide-react";
+import { Send, RotateCcw } from "lucide-react";
 
 type Message = { role: "user" | "assistant"; text: string };
 
@@ -14,6 +14,9 @@ type Props = {
   messages: Message[];
   loading: boolean;
   loadingLabel?: string;
+  /** Повтор последней генерации после ошибки/обрыва. */
+  onRetry?: () => void;
+  retryAvailable?: boolean;
 };
 
 const SUGGESTIONS = [
