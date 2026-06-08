@@ -645,6 +645,20 @@ function findTunnelByConnectionId(connectionId: string): TunnelConnection | null
   return null;
 }
 
+/**
+ * Патчит runtimeStats соединения (для динамической деградации класса).
+ * No-op если соединение уже отвалилось.
+ */
+function updateTunnelRuntimeStats(
+  connectionId: string,
+  patch: (s: RuntimeStats) => void,
+): void {
+  const tunnel = findTunnelByConnectionId(connectionId);
+  if (!tunnel) return;
+  if (!tunnel.runtimeStats) tunnel.runtimeStats = {};
+  patch(tunnel.runtimeStats);
+}
+
 // ─── Tunnel response forwarding ───────────────────────────────────
 
 /**
