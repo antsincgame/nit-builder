@@ -613,6 +613,9 @@ export function routeRequest(params: RouteRequestParams): boolean {
     continuationAttempts: 0,
     phase: params.phase ?? "code",
     stylePresetId: params.stylePresetId,
+    progressTokens: 0,
+    progressStartedAt: now,
+    lastProgressSentAt: 0,
   };
   pendingRequests.set(params.requestId, pending);
   stats.totalRequestsRouted++;
