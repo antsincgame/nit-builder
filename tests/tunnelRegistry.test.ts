@@ -292,9 +292,14 @@ describe("tunnelRegistry", () => {
       handleTunnelResponse("req-f1", { type: "text", text: "<!DOCTYPE" });
       handleTunnelResponse("req-f1", { type: "text", text: " html>" });
 
-      expect(bws.sent.length).toBe(2);
-      expect((bws.sent[0] as { type: string }).type).toBe("generate_text");
-      expect((bws.sent[1] as { text: string }).text).toBe(" html>");
+      // Контент кода идёт браузеру как generate_text (по чанку). Параллельно
+      // может уходить лёгкий generate_progress — отфильтровываем его.
+      const textChunks = bws.sent.filter(
+        (m) => (m as { type: string }).type === "generate_text",
+      ) as { text: string }[];
+      expect(textChunks.length).toBe(2);
+      expect(textChunks[0].text).toBe("<!DOCTYPE");
+      expect(textChunks[1].text).toBe(" html>");
     });
 
     it("forwards done event with full HTML to browser", () => {
@@ -807,9 +812,21 @@ describe("tunnelRegistry", () => {
       expect(planStep.step).toBe("plan");
       bws.sent.length = 0;
 
-      // токены плана НЕ показываем браузеру
+      // Содержимое плана (JSON) НЕ стримим браузеру как generate_text — иначе
+      // сырой JSON попадёт в превью. Наружу уходит только лёгкий
+      // generate_progress (счётчик токенов, без контента), чтобы пользователь
+      // видел, что модель работает, а не «зависла».
       handleTunnelResponse("tp-1", { type: "text", text: '{"business_type":"кофейня"' });
-      expect(bws.sent.length).toBe(0);
+      expect(
+        bws.sent.some((m) => (m as { type: string }).type === "generate_text"),
+      ).toBe(false);
+      const planProgress = bws.sent.find(
+        (m) => (m as { type: string }).type === "generate_progress",
+      ) as { phase: string; tokens: number } | undefined;
+      expect(planProgress).toBeDefined();
+      expect(planProgress!.phase).toBe("plan");
+      expect(planProgress!.tokens).toBeGreaterThan(0);
+      bws.sent.length = 0;
 
       // done plan-фазы → парс плана, coder-generate в туннель, шаги template+code
       handleTunnelResponse("tp-1", {
