@@ -345,6 +345,14 @@ export function useGenerationFlow(
   // в inline-версии в home.tsx.
   const handleWsEvent = useCallback(
     (event: ServerToBrowser) => {
+      // Любое событие хода генерации = «жива» (для watchdog ниже).
+      if (
+        event.type === "generate_step" ||
+        event.type === "generate_text" ||
+        event.type === "generate_progress"
+      ) {
+        lastAliveAtRef.current = Date.now();
+      }
       switch (event.type) {
         case "generate_step": {
           if (event.step === "plan") setCurrentStep("plan");
