@@ -104,6 +104,10 @@ export type PendingRequest = {
   startedAt: number;
   /** Обновляется при каждом text/start/done — для stale-cleanup. */
   lastActivityAt: number;
+  /** Прогресс для UI: накоплено чанков (≈токенов), старт фазы, троттлинг отправки. */
+  progressTokens?: number;
+  progressStartedAt?: number;
+  lastProgressSentAt?: number;
   currentStep: PipelineStep;
   /** Template info set after template_selected event */
   templateId?: string;
