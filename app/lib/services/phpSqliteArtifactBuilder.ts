@@ -434,6 +434,7 @@ function h(?string $value): string {
 }
 
 function redirect(string $path): void {
+    if (defined('NIT_PREVIEW')) { echo '@@NITREDIRECT@@' . $path; exit; }
     header('Location: ' . $path);
     exit;
 }
