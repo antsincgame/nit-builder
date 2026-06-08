@@ -42,7 +42,7 @@ import {
   buildAdminRepairPrompt,
 } from "~/lib/config/htmlPrompts";
 import { tierProfile, type ModelTier } from "~/lib/llm/modelTier";
-import { applyPremiumBaseLayer } from "~/lib/services/htmlPostPolish";
+import { applyPremiumBaseLayer, applySeoHead, applyWowLayer } from "~/lib/services/htmlPostPolish";
 import { retrieveTemplates } from "~/lib/services/templateRetriever";
 import { buildFewShotPlansAdaptive } from "~/lib/services/fewShotBuilder";
 import {
