@@ -27,14 +27,6 @@ function phpString(value: unknown): string {
   return `'${String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 
-function slug(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9а-яё]+/gi, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "nit-app";
-}
-
 function isRu(plan: Plan): boolean {
   return plan.language === "ru";
 }
