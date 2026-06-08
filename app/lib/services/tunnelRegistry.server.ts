@@ -40,6 +40,10 @@ import {
   TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
 import {
+  buildPhpSqliteArtifact,
+  renderPhpSqliteArtifactPreview,
+} from "~/lib/services/phpSqliteArtifactBuilder";
+import {
   buildSectionDesignSystem,
   initSectionFlow,
   startSectionFlow,
