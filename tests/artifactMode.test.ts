@@ -13,4 +13,17 @@ describe("inferArtifactModeFromPrompt", () => {
     expect(inferArtifactModeFromPrompt("добавь товары в HTML секцию без backend")).toBeUndefined();
     expect(inferArtifactModeFromPrompt("admin dashboard design in static HTML")).toBeUndefined();
   });
+
+  it("включает бэкенд по смыслу намерения — без слова PHP", () => {
+    expect(inferArtifactModeFromPrompt("интернет-магазин с каталогом товаров и корзиной")).toBe("php-sqlite");
+    expect(inferArtifactModeFromPrompt("сделай сайт и добавь админку для управления товарами")).toBe("php-sqlite");
+    expect(inferArtifactModeFromPrompt("сайт, где можно принимать заказы клиентов")).toBe("php-sqlite");
+    expect(inferArtifactModeFromPrompt("нужен личный кабинет для клиентов")).toBe("php-sqlite");
+  });
+
+  it("оставляет статический лендинг для промо без серверной логики", () => {
+    expect(inferArtifactModeFromPrompt("магазин одежды, красивая витрина")).toBeUndefined();
+    expect(inferArtifactModeFromPrompt("лендинг для кофейни с меню")).toBeUndefined();
+    expect(inferArtifactModeFromPrompt("портфолио фотографа с галереей")).toBeUndefined();
+  });
 });
