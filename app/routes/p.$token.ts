@@ -21,11 +21,17 @@ import {
  * Security:
  * - X-Frame-Options: SAMEORIGIN — нельзя встраивать в чужой сайт.
  * - Referrer-Policy: no-referrer — не светим source.
- * - X-Robots-Tag: noindex — не светим в поисковики (юзер может расшарить
- *   приватный сайт клиенту, а Google его проиндексирует).
- * - Cache-Control: private, max-age=60 — небольшой кэш на CDN-уровне.
+ * - X-Robots-Tag: по умолчанию noindex (юзер может расшарить приватный сайт
+ *   клиенту, а Google его проиндексирует). При NIT_PUBLIC_INDEXABLE=1 —
+ *   index,follow + самоканоникал (защита от дублей по query).
+ * - Cache-Control: private/public в зависимости от индексируемости.
  */
-export async function loader({ params }: LoaderFunctionArgs) {
+
+// Индексировать публичные превью /p/:token в поисковиках. По умолчанию OFF —
+// превью часто приватные ссылки для клиента. NIT_PUBLIC_INDEXABLE=1 включает.
+const PUBLIC_INDEXABLE = process.env.NIT_PUBLIC_INDEXABLE === "1";
+
+export async function loader({ params, request }: LoaderFunctionArgs) {
   const token = params.token;
   if (!token) {
     return new Response("Not found", { status: 404 });
@@ -39,14 +45,33 @@ export async function loader({ params }: LoaderFunctionArgs) {
   // Fire-and-forget — не блокируем рендер на этом
   void incrementSharedPreviewViews(share.$id, share.views);
 
-  return new Response(share.html, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      "X-Frame-Options": "SAMEORIGIN",
-      "Referrer-Policy": "no-referrer",
-      "X-Robots-Tag": "noindex, nofollow",
-      "Cache-Control": "private, max-age=60",
-    },
-  });
+  const headers: Record<string, string> = {
+    "Content-Type": "text/html; charset=utf-8",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "no-referrer",
+  };
+
+  let html = share.html;
+
+  if (PUBLIC_INDEXABLE) {
+    // Разрешаем индексацию + самоканоникал, чтобы случайные query-параметры
+    // не плодили дубли страницы в индексе.
+    const canonical = new URL(request.url);
+    canonical.search = "";
+    const canonicalUrl = canonical.toString();
+    headers["X-Robots-Tag"] = "index, follow";
+    headers["Link"] = `<${canonicalUrl}>; rel="canonical"`;
+    headers["Cache-Control"] = "public, max-age=300";
+    if (!/rel=["']canonical["']/i.test(html)) {
+      const tag = `<link rel="canonical" href="${canonicalUrl}">`;
+      html = html.includes("</head>")
+        ? html.replace("</head>", `${tag}\n</head>`)
+        : `${tag}\n${html}`;
+    }
+  } else {
+    headers["X-Robots-Tag"] = "noindex, nofollow";
+    headers["Cache-Control"] = "private, max-age=60";
+  }
+
+  return new Response(html, { status: 200, headers });
 }
