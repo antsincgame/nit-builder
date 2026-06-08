@@ -730,7 +730,7 @@ export default function Home() {
               <iframe
                 title="Предпросмотр сайта"
                 srcDoc={previewHtml}
-                sandbox="allow-scripts"
+                sandbox={isBackendArtifact ? "allow-scripts allow-same-origin" : "allow-scripts"}
                 className="nit-preview w-full h-full border-0 bg-white"
               />
             ) : (
