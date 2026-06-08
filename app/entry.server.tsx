@@ -71,7 +71,7 @@ function applySecurityHeaders(headers: Headers): void {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",
-      `connect-src 'self' ${wsConnectSrc}`,
+      `connect-src 'self' https://cdn.jsdelivr.net ${wsConnectSrc}`,
       // frame-src 'self' blob: — для preview iframe (srcDoc генерирует blob)
       "frame-src 'self' blob:",
       "frame-ancestors 'self'",
