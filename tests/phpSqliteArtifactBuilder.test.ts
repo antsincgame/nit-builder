@@ -211,8 +211,16 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(html).toContain("<!DOCTYPE html>");
     expect(html).toContain('id="nit-artifact-manifest"');
     expect(html).toContain("php-sqlite-app");
-    expect(html).toContain("магазин аксессуаров: PHP + SQLite backend");
-    expect(html).not.toContain("<h1>Аксессуары с быстрой доставкой</h1>");
+    // Превью теперь рендерит настоящую витрину (snapshot сайта), а не мета-карточку.
+    expect(html).toContain("<h1>Аксессуары с быстрой доставкой</h1>");
+    expect(html).toContain("store-hero");
+    expect(html).toContain("Сумка");
+    expect(html).toContain("Рюкзак");
+    // Вкладка «База данных» со схемой таблиц (как панель БД у Bolt).
+    expect(html).toContain("База данных");
+    expect(html).toContain("order_items");
+    expect(html).toContain("password_hash");
+    // Manifest по-прежнему встроен для скачивания ZIP.
     expect(html).toContain("public/index.php");
   });
 
