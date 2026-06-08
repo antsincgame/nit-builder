@@ -405,6 +405,20 @@ export function useGenerationFlow(
         return;
       }
 
+      // Авторизованный юзер генерит ТОЛЬКО через туннель (HTTP-fallback ниже —
+      // для гостей). Помимо живого туннеля требуем authed control-сокет: без
+      // этого при моргнувшей сети (сокет реконнектится, а tunnelStatus ещё
+      // «online» из устаревшего стейта) запрос проваливался в HTTP мимо
+      // туннеля — туннель его не видел, а сайт висел в «Изучаем запрос».
+      if (currentAuth.status === "authenticated" && currentSocket.status !== "authed") {
+        const msg = "Соединение с сервером восстанавливается — повтори через пару секунд.";
+        setChatMessages([{ role: "user", text: prompt }, { role: "assistant", text: `❌ ${msg}` }]);
+        setMode("welcome");
+        setLoading(false);
+        toast.error(msg);
+        return;
+      }
+
       setMode("generating");
       setLoading(true);
       setStreamingHtml("");
