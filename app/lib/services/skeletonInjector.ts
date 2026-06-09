@@ -86,6 +86,25 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+// Seeded-акцент для skeleton-вывода. Шаблоны, мигрированные на CSS-переменную
+// --nit-accent (значение по умолчанию = их собственный цвет в <style>), получают
+// при наличии plan.variantSeed позднюю :root-перебивку → разный акцент на
+// одинаковый промпт. Немигрированные шаблоны переменную не используют → стиль
+// инертен (безопасный поэтапный rollout). Пул — насыщенные цвета, читаемые на
+// светлом фоне.
+const SKEL_ACCENT_POOL = [
+  "#6d28d9", "#0d9488", "#b45309", "#be123c", "#1d4ed8", "#047857", "#9333ea",
+] as const;
+
+function injectSkeletonAccent(html: string, seed: number): string {
+  if (html.includes('id="nit-skel-accent"')) return html;
+  const accent = SKEL_ACCENT_POOL[(seed >>> 0) % SKEL_ACCENT_POOL.length]!;
+  const style = `<style id="nit-skel-accent">:root{--nit-accent:${accent}}</style>`;
+  return html.includes("</head>")
+    ? html.replace("</head>", `${style}\n</head>`)
+    : `${style}\n${html}`;
+}
+
 /**
  * Заменить внутренний текст первого тэга (сохраняет все атрибуты).
  */
