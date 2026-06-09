@@ -1334,7 +1334,10 @@ body.mood-neon input,body.mood-neon textarea,body.mood-neon select{background:rg
   return `:root{--bg:${bg};--ink:${ink};--muted:${muted};--card:${card};--accent:${accent};--accent2:${accent2};--line:${line};--soft:${soft};--radius:${radius}px;--danger:#ef4444;--ok:#16a34a;--warn:#f59e0b;--shadow:${shadow}}
 ${neonCss}
 ${headCss}
-${layoutCss}
+${heroCss}
+${catCss}
+${bandCss}
+${structCss}
 ${radiusCss}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 8% -12%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 30%),radial-gradient(circle at 90% 8%,rgba(255,255,255,.42),transparent 26%),var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.page-shell{min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 420px)}
 a{color:inherit}.topbar{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(24px);border-bottom:1px solid var(--line)}
