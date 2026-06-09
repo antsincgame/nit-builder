@@ -244,12 +244,14 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     key_benefits: normalizeBenefits(plan),
   };
   normalized.cta_primary = inferPrimaryCta(query, normalized.cta_primary);
+  normalized.business_type = stripSitePrefix(normalized.business_type);
 
   if (!normalized.hero_headline) {
-    normalized.hero_headline = `${normalized.business_type.slice(0, 80)} без лишней суеты`;
+    const bt = normalized.business_type.slice(0, 80).trim();
+    normalized.hero_headline = `${bt.charAt(0).toUpperCase()}${bt.slice(1)} без лишней суеты`;
   }
   if (!normalized.hero_subheadline) {
-    normalized.hero_subheadline = "Понятный сайт с услугами, заявкой и контактами для первых обращений уже сегодня.";
+    normalized.hero_subheadline = "Услуги, цены и контакты — коротко и по делу. Оставьте заявку, ответим быстро.";
   }
   if (!normalized.key_benefits?.length) {
     normalized.key_benefits = [
