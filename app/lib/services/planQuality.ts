@@ -247,8 +247,17 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
   normalized.business_type = stripSitePrefix(normalized.business_type);
 
   if (!normalized.hero_headline) {
-    const bt = normalized.business_type.slice(0, 80).trim();
-    normalized.hero_headline = `${bt.charAt(0).toUpperCase()}${bt.slice(1)} без лишней суеты`;
+    // Имя ниши из каталога — чистый именительный ("Барбершоп", "Кофейня"),
+    // в отличие от business_type, который в синтетик-плане = сырой промпт и
+    // после среза префикса даёт родительный огрызок ("барбершопа в Минске").
+    // Берём часть до " / " ("Кофейня / Кафе" → "Кофейня"); если ниша не
+    // распозналась — нейтральный заголовок без падежных артефактов.
+    const inferredId = inferTemplateId(query);
+    const tplName = inferredId ? getTemplateById(inferredId)?.name : undefined;
+    const nicheName = tplName ? tplName.split("/")[0]!.trim() : "";
+    normalized.hero_headline = nicheName
+      ? `${nicheName} без лишней суеты`
+      : "Чисто, быстро и по делу";
   }
   if (!normalized.hero_subheadline) {
     normalized.hero_subheadline = "Услуги, цены и контакты — коротко и по делу. Оставьте заявку, ответим быстро.";
