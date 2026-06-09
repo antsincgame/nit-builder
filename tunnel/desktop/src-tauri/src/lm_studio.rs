@@ -273,6 +273,14 @@ impl LmStudioProxy {
                                         continue;
                                     }
                                     if let Ok(chunk) = serde_json::from_str::<StreamChunk>(data) {
+                                        if let Some(usage) = chunk.usage.as_ref() {
+                                            if usage.prompt_tokens.is_some() {
+                                                prompt_tokens = usage.prompt_tokens;
+                                            }
+                                            if usage.completion_tokens.is_some() {
+                                                completion_tokens = usage.completion_tokens;
+                                            }
+                                        }
                                         if let Some(fr) = chunk
                                             .choices
                                             .as_ref()
