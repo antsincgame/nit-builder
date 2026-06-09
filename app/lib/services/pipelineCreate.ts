@@ -519,7 +519,10 @@ export async function* executeHtmlSimple(
     stylePresetId === "generic" && currentPlan.language === "ru" && !adminNeedsCoder;
   const cleanTemplateHtml = shouldTrySkeleton ? loadTemplateHtml(template.id) : "";
   const injection = shouldTrySkeleton
-    ? injectPlanIntoTemplate(cleanTemplateHtml, currentPlan)
+    ? injectPlanIntoTemplate(cleanTemplateHtml, {
+        ...currentPlan,
+        variantSeed: currentPlan.variantSeed ?? Math.floor(Math.random() * 0x100000000),
+      })
     : null;
   if (shouldTrySkeleton) metrics.skeletonInjectAttempted();
 
