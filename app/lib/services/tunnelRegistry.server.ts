@@ -1280,6 +1280,7 @@ function finalizeTunnelDone(
     return;
   }
 
+  const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
   sendToBrowser(browserWs, {
     type: "generate_done",
     requestId: req.requestId,
@@ -1287,6 +1288,13 @@ function finalizeTunnelDone(
     templateId: req.templateId ?? "unknown",
     templateName: req.templateName ?? "Unknown",
     durationMs,
+    telemetry: {
+      model: req.model,
+      contextWindow: tunnel?.capabilities.contextWindow,
+      continuationRounds: req.continuationAttempts ?? 0,
+      truncated: req.truncated ?? false,
+      repaired: !!req.htmlBeforeRepair,
+    },
   });
   // Чистая успешная генерация — сбрасываем счётчики деградации, чтобы
   // единичный прошлый сбой не топил класс навсегда (самовосстановление).
