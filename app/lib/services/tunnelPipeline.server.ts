@@ -60,6 +60,7 @@ import {
   loadTemplateHtmlForLlm,
 } from "~/lib/config/htmlTemplates.server";
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
+import { restoreTemplateImages } from "~/lib/services/templateImages";
 import { pruneTemplateForPlan } from "~/lib/utils/templatePrune";
 import { postPolishHtml } from "~/lib/services/htmlPostPolish";
 import { auditAdminMarkup } from "~/lib/bake/auditMarkup";
