@@ -2006,3 +2006,21 @@ export function renderPhpSqliteArtifactPreview(params: {
   const base = renderStorefrontPreviewHtml(plan, manifestJson);
   return base.replace("</body>\n</html>", buildLivePreviewBootScript() + "\n</body>\n</html>");
 }
+
+/**
+ * Пересобрать сохранённый HTML превью на текущем движке без перегенерации.
+ * Витрина и манифест (PHP-файлы) сохраняются, меняется только boot-скрипт.
+ * Boot самодостаточен (читает манифест из DOM) и сам патчит PHP под превью
+ * при записи в php-wasm, поэтому работает и со старыми манифестами.
+ * Если в HTML нет манифеста артефакта — возвращаем как есть.
+ */
+export function rebuildLivePreviewHtml(html: string): string {
+  const marker = '<script id="nit-artifact-manifest"';
+  const mi = html.indexOf(marker);
+  if (mi < 0) return html;
+  const closeTag = "</script>";
+  const closeIdx = html.indexOf(closeTag, mi);
+  if (closeIdx < 0) return html;
+  const head = html.slice(0, closeIdx + closeTag.length);
+  return head + "\n" + buildLivePreviewBootScript() + "\n</body>\n</html>";
+}
