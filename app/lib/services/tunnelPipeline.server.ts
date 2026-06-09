@@ -432,7 +432,14 @@ export function finalizeTunnelHtml(
   // сломанного DOM и станут видимым текстом.
   const cleaned = ensureClosedHtml(stripCodeFences(rawHtml));
   let html = postPolishHtml({ html: cleaned, presetId, plan }).html;
-  // Битые Unsplash-картинки (модель галлюцинирует photo-id) → picsum.
+  // Детерминированно возвращаем курированные картинки шаблона: слабая модель
+  // переписывает <img src> на нерелевантные/битые ссылки (барбершопу — лес),
+  // а промпт-правило игнорит. Ниша-агностично; no-op если у шаблона нет <img>.
+  if (TUNNEL_RESTORE_IMAGES_ENABLED) {
+    const tpl = getTemplateById(plan.suggested_template_id) ?? getFallbackTemplate();
+    html = restoreTemplateImages(html, loadTemplateHtml(tpl.id)).html;
+  }
+  // Битые Unsplash-картинки (если вдруг остались) → picsum.
   html = fixBrokenImages(html);
   // SEO-голова из плана (детерминированно, идемпотентно) — слабая модель её почти
   // не ставит.
