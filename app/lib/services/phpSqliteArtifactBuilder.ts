@@ -1918,27 +1918,7 @@ function buildLivePreviewBootScript(): string {
   function extractCsrf(html){var m=String(html||'').match(/name="csrf_token"\s+value="([^"]+)"/);return m?m[1]:'';}
   function renderAdmin(){
     adminFrame=makeFrame(adminPane);
-    return runRequest('/admin','GET','').then(function(r){return follow(r,0);}).then(function(r){
-      if(r.html&&r.html.replace(/\s/g,'')){adminFrame.srcdoc=decorate(r.html,'admin');return;}
-      return Promise.all([
-        php.readFile('/app/public/index.php',{encoding:'utf8'}).catch(function(){return '';}),
-        php.readFile('/app/app/security.php',{encoding:'utf8'}).catch(function(){return '';})
-      ]).then(function(ff){
-        var fi=String(ff[0]),fs2=String(ff[1]);
-        var im=fi.indexOf('migrate'),ir=fs2.indexOf('function redirect');
-        var d='<pre style="padding:16px;white-space:pre-wrap;color:#c0392b;font:12px ui-monospace,monospace">[admin empty]'
-          +'\nautologin_patched: '+(fi.indexOf('$__pa = db()->query')>=0)
-          +'\nredirect_patched: '+(fs2.indexOf('@@NITREDIRECT@@')>=0)
-          +'\nredir: '+esc(r.redirect||'(none)')
-          +'\nrawlen: '+((r.raw||'').length)
-          +'\nraw: '+esc(String(r.raw||'').slice(0,240))
-          +'\nidx@migrate: '+esc(im>=0?fi.slice(im,im+90):'(no migrate)')
-          +'\nsec@redirect: '+esc(ir>=0?fs2.slice(ir,ir+90):'(no redirect)')
-          +'\ndrivers: '+esc(DRIVERS)
-          +'\nstderr: '+esc(phpErr).slice(0,1200)+'</pre>';
-        adminFrame.srcdoc=decorate(d,'admin');
-      });
-    });
+    return runRequest('/admin','GET','').then(function(r){return follow(r,0);}).then(function(r){var h=(r.html&&r.html.replace(/\s/g,''))?r.html:('<pre style="padding:16px;white-space:pre-wrap;color:#c0392b;font:13px ui-monospace,monospace">[admin empty]\ndrivers: '+esc(DRIVERS)+'\nstderr: '+esc(phpErr).slice(0,2000)+'</pre>');adminFrame.srcdoc=decorate(h,'admin');});
   }
   function renderDb(){
     return runRaw(DUMP).then(function(json){
