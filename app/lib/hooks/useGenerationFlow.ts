@@ -419,16 +419,35 @@ export function useGenerationFlow(
           const truncatedWarning = tel?.truncated
             ? `\n\n⚠️ Сайт мог получиться обрезанным: модель упёрлась в лимит токенов даже после докрутки. Нажми «Повторить» или упрости запрос — меньше блоков.`
             : "";
+          // Загрузка контекста: если клиент туннеля отдал реальные токены
+          // (usage), показываем «занято X из Y» и предупреждаем при высокой
+          // загрузке — иначе запас тает и сложный запрос может не влезть.
+          let contextWarning = "";
           let diagLine = "";
           if (tel) {
             const parts: string[] = [];
             if (tel.model) parts.push(tel.model);
-            if (tel.contextWindow) parts.push(`контекст ${Math.round(tel.contextWindow / 1000)}k`);
+            if (tel.promptTokens && tel.contextWindow) {
+              const pct = Math.round((tel.promptTokens / tel.contextWindow) * 100);
+              parts.push(
+                `контекст ${Math.round(tel.promptTokens / 1000)}k/${Math.round(tel.contextWindow / 1000)}k (${pct}%)`,
+              );
+              if (pct >= 80) {
+                contextWarning =
+                  `\n\n⚠️ Контекст занят на ${pct}%. Запас тает — для более сложного сайта ` +
+                  `увеличь context length в LM Studio или упрости запрос.`;
+              }
+            } else if (tel.contextWindow) {
+              parts.push(`контекст ${Math.round(tel.contextWindow / 1000)}k`);
+            }
+            if (tel.completionTokens) {
+              parts.push(`вывод ${tel.completionTokens.toLocaleString("ru")} ток.`);
+            }
             if ((tel.continuationRounds ?? 0) > 0) parts.push(`докрутка ×${tel.continuationRounds}`);
             if (parts.length) diagLine = `\n\nДиагностика: ${parts.join(" · ")}`;
           }
           const assistantText =
-            `Готово ✨ ${blocksLine} Собрал за ${secs}с.` + truncatedWarning + `\n\n` +
+            `Готово ✨ ${blocksLine} Собрал за ${secs}с.` + truncatedWarning + contextWarning + `\n\n` +
             `Что можно поправить прямо в чате: сменить заголовок или тексты, поменять цвета, ` +
             `убрать или добавить блок, заменить фото, поправить цены. Опиши, что изменить, — применю к нужному месту.` +
             diagLine;
