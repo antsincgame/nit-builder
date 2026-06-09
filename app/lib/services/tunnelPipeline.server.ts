@@ -110,6 +110,13 @@ const TUNNEL_SEO_ENABLED = process.env.NIT_TUNNEL_SEO !== "0";
  */
 const TUNNEL_WOW_ENABLED = process.env.NIT_TUNNEL_WOW === "1";
 
+/**
+ * Детерминированная подстановка картинок шаблона в <img> вывода. Слабая модель
+ * переписывает src на нерелевантные/битые ссылки, промпт-правило игнорит.
+ * Дефолт ON; NIT_TUNNEL_RESTORE_IMAGES="0" — отключить (мгновенный откат).
+ */
+const TUNNEL_RESTORE_IMAGES_ENABLED = process.env.NIT_TUNNEL_RESTORE_IMAGES !== "0";
+
 /** Нейтральные пресеты, к которым применим вау-слой (у остальных свой характер). */
 function isNeutralPreset(id: StylePresetId): boolean {
   return id === "generic" || id === "clean-saas";
