@@ -238,7 +238,31 @@ describe("streamFromLmStudio", () => {
       max_tokens: 4000,
       temperature: 0.4,
       stream: true,
+      stream_options: { include_usage: true },
     });
+  });
+
+  it("парсит usage-чанк → promptTokens/completionTokens в done", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseStream([
+        JSON.stringify({ choices: [{ delta: { content: "ok" } }] }),
+        JSON.stringify({ choices: [{ delta: {}, finish_reason: "stop" }] }),
+        // Финальный usage-чанк (choices пустой) — как шлёт LM Studio с include_usage.
+        JSON.stringify({ choices: [], usage: { prompt_tokens: 1234, completion_tokens: 567 } }),
+      ]),
+    );
+
+    const events: Array<{ type: string; promptTokens?: number; completionTokens?: number }> = [];
+    for await (const ev of streamFromLmStudio(
+      { baseUrl: "http://x/v1", model: "m", timeoutMs: 1000 },
+      { system: "s", prompt: "p", maxTokens: 100, temperature: 0.5 },
+    )) {
+      events.push(ev);
+    }
+
+    const done = events.find((e) => e.type === "done");
+    expect(done?.promptTokens).toBe(1234);
+    expect(done?.completionTokens).toBe(567);
   });
 
   it("error event при non-2xx response", async () => {
