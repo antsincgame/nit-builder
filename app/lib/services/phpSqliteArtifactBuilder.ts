@@ -1832,7 +1832,7 @@ function buildLivePreviewBootScript(): string {
   liveStyle.textContent='.nit-live-frame{width:100%;height:78vh;min-height:540px;border:0;background:#fff;display:block}.db-live-grid{display:grid;gap:16px;grid-template-columns:1fr}.db-live-table{background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden;box-shadow:var(--shadow)}.db-live-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent) 9%,transparent)}.db-live-head h3{margin:0;font-family:ui-monospace,Menlo,monospace;font-size:16px;color:var(--accent)}.db-live-head span{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.db-scroll{overflow:auto;max-height:340px}.db-data{width:100%;border-collapse:collapse;font-size:13px}.db-data th{position:sticky;top:0;background:var(--bg);text-align:left;padding:9px 12px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);border-bottom:1px solid var(--line);white-space:nowrap}.db-data td{padding:9px 12px;border-bottom:1px solid var(--soft);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}.db-data tr:hover td{background:var(--soft)}.db-empty{padding:18px;color:var(--muted)}';
   document.head.appendChild(liveStyle);
 
-  var php=null;var SID='';var outBuf='';var phpErr='';var DRIVERS='';
+  var php=null;var SID='';var outBuf='';var phpErr='';var DRIVERS='';var dbSnap=null;var PhpCtor=null;var PHP_OPTS=null;
   var chain=Promise.resolve();
   function queue(fn){var r=chain.then(fn);chain=r.then(function(v){return v;},function(){});return r;}
   function b64(s){return btoa(unescape(encodeURIComponent(String(s||''))));}
