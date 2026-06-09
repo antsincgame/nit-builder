@@ -1101,6 +1101,7 @@ export function handleTunnelResponse(
       // сигнал «не тянет объём текущего режима». Копим для динамической
       // деградации: на следующей генерации classifyModel понизит класс.
       if (event.finishReason === "length" && attempts >= TUNNEL_MAX_CONTINUATIONS) {
+        req.truncated = true;
         updateTunnelRuntimeStats(req.tunnelConnectionId, (s) => {
           s.lengthTruncations = (s.lengthTruncations ?? 0) + 1;
         });
