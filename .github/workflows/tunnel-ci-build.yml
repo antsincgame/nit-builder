@@ -1,0 +1,99 @@
+name: Tunnel CI Build
+
+# Невыпускающая сборка туннеля для валидации. Claude может триггерить сам:
+# бамп tunnel/.ci-build в main → этот workflow. Собирает CLI (bun) и
+# Linux-desktop (tauri-action = компиляция Rust). Релизов НЕ публикует —
+# полный матричный релиз идёт по тегам в tunnel-release.yml /
+# tunnel-desktop-release.yml. Linux выбран как самый быстрый таргет без
+# code-signing — его задача поймать ошибки компиляции Rust/сборки.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tunnel/.ci-build"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tunnel-ci-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli:
+    name: CLI build (bun)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile || bun install
+
+      - name: Compile CLI
+        run: |
+          bun build \
+            --compile \
+            --minify \
+            --target=bun-linux-x64 \
+            --outfile=nit-tunnel-check \
+            ./tunnel/src/cli.ts
+
+      - name: Verify binary
+        run: |
+          ls -lh nit-tunnel-check
+          file nit-tunnel-check || true
+
+  desktop-linux:
+    name: Desktop build (linux, Rust compile)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./tunnel/desktop/src-tauri -> target"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Install UI dependencies
+        working-directory: tunnel/desktop/ui
+        run: npm install
+
+      - name: Build UI
+        working-directory: tunnel/desktop/ui
+        run: npm run build
+
+      - name: Build Tauri app (linux)
+        uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: tunnel/desktop
+          args: --target x86_64-unknown-linux-gnu --bundles deb
