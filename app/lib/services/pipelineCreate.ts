@@ -473,7 +473,7 @@ export async function* executeHtmlSimple(
         model,
         signal,
       });
-      const polished = postPolishHtml({ html: repairedHtml, presetId: stylePresetId, plan: currentPlan });
+      const polished = postPolishHtml({ html: repairedHtml, presetId: artifactPresetId, plan: currentPlan });
       if (polished.fixes.length > 0) {
         yield { type: "post_polish_applied", fixes: polished.fixes };
       }
