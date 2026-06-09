@@ -343,6 +343,8 @@ export function handleTunnelConnection(ws: WebSocket, req: IncomingMessage): voi
             fullText: msg.fullText,
             durationMs: msg.durationMs,
             finishReason: msg.finishReason,
+            promptTokens: msg.promptTokens,
+            completionTokens: msg.completionTokens,
           });
         } else {
           handleTunnelResponse(requestId, { type: "error", error: msg.error });
