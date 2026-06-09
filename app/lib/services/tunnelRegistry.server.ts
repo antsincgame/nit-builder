@@ -744,7 +744,7 @@ export function handleTunnelResponse(
   event:
     | { type: "start" }
     | { type: "text"; text: string }
-    | { type: "done"; fullText: string; durationMs: number; finishReason?: "stop" | "length" | "unknown" }
+    | { type: "done"; fullText: string; durationMs: number; finishReason?: "stop" | "length" | "unknown"; promptTokens?: number; completionTokens?: number }
     | { type: "error"; error: string },
 ): void {
   const req = pendingRequests.get(requestId);
