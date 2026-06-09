@@ -1277,25 +1277,27 @@ function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: Storefr
   const seedStr = `${plan.business_type}|${kw}`;
   for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
   const theme = storefrontTheme(plan);
-  const neonAccents: [string, string][] = [["#22d3ee", "#a855f7"], ["#a855f7", "#22d3ee"], ["#4ade80", "#22d3ee"], ["#f0abfc", "#818cf8"], ["#38bdf8", "#34d399"], ["#fb7185", "#f0abfc"]];
+  const neonAccents: [string, string][] = [["#22d3ee", "#a855f7"], ["#a855f7", "#22d3ee"], ["#4ade80", "#22d3ee"], ["#f0abfc", "#818cf8"], ["#38bdf8", "#34d399"], ["#fb7185", "#f0abfc"], ["#facc15", "#fb7185"], ["#2dd4bf", "#a855f7"]];
   const lightByTheme: Record<StorefrontTheme, [string, string][]> = {
-    beauty: [["#d9468f", "#f472b6"], ["#db2777", "#fb7185"], ["#e11d48", "#f9a8d4"]],
-    food: [["#b45309", "#f59e0b"], ["#ea580c", "#fbbf24"], ["#c2410c", "#f97316"]],
-    "real-estate": [["#15803d", "#34d399"], ["#0f766e", "#2dd4bf"], ["#047857", "#10b981"]],
-    clinic: [["#0891b2", "#22d3ee"], ["#0d9488", "#2dd4bf"], ["#2563eb", "#38bdf8"]],
-    courses: [["#6d28d9", "#a78bfa"], ["#4f46e5", "#818cf8"], ["#7c3aed", "#c084fc"]],
-    auto: [["#ea580c", "#fb923c"], ["#475569", "#fb923c"], ["#dc2626", "#f87171"]],
-    generic: [["#2563eb", "#60a5fa"], ["#7c3aed", "#a78bfa"], ["#0891b2", "#22d3ee"], ["#e11d48", "#fb7185"], ["#ea580c", "#fbbf24"], ["#0d9488", "#2dd4bf"]],
+    beauty: [["#d9468f", "#f472b6"], ["#db2777", "#fb7185"], ["#e11d48", "#f9a8d4"], ["#be185d", "#f472b6"], ["#c026d3", "#f0abfc"]],
+    food: [["#b45309", "#f59e0b"], ["#ea580c", "#fbbf24"], ["#c2410c", "#f97316"], ["#9a3412", "#fb923c"], ["#a16207", "#facc15"]],
+    "real-estate": [["#15803d", "#34d399"], ["#0f766e", "#2dd4bf"], ["#047857", "#10b981"], ["#166534", "#4ade80"], ["#0e7490", "#22d3ee"]],
+    clinic: [["#0891b2", "#22d3ee"], ["#0d9488", "#2dd4bf"], ["#2563eb", "#38bdf8"], ["#0284c7", "#38bdf8"], ["#0369a1", "#22d3ee"]],
+    courses: [["#6d28d9", "#a78bfa"], ["#4f46e5", "#818cf8"], ["#7c3aed", "#c084fc"], ["#5b21b6", "#a78bfa"], ["#4338ca", "#818cf8"]],
+    auto: [["#ea580c", "#fb923c"], ["#475569", "#fb923c"], ["#dc2626", "#f87171"], ["#b91c1c", "#fb923c"], ["#334155", "#f59e0b"]],
+    generic: [["#2563eb", "#60a5fa"], ["#7c3aed", "#a78bfa"], ["#0891b2", "#22d3ee"], ["#e11d48", "#fb7185"], ["#ea580c", "#fbbf24"], ["#0d9488", "#2dd4bf"], ["#4f46e5", "#818cf8"], ["#db2777", "#f472b6"], ["#16a34a", "#4ade80"], ["#9333ea", "#c084fc"], ["#0284c7", "#38bdf8"], ["#d97706", "#fbbf24"]],
   };
   const list = neon ? neonAccents : (lightByTheme[theme] || lightByTheme.generic);
   const pair = list[h % list.length];
-  const radius = [14, 18, 24, 30][(h >>> 3) % 4];
+  const radius = [12, 16, 20, 26, 32][(h >>> 3) % 5];
   const head = (h >>> 5) % 3;
-  const hero = (h >>> 7) % 3;
-  const cat = (h >>> 9) % 3;
+  const hero = (h >>> 7) % 4;
+  const cat = (h >>> 9) % 4;
   const band = (h >>> 11) % 2;
-  const struct = (h >>> 13) % 4;
-  return { neon, seed: h, theme, accent: pair[0], accent2: pair[1], radius, head, hero, cat, band, struct };
+  const struct = (h >>> 13) % 6;
+  const surf = (h >>> 15) % 3;
+  const btn = (h >>> 17) % 3;
+  return { neon, seed: h, theme, accent: pair[0], accent2: pair[1], radius, head, hero, cat, band, struct, surf, btn };
 }
 
 function buildStyleCss(plan: Plan): string {
