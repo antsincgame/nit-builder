@@ -338,6 +338,8 @@ impl LmStudioProxy {
                 full_text,
                 duration_ms,
                 finish_reason,
+                prompt_tokens,
+                completion_tokens,
             })
             .await;
     }
