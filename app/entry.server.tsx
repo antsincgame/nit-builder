@@ -67,12 +67,10 @@ function applySecurityHeaders(headers: Headers): void {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      // 'unsafe-eval' исключён намеренно — см. блок-комментарий выше.
-      // jsdelivr + 'wasm-unsafe-eval' нужны для живого php-wasm превью backend-сайтов.
-      // srcDoc iframe наследует CSP родителя, поэтому без этого WebAssembly и загрузка
-      // движка с CDN блокируются. wasm-unsafe-eval разрешает только компиляцию WASM,
-      // не произвольный JS eval (unsafe-inline и так задаёт основной риск).
-      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net",
+      // 'unsafe-eval' нужен Alpine.js в srcDoc-превью (наследует этот CSP).
+      // jsdelivr + 'wasm-unsafe-eval' — для живого php-wasm превью backend-сайтов
+      // (компиляция WASM); CDN-домены — Tailwind/Alpine.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",
