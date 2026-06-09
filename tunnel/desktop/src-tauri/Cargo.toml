@@ -1,6 +1,6 @@
 [package]
 name = "nit-tunnel-desktop"
-version = "0.2.1"
+version = "0.2.2"
 description = "NIT Builder tunnel client — proxy your LM Studio to NIT Builder sites"
 authors = ["Igor <igor@vibecoding.by>"]
 license = "MIT"
