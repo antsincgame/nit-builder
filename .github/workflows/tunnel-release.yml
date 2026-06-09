@@ -22,6 +22,8 @@ on:
   push:
     tags:
       - "tunnel-v*"
+    branches:
+      - "tunnel-ci"
   release:
     types: [created, published]
   workflow_dispatch: {}
