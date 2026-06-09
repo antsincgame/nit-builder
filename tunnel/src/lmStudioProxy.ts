@@ -169,6 +169,8 @@ export async function* streamFromLmStudio(
       fullText,
       durationMs: Date.now() - startedAt,
       finishReason,
+      promptTokens,
+      completionTokens,
     };
   } catch (err) {
     if ((err as Error).name === "AbortError") {
