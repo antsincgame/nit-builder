@@ -34,11 +34,16 @@ function applySecurityHeaders(headers: Headers): void {
 
   // Content Security Policy.
   //
-  // 'unsafe-eval' УБРАН — в parent документе он не нужен. Tailwind v4 у нас
-  // через Vite plugin (build-time, без runtime eval), Alpine.js используется
-  // только внутри iframe preview сгенерированных сайтов (sandbox изолирован
-  // от parent CSP). Раньше eval разрешался "на всякий случай" — атакующий
-  // через XSS получал полный JS execution. Теперь нет.
+  // 'unsafe-eval' НУЖЕН — превью сгенерированных сайтов рендерится в srcDoc
+  // iframe, а он НАСЛЕДУЕТ CSP родителя (не изолирован, вопреки прежнему
+  // допущению). Сгенерированные сайты используют Alpine.js (мобильное меню:
+  // x-data/@click/x-show), который вычисляет выражения через eval — без
+  // 'unsafe-eval' все директивы Alpine падают EvalError и интерактивность в
+  // превью мертва. Риск ограничен: 'unsafe-inline' для script и так разрешён
+  // (srcDoc исполняет произвольный LLM-HTML в нашем origin), поэтому eval не
+  // добавляет существенной поверхности. Правильное долгосрочное решение —
+  // вынести превью на отдельный origin/route со своим CSP-заголовком, тогда
+  // у родителя можно убрать и 'unsafe-eval', и 'unsafe-inline'.
   //
   // 'unsafe-inline' для script ОСТАЁТСЯ временно — React Router 7 SSR
   // serializes hydration data в inline <script>__remixContext={...}</script>
