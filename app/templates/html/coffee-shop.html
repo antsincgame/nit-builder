@@ -18,10 +18,10 @@
   <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
     <a href="#" class="font-display text-2xl font-bold">☕ Bean & Brew</a>
     <div class="hidden md:flex gap-8 text-sm font-medium">
-      <a href="#menu" class="hover:text-[#8B5E3C] transition">Меню</a>
-      <a href="#hours" class="hover:text-[#8B5E3C] transition">Часы работы</a>
-      <a href="#location" class="hover:text-[#8B5E3C] transition">Адрес</a>
-      <a href="#contact" class="hover:text-[#8B5E3C] transition">Контакты</a>
+      <a href="#menu" class="hover:text-[var(--nit-accent)] transition">Меню</a>
+      <a href="#hours" class="hover:text-[var(--nit-accent)] transition">Часы работы</a>
+      <a href="#location" class="hover:text-[var(--nit-accent)] transition">Адрес</a>
+      <a href="#contact" class="hover:text-[var(--nit-accent)] transition">Контакты</a>
     </div>
     <button @click="open=!open" class="md:hidden">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -35,11 +35,11 @@
 <section id="hero" class="pt-32 pb-20 px-6">
   <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
     <div>
-      <p class="text-[#8B5E3C] font-medium uppercase tracking-widest text-sm mb-4">Специализированный кофе</p>
-      <h1 class="font-display text-5xl md:text-6xl font-bold leading-tight mb-6">Кофе, который<br>возвращает<br><span class="text-[#8B5E3C]">в детство</span></h1>
+      <p class="text-[var(--nit-accent)] font-medium uppercase tracking-widest text-sm mb-4">Специализированный кофе</p>
+      <h1 class="font-display text-5xl md:text-6xl font-bold leading-tight mb-6">Кофе, который<br>возвращает<br><span class="text-[var(--nit-accent)]">в детство</span></h1>
       <p class="text-lg text-[#5C4033] mb-8 max-w-md">Свежеобжаренные зёрна, авторские напитки и домашняя выпечка. Место, куда хочется возвращаться.</p>
       <div class="flex gap-4">
-        <a href="#menu" class="px-8 py-4 bg-[#2C1810] text-[#FAF6F1] rounded-full font-medium hover:bg-[#8B5E3C] transition">Посмотреть меню</a>
+        <a href="#menu" class="px-8 py-4 bg-[#2C1810] text-[#FAF6F1] rounded-full font-medium hover:bg-[var(--nit-accent)] transition">Посмотреть меню</a>
         <a href="#location" class="px-8 py-4 border-2 border-[#2C1810] rounded-full font-medium hover:bg-[#2C1810] hover:text-[#FAF6F1] transition">Как найти</a>
       </div>
     </div>
@@ -56,7 +56,7 @@
 <section id="menu" class="py-20 px-6 bg-[#F3EBDD]">
   <div class="max-w-6xl mx-auto">
     <div class="text-center mb-14">
-      <p class="text-[#8B5E3C] font-medium uppercase tracking-widest text-sm mb-3">Наше меню</p>
+      <p class="text-[var(--nit-accent)] font-medium uppercase tracking-widest text-sm mb-3">Наше меню</p>
       <h2 class="font-display text-4xl md:text-5xl font-bold">Напитки и десерты</h2>
     </div>
     <div class="grid md:grid-cols-3 gap-8">
@@ -96,11 +96,11 @@
 
 <section id="hours" class="py-20 px-6">
   <div class="max-w-4xl mx-auto text-center">
-    <p class="text-[#8B5E3C] font-medium uppercase tracking-widest text-sm mb-3">Мы работаем</p>
+    <p class="text-[var(--nit-accent)] font-medium uppercase tracking-widest text-sm mb-3">Мы работаем</p>
     <h2 class="font-display text-4xl md:text-5xl font-bold mb-10">Всегда ждём вас</h2>
     <div class="grid md:grid-cols-2 gap-6 text-left max-w-2xl mx-auto">
-      <div class="bg-[#F3EBDD] p-6 rounded-2xl flex justify-between items-center"><span class="font-medium">Пн — Пт</span><span class="text-[#8B5E3C] font-semibold">08:00 — 22:00</span></div>
-      <div class="bg-[#F3EBDD] p-6 rounded-2xl flex justify-between items-center"><span class="font-medium">Сб — Вс</span><span class="text-[#8B5E3C] font-semibold">09:00 — 23:00</span></div>
+      <div class="bg-[#F3EBDD] p-6 rounded-2xl flex justify-between items-center"><span class="font-medium">Пн — Пт</span><span class="text-[var(--nit-accent)] font-semibold">08:00 — 22:00</span></div>
+      <div class="bg-[#F3EBDD] p-6 rounded-2xl flex justify-between items-center"><span class="font-medium">Сб — Вс</span><span class="text-[var(--nit-accent)] font-semibold">09:00 — 23:00</span></div>
     </div>
   </div>
 </section>
@@ -109,23 +109,23 @@
   <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-12 items-center">
     <img src="https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=800" alt="Interior" class="rounded-3xl shadow-xl h-[400px] w-full object-cover">
     <div>
-      <p class="text-[#8B5E3C] font-medium uppercase tracking-widest text-sm mb-3">Как нас найти</p>
+      <p class="text-[var(--nit-accent)] font-medium uppercase tracking-widest text-sm mb-3">Как нас найти</p>
       <h2 class="font-display text-4xl md:text-5xl font-bold mb-6">В самом сердце города</h2>
       <p class="text-lg text-[#5C4033] mb-6">ул. Независимости 45, Минск</p>
       <p class="text-[#5C4033] mb-8">Уютный зал на 40 мест, большие окна, живая музыка по пятницам и субботам. Бесплатный wi-fi, розетки у каждого столика.</p>
-      <a href="#contact" class="inline-block px-8 py-4 bg-[#2C1810] text-[#FAF6F1] rounded-full font-medium hover:bg-[#8B5E3C] transition">Связаться</a>
+      <a href="#contact" class="inline-block px-8 py-4 bg-[#2C1810] text-[#FAF6F1] rounded-full font-medium hover:bg-[var(--nit-accent)] transition">Связаться</a>
     </div>
   </div>
 </section>
 
 <section id="contact" class="py-20 px-6">
   <div class="max-w-4xl mx-auto text-center">
-    <p class="text-[#8B5E3C] font-medium uppercase tracking-widest text-sm mb-3">Контакты</p>
+    <p class="text-[var(--nit-accent)] font-medium uppercase tracking-widest text-sm mb-3">Контакты</p>
     <h2 class="font-display text-4xl md:text-5xl font-bold mb-10">Будем на связи</h2>
     <div class="grid md:grid-cols-3 gap-6">
-      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">📞</div><p class="font-semibold mb-1">Телефон</p><a href="tel:+375291234567" class="text-[#8B5E3C]">+375 29 123-45-67</a></div>
-      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">✉️</div><p class="font-semibold mb-1">Email</p><a href="mailto:hello@beanbrew.by" class="text-[#8B5E3C]">hello@beanbrew.by</a></div>
-      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">📍</div><p class="font-semibold mb-1">Адрес</p><p class="text-[#8B5E3C]">ул. Независимости 45</p></div>
+      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">📞</div><p class="font-semibold mb-1">Телефон</p><a href="tel:+375291234567" class="text-[var(--nit-accent)]">+375 29 123-45-67</a></div>
+      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">✉️</div><p class="font-semibold mb-1">Email</p><a href="mailto:hello@beanbrew.by" class="text-[var(--nit-accent)]">hello@beanbrew.by</a></div>
+      <div class="bg-[#F3EBDD] p-8 rounded-2xl"><div class="text-3xl mb-3">📍</div><p class="font-semibold mb-1">Адрес</p><p class="text-[var(--nit-accent)]">ул. Независимости 45</p></div>
     </div>
   </div>
 </section>
