@@ -123,6 +123,9 @@ export const PlanSchema = z.object({
   language: z.enum(["ru", "en", "by"]).default("ru"),
   suggested_template_id: z.string().min(1),
 
+  /** Случайный seed вариативности верстки. Ставится пайплайном при генерации (не планировщиком): один и тот же объект плана идёт в билдер и в превью, поэтому styleVariant даёт один вариант без рассинхрона CSS и разметки. */
+  variantSeed: z.number().int().optional(),
+
   // ─── Копирайт от Planner-а (опц., backward-compat) ───
   hero_headline: z.string().min(3).max(120).optional(),
   hero_subheadline: z.string().max(300).optional(),
