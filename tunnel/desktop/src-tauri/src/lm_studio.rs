@@ -37,6 +37,12 @@ struct ChatCompletionRequest {
     max_tokens: u32,
     temperature: f32,
     stream: bool,
+    stream_options: StreamOptions,
+}
+
+#[derive(Debug, Serialize)]
+struct StreamOptions {
+    include_usage: bool,
 }
 
 #[derive(Debug, Serialize)]
