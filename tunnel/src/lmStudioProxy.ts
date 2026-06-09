@@ -11,6 +11,9 @@ export type StreamDelta = {
   durationMs?: number;
   /** Только для type==="done": причина остановки от OpenAI-совместимого API. */
   finishReason?: "stop" | "length" | "unknown";
+  /** Только type==="done": реальные токены из usage LM Studio (если отдал). */
+  promptTokens?: number;
+  completionTokens?: number;
 };
 
 export type ProxyConfig = {
