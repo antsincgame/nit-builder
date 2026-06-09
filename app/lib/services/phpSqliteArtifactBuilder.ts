@@ -1276,6 +1276,7 @@ function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: Storefr
   let h = 2166136261 >>> 0;
   const seedStr = `${plan.business_type}|${kw}`;
   for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  if (typeof plan.variantSeed === "number") { h = (h ^ (plan.variantSeed >>> 0)) >>> 0; h = Math.imul(h, 16777619) >>> 0; }
   const theme = storefrontTheme(plan);
   const neonAccents: [string, string][] = [["#22d3ee", "#a855f7"], ["#a855f7", "#22d3ee"], ["#4ade80", "#22d3ee"], ["#f0abfc", "#818cf8"], ["#38bdf8", "#34d399"], ["#fb7185", "#f0abfc"], ["#facc15", "#fb7185"], ["#2dd4bf", "#a855f7"]];
   const lightByTheme: Record<StorefrontTheme, [string, string][]> = {
