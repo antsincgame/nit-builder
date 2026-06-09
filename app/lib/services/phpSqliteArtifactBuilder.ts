@@ -1956,9 +1956,9 @@ function buildLivePreviewBootScript(): string {
   function ensureDir(d){return php.analyzePath(d).then(function(a){if(a&&a.exists){return;}return php.mkdir(d).catch(function(){});});}
   function patchPreview(content){
     var c=String(content||'');
-    if(c.indexOf('@@NITREDIRECT@@')<0){c=c.replace("function redirect(string $path): void {\n    header('Location: ' . $path);\n    exit;\n}","function redirect(string $path): void {\n    if (defined('NIT_PREVIEW')) { echo '@@NITREDIRECT@@' . $path; exit; }\n    header('Location: ' . $path);\n    exit;\n}");}
-    if(c.indexOf("if (defined('NIT_PREVIEW')) { return; }")<0){c=c.replace("function require_csrf(): void {\n    $token = $_POST['csrf_token'] ?? '';","function require_csrf(): void {\n    if (defined('NIT_PREVIEW')) { return; }\n    $token = $_POST['csrf_token'] ?? '';");}
-    if(c.indexOf('$__pa = db()->query')<0){c=c.replace("migrate();\n\n$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';","migrate();\n\nif (defined('NIT_PREVIEW') && empty($_SESSION['admin_id'])) {\n    $__pa = db()->query('SELECT id FROM admins ORDER BY id LIMIT 1')->fetchColumn();\n    if ($__pa) { $_SESSION['admin_id'] = (int) $__pa; }\n}\n\n$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';");}
+    if(c.indexOf('@@NITREDIRECT@@')<0){c=c.replace(/function redirect\(string \$path\)([^{]*)\{/,"function redirect(string $path)$1{\n    if (defined('NIT_PREVIEW')) { echo '@@NITREDIRECT@@' . $path; exit; }");}
+    if(c.indexOf("defined('NIT_PREVIEW')) { return; }")<0){c=c.replace(/function require_csrf\(\)([^{]*)\{/,"function require_csrf()$1{\n    if (defined('NIT_PREVIEW')) { return; }");}
+    if(c.indexOf('$__pa = db()->query')<0){c=c.replace("migrate();","migrate();\n\nif (defined('NIT_PREVIEW') && empty($_SESSION['admin_id'])) {\n    try { $__pa = db()->query('SELECT id FROM admins ORDER BY id LIMIT 1')->fetchColumn(); if ($__pa) { $_SESSION['admin_id'] = (int) $__pa; } } catch (\\Throwable $e) {}\n}");}
     return c;
   }
   function writeProject(){
