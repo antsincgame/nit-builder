@@ -8,6 +8,7 @@ import {
   updateSite,
   type NitSite,
 } from "~/lib/server/appwrite.server";
+import { rebuildLivePreviewHtml } from "~/lib/services/phpSqliteArtifactBuilder";
 
 // ─── GET /api/sites/:id — get one site (with full HTML) ──────────
 
