@@ -687,8 +687,12 @@ function buildIndexPhp(plan: Plan): string {
     ? "мастера и услуги"
     : theme === "food" ? (isRu(plan) ? "позиций меню" : "menu items") : "активные предложения");
   const catalogHeading = phpString(theme === "beauty"
-    ? "Выберите формат визита"
-    : theme === "food" ? (isRu(plan) ? "Меню напитков и десертов" : "Coffee and dessert menu") : "Витрина предложений");
+    ? pickBySeed(["Выберите формат визита", "Услуги и форматы записи", "С чего начнём преображение"], sv.seed)
+    : theme === "food"
+      ? (isRu(plan)
+          ? pickBySeed(["Меню напитков и десертов", "Что в нашей витрине сегодня", "Кофе, десерты и сезонное меню"], sv.seed)
+          : pickBySeed(["Coffee and dessert menu", "What's on our counter today", "Coffee, desserts and seasonals"], sv.seed))
+      : pickBySeed(["Витрина предложений", "Каталог предложений", "Выберите подходящий вариант"], sv.seed));
   const benefitsHeading = phpString(theme === "beauty"
     ? "Сервис ощущается ещё до визита"
     : theme === "food" ? (isRu(plan) ? "Заказ проходит как в хорошей кофейне: быстро и понятно" : "Ordering feels fast and clear") : "Не просто витрина, а понятный путь к заявке");
