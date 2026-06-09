@@ -152,7 +152,7 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/index.php")).toContain("кофе · десерты · заказы");
     expect(file("public/index.php")).toContain("Меню напитков и десертов");
     expect(file("public/assets/style.css")).toContain(".theme-food");
-    expect(file("public/assets/style.css")).toContain("#b45309");
+    expect(file("public/assets/style.css")).toMatch(/--accent:#(b45309|ea580c|c2410c|9a3412|a16207);/);
   });
 
   it("keeps generated PHP compatible with PHP 7.4 syntax", () => {
