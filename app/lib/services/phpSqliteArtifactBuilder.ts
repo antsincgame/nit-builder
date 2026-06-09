@@ -1144,6 +1144,63 @@ if ($path === '/checkout/success') {
 
 render_header('Витрина');
 ?>
+<?php if ($heroKind === 1): ?>
+<section class="store-hero">
+  <div class="hero-copy">
+    <p class="kicker"><?= h($heroEyebrow) ?></p>
+    <h1><?= h($headline) ?></h1>
+    <p><?= h($subheadline) ?></p>
+    <div class="hero-actions">
+      <a class="hero-btn" href="#catalog"><?= h($cta) ?></a>
+      <a class="hero-link" href="#catalog">Посмотреть предложения</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <article><strong><?= (int) count(products()) ?></strong><span><?= h($heroVisualMetric) ?></span></article>
+    <article><strong>15 мин</strong><span>среднее время ответа</span></article>
+    <article><strong>0%</strong><span>предоплата</span></article>
+  </div>
+</section>
+<?php elseif ($heroKind === 2): ?>
+<section class="store-hero">
+  <div class="hero-visual" aria-label="Визуальная карточка предложения">
+    <div class="visual-photo">
+      <span><?= h($heroVisualTitle) ?></span>
+    </div>
+    <div class="visual-card main">
+      <span>Доступно</span>
+      <strong><?= (int) count(products()) ?></strong>
+      <small><?= h($heroVisualMetric) ?></small>
+    </div>
+    <div class="visual-card floating one">Ответ 15 мин</div>
+    <div class="visual-card floating two">Без предоплаты</div>
+  </div>
+  <div class="hero-copy">
+    <p class="kicker"><?= h($heroEyebrow) ?></p>
+    <h1><?= h($headline) ?></h1>
+    <p><?= h($subheadline) ?></p>
+    <div class="hero-actions">
+      <a class="hero-btn" href="#catalog"><?= h($cta) ?></a>
+      <a class="hero-link" href="#catalog">Посмотреть предложения</a>
+    </div>
+  </div>
+</section>
+<?php elseif ($heroKind === 3): ?>
+<section class="store-hero">
+  <div class="hero-copy">
+    <p class="kicker"><?= h($heroEyebrow) ?></p>
+    <h1><?= h($headline) ?></h1>
+    <p><?= h($subheadline) ?></p>
+    <div class="hero-actions">
+      <a class="hero-btn" href="#catalog"><?= h($cta) ?></a>
+      <a class="hero-link" href="#catalog">Посмотреть предложения</a>
+    </div>
+  </div>
+  <div class="hero-grid" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span><span></span>
+  </div>
+</section>
+<?php else: ?>
 <section class="store-hero">
   <div class="hero-copy">
     <p class="kicker"><?= h($heroEyebrow) ?></p>
@@ -1167,6 +1224,7 @@ render_header('Витрина');
     <div class="visual-card floating two">Без предоплаты</div>
   </div>
 </section>
+<?php endif; ?>
 <section class="trust-strip">
   <article><strong><?= h($trustOne) ?></strong><span>социальное доказательство</span></article>
   <article><strong><?= h($trustTwo) ?></strong><span>режим обработки</span></article>
