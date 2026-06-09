@@ -75,7 +75,7 @@ const PLATFORMS: Platform[] = [
     id: "linux",
     name: "Linux",
     icon: <Terminal size={22} />,
-    filename: "nit-tunnel_0.1.0_amd64.AppImage",
+    filename: "NIT.Tunnel_0.2.2_amd64.AppImage",
     url: tunnelDownloadPath("linux"),
     description: "AppImage · универсальный",
   },
