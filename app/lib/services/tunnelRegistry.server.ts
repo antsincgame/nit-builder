@@ -131,6 +131,11 @@ export type PendingRequest = {
   accumulatedHtml?: string;
   /** Сколько раз уже до-генерировали из-за обрыва по длине. */
   continuationAttempts?: number;
+  /**
+   * true — докрутка исчерпана (TUNNEL_MAX_CONTINUATIONS), а модель всё ещё
+   * обрывалась по длине: финальный HTML мог быть обрезан. Для телеметрии UI.
+   */
+  truncated?: boolean;
   // ─── Двухфазный планировщик (tunnelPipeline) ───
   /**
    * Фаза запроса. "plan" — туннель генерит JSON-план (фаза 1), его текст НЕ
