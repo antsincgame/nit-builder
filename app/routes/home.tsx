@@ -189,6 +189,29 @@ export default function Home() {
     setSidebarOpen(false);
   }, [reset]);
 
+  // Пересобрать превью на текущем движке без перегенерации: дёргаем
+  // PATCH /api/sites/:id {rebuild:true} (меняет boot-скрипт), затем
+  // перезагружаем страницу, чтобы подтянуть свежий html.
+  const [rebuilding, setRebuilding] = useState(false);
+  const handleRebuild = useCallback(async () => {
+    if (!currentSiteId || rebuilding) return;
+    setRebuilding(true);
+    try {
+      const res = await fetch(`/api/sites/${currentSiteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rebuild: true }),
+      });
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+    } catch {
+      /* no-op */
+    }
+    setRebuilding(false);
+  }, [currentSiteId, rebuilding]);
+
   // Есть ли в текущем HTML админ-разметка от Coder-а (зоны ИЛИ коллекции) —
   // значит Planner отметил needs_admin=true и можно собрать PHP-бандл с
   // админкой. Сервер сам извлечёт и зоны, и схему коллекций из html
