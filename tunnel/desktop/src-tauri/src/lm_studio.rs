@@ -26,7 +26,7 @@ pub enum StreamEvent {
     /// Reasoning-модель (Qwen3 и т.п.) стримит размышления: текста ответа не
     /// несут, но это живой прогресс — UI-счётчики не должны висеть на нуле.
     Reasoning,
-    Done { full_text: String, duration_ms: u64, finish_reason: String },
+    Done { full_text: String, duration_ms: u64, finish_reason: String, prompt_tokens: Option<u32>, completion_tokens: Option<u32> },
     Error(String),
 }
 
