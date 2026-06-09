@@ -411,10 +411,27 @@ export function useGenerationFlow(
           const blocksLine = blocks.length
             ? `Внутри ${blocks.length} ${pluralBlocks(blocks.length)}: ${blocks.join(", ")}.`
             : "Сайт готов.";
+          // ─── Телеметрия прогона (Слой 1) ───
+          // Сервер кладёт в generate_done.telemetry данные туннеля + хода
+          // генерации. Показываем компактную строку диагностики и явное
+          // предупреждение, если сайт мог обрезаться (докрутка исчерпана).
+          const tel = event.telemetry;
+          const truncatedWarning = tel?.truncated
+            ? `\n\n⚠️ Сайт мог получиться обрезанным: модель упёрлась в лимит токенов даже после докрутки. Нажми «Повторить» или упрости запрос — меньше блоков.`
+            : "";
+          let diagLine = "";
+          if (tel) {
+            const parts: string[] = [];
+            if (tel.model) parts.push(tel.model);
+            if (tel.contextWindow) parts.push(`контекст ${Math.round(tel.contextWindow / 1000)}k`);
+            if ((tel.continuationRounds ?? 0) > 0) parts.push(`докрутка ×${tel.continuationRounds}`);
+            if (parts.length) diagLine = `\n\nДиагностика: ${parts.join(" · ")}`;
+          }
           const assistantText =
-            `Готово ✨ ${blocksLine} Собрал за ${secs}с.\n\n` +
+            `Готово ✨ ${blocksLine} Собрал за ${secs}с.` + truncatedWarning + `\n\n` +
             `Что можно поправить прямо в чате: сменить заголовок или тексты, поменять цвета, ` +
-            `убрать или добавить блок, заменить фото, поправить цены. Опиши, что изменить, — применю к нужному месту.`;
+            `убрать или добавить блок, заменить фото, поправить цены. Опиши, что изменить, — применю к нужному месту.` +
+            diagLine;
           const updatedMessages: ChatMessage[] = [
             ...chatMessagesRef.current,
             { role: "assistant", text: assistantText },
