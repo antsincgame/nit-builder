@@ -497,3 +497,13 @@ fn now_millis() -> u64 {
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
 }
+
+/// Контекст-окно из env NIT_TUNNEL_CONTEXT_WINDOW (дефолт 32000). LM Studio
+/// не сообщает его по /v1/models — выставь под свою модель (напр. 40000).
+fn read_context_window() -> u32 {
+    std::env::var("NIT_TUNNEL_CONTEXT_WINDOW")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(32_000)
+}
