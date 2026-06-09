@@ -1291,8 +1291,11 @@ function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: Storefr
   const pair = list[h % list.length];
   const radius = [14, 18, 24, 30][(h >>> 3) % 4];
   const head = (h >>> 5) % 3;
-  const layout = (h >>> 7) % 3;
-  return { neon, seed: h, theme, accent: pair[0], accent2: pair[1], radius, head, layout };
+  const hero = (h >>> 7) % 3;
+  const cat = (h >>> 9) % 3;
+  const band = (h >>> 11) % 2;
+  const struct = (h >>> 13) % 4;
+  return { neon, seed: h, theme, accent: pair[0], accent2: pair[1], radius, head, hero, cat, band, struct };
 }
 
 function buildStyleCss(plan: Plan): string {
