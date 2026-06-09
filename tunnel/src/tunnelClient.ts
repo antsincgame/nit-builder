@@ -288,7 +288,10 @@ async function handleGenerate(
           requestId: req.requestId,
           fullText: delta.fullText ?? fullText,
           durationMs: delta.durationMs ?? Date.now() - startedAt,
-          completionTokens: tokenCount,
+          // Реальные токены из usage LM Studio; completionTokens — fallback на
+          // счётчик чанков, если сервер usage не прислал.
+          promptTokens: delta.promptTokens,
+          completionTokens: delta.completionTokens ?? tokenCount,
           finishReason: delta.finishReason ?? "stop",
         });
         log.info(
