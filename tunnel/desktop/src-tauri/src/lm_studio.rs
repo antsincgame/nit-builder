@@ -220,6 +220,8 @@ impl LmStudioProxy {
         let mut buffer = String::new();
         let mut full_text = String::new();
         let mut finish_reason = String::from("unknown");
+        let mut prompt_tokens: Option<u32> = None;
+        let mut completion_tokens: Option<u32> = None;
 
         loop {
             tokio::select! {
