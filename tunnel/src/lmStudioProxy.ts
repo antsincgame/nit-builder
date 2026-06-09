@@ -128,7 +128,16 @@ export async function* streamFromLmStudio(
                 };
                 finish_reason?: string | null;
               }>;
+              usage?: { prompt_tokens?: number; completion_tokens?: number };
             };
+            // Финальный usage-чанк (choices пустой, delta нет) несёт реальные
+            // токены. Может прийти отдельным чанком после finish_reason.
+            if (parsed.usage) {
+              if (typeof parsed.usage.prompt_tokens === "number")
+                promptTokens = parsed.usage.prompt_tokens;
+              if (typeof parsed.usage.completion_tokens === "number")
+                completionTokens = parsed.usage.completion_tokens;
+            }
             const choice = parsed.choices?.[0];
             const delta = choice?.delta?.content;
             if (delta) {
