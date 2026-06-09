@@ -308,6 +308,10 @@ export async function* executeHtmlSimple(
     options.stylePresetId ?? inferStylePresetId(sanitized, currentPlan);
   if (artifactMode === "php-sqlite") {
     currentPlan = normalizeBackendPlanForPrompt(currentPlan, sanitized);
+    // Случайный seed вариативности: каждая генерация — новый вид (палитра, структура,
+    // порядок и набор секций, стиль карточек). Один объект плана идёт и в билдер, и в
+    // превью, поэтому styleVariant вычислит один и тот же вариант (CSS и разметка не разойдутся).
+    currentPlan = { ...currentPlan, variantSeed: Math.floor(Math.random() * 0xffffffff) };
     memory.planJson = currentPlan;
     metrics.skeletonInjectSkipped("php_sqlite_artifact_mode");
     logger.info(SCOPE, "Backend artifact mode: generating deterministic PHP + SQLite project manifest");
