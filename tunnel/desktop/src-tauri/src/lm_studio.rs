@@ -173,6 +173,7 @@ impl LmStudioProxy {
             max_tokens,
             temperature,
             stream: true,
+            stream_options: StreamOptions { include_usage: true },
         };
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
