@@ -255,9 +255,9 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
   }
   if (!normalized.key_benefits?.length) {
     normalized.key_benefits = [
-      { title: "Быстрый старт", description: "Первая заявка может прийти уже за 15 минут после публикации." },
-      { title: "Понятная структура", description: "Hero, услуги, доказательства и контакты собраны в один экранный путь." },
-      { title: "Готово к заявкам", description: "CTA и форма контакта ведут пользователя к обращению без лишних шагов." },
+      { title: "Быстрый ответ", description: "Отвечаем на заявку за 15 минут в рабочее время." },
+      { title: "Честные цены", description: "Стоимость известна заранее, без скрытых доплат." },
+      { title: "Без предоплаты", description: "Сначала обсуждаем задачу, оплата — после согласования." },
     ];
   }
   if (!normalized.social_proof_line) {
