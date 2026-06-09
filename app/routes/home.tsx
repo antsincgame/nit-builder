@@ -700,6 +700,18 @@ export default function Home() {
                     Поделиться
                   </button>
                 )}
+                {html && isBackendArtifact && currentSiteId && (
+                  <button
+                    type="button"
+                    onClick={handleRebuild}
+                    disabled={rebuilding}
+                    className="hidden sm:inline-flex px-3 py-1.5 text-[12px] font-medium rounded-md border border-white/[0.08] text-sky-400 hover:text-sky-300 hover:border-sky-500/30 transition items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Пересобрать превью на текущем движке (без перегенерации)"
+                  >
+                    <RotateCcw size={12} className={rebuilding ? "animate-spin" : ""} />
+                    {rebuilding ? "Сборка…" : "Пересобрать"}
+                  </button>
+                )}
               </>
             )}
             <AuthBadge auth={auth} onOpenSettings={() => setSettingsOpen(true)} />
