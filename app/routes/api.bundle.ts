@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 import { bakeStandaloneHtml } from "~/lib/bake/compileTailwind.server";
+import { inlineImagesAsDataUris } from "~/lib/bake/localizeImages.server";
 import { logger } from "~/lib/utils/logger";
 
 // ─── POST /api/bundle — компиляция Tailwind + standalone HTML ─────
