@@ -161,6 +161,24 @@ export type ServerToBrowser =
       templateId: string;
       templateName: string;
       durationMs: number;
+      /**
+       * Диагностика прогона для UI (опционально, backward-compatible). Сервер
+       * заполняет из capabilities туннеля + хода генерации. Старый фронт поле
+       * игнорит. promptTokens/completionTokens приходят только если клиент
+       * туннеля запросил usage у LM Studio (Слой 2).
+       */
+      telemetry?: {
+        model?: string;
+        contextWindow?: number;
+        /** Раундов авто-докрутки понадобилось (0 — уложились сразу). */
+        continuationRounds?: number;
+        /** true — докрутка исчерпана, модель всё ещё обрывалась: сайт мог обрезаться. */
+        truncated?: boolean;
+        /** true — была фаза repair админ-разметки. */
+        repaired?: boolean;
+        promptTokens?: number;
+        completionTokens?: number;
+      };
     }
   | {
       type: "generate_error";
