@@ -332,3 +332,11 @@ async function handleGenerate(
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** Контекст-окно из env (дефолт 32000). LM Studio не сообщает его по API. */
+function readContextWindow(): number {
+  const raw = process.env.NIT_TUNNEL_CONTEXT_WINDOW;
+  if (!raw) return 32_000;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 32_000;
+}
