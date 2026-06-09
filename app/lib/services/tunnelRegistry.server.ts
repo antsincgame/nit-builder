@@ -1302,6 +1302,8 @@ function finalizeTunnelDone(
       continuationRounds: req.continuationAttempts ?? 0,
       truncated: req.truncated ?? false,
       repaired: !!req.htmlBeforeRepair,
+      promptTokens: req.promptTokens,
+      completionTokens: req.completionTokens,
     },
   });
   // Чистая успешная генерация — сбрасываем счётчики деградации, чтобы
