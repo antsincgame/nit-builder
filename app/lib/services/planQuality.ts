@@ -261,7 +261,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     ];
   }
   if (!normalized.social_proof_line) {
-    normalized.social_proof_line = "Более 100 обращений можно обработать через сайт за первый месяц";
+    normalized.social_proof_line = "Десятки клиентов уже доверяют нам";
   }
   if (!normalized.keywords.length) {
     normalized.keywords = inferKeywords(query, normalized.business_type);
