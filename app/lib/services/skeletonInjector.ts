@@ -97,6 +97,11 @@ const SKEL_ACCENT_POOL = [
 ] as const;
 
 function injectSkeletonAccent(html: string, seed: number): string {
+  // Перебивка имеет смысл только для шаблонов, реально использующих
+  // var(--nit-accent) (мигрированных). На остальных — строгий no-op, чтобы
+  // не плодить мёртвый <style>. Кодер-путь переписывает цвета сам, поэтому
+  // на нём переменная всё равно не доживает — механизм только для skeleton.
+  if (!html.includes("--nit-accent")) return html;
   if (html.includes('id="nit-skel-accent"')) return html;
   const accent = SKEL_ACCENT_POOL[(seed >>> 0) % SKEL_ACCENT_POOL.length]!;
   const style = `<style id="nit-skel-accent">:root{--nit-accent:${accent}}</style>`;
