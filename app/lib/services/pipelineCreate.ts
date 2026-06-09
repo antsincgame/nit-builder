@@ -461,7 +461,7 @@ export async function* executeHtmlSimple(
       const totalMs = Date.now() - startMs;
       const generatedHtml = stripCodeFences(rawHtml);
       const fullHtml = customArtifactLooksTooThin(generatedHtml)
-        ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized, presetId: stylePresetId })
+        ? buildCustomArtifactHtml({ plan: currentPlan, userMessage: sanitized, presetId: artifactPresetId })
         : generatedHtml;
       if (fullHtml !== generatedHtml) {
         logger.warn(SCOPE, `Custom artifact fallback builder used (${generatedHtml.length} generated chars)`);
