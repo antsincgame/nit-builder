@@ -274,7 +274,12 @@ export function resolveTunnelPlan(
       (plan.collections?.length ?? 0) > 0);
   if (presetId === "generic" && plan.language === "ru" && !adminNeedsCoder) {
     const cleanTemplateHtml = loadTemplateHtml(template.id);
-    const injection = injectPlanIntoTemplate(cleanTemplateHtml, plan);
+    // Seeded-акцент skeleton-вывода: на одинаковый промпт — разный акцент
+    // (на мигрированных шаблонах). variantSeed по умолчанию случайный на генерацию.
+    const injection = injectPlanIntoTemplate(cleanTemplateHtml, {
+      ...plan,
+      variantSeed: plan.variantSeed ?? Math.floor(Math.random() * 0x100000000),
+    });
     if (injection.ok && htmlContainsPrimaryCta(injection.html, plan)) {
       // pipelineCreate для skeleton-пути НЕ применяет post-polish, только
       // stripCodeFences — повторяем 1-в-1.
