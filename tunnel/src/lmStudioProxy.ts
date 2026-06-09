@@ -44,6 +44,9 @@ export async function* streamFromLmStudio(
     max_tokens: params.maxTokens,
     temperature: params.temperature,
     stream: true,
+    // Финальный usage-чанк (prompt/completion токены). При stream:true без
+    // этого флага OpenAI-совместимые серверы usage не присылают.
+    stream_options: { include_usage: true },
   };
 
   const controller = new AbortController();
