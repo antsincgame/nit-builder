@@ -217,7 +217,7 @@ async fn connect_and_serve(
         capabilities: TunnelCapabilities {
             runtime: Runtime::LmstudioProxy,
             model: model.clone(),
-            context_window: 32_000,
+            context_window: read_context_window(),
             gpu: None,
         },
     };
