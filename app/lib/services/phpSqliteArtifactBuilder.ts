@@ -1883,8 +1883,11 @@ function buildLivePreviewBootScript(): string {
   }
   function runRaw(code){
     return queue(function(){
-      outBuf='';
-      return php.run(code).then(function(){return outBuf;});
+      phpErr='';outBuf='';
+      return reinit().then(function(){return php.run(code);}).then(function(){
+        var raw=outBuf;
+        return php.readFile('/app/storage/app.sqlite').then(function(b){dbSnap=b;}).catch(function(){}).then(function(){return raw;});
+      });
     });
   }
 
