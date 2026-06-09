@@ -44,12 +44,13 @@ export async function action({ request }: ActionFunctionArgs) {
   const t0 = Date.now();
   try {
     const baked = await bakeStandaloneHtml(parsed.data.html);
+    const inlined = await inlineImagesAsDataUris(baked);
     const tookMs = Date.now() - t0;
     const sizeIn = parsed.data.html.length;
-    const sizeOut = baked.length;
+    const sizeOut = inlined.html.length;
     logger.info(
       "api.bundle",
-      `ok in=${sizeIn}b out=${sizeOut}b took=${tookMs}ms`,
+      `ok in=${sizeIn}b out=${sizeOut}b took=${tookMs}ms images=${inlined.embedded}/${inlined.embedded + inlined.failed}`,
     );
 
     // safe filename — только ascii-альфанумерика, дефисы, подчёркивания.
