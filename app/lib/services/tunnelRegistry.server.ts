@@ -831,13 +831,17 @@ export function handleTunnelResponse(
           // без кодер-фазы. Так наполнение осмысленное по запросу, а исполняемый
           // код остаётся проверенным (PDO prepared, экранирование, CSRF, auth).
           if (req.artifactMode === "php-sqlite") {
-            const artifact = buildPhpSqliteArtifact({ plan, userMessage: req.userMessage ?? "" });
+            // Случайный seed вариативности (как в HTTP-пайплайне): каждая генерация —
+            // новый вид (палитра, структура, тип героя), даже при одинаковом запросе.
+            // Один seeded-план идёт и в билдер, и в превью — CSS и разметка не разойдутся.
+            const seededPlan = { ...plan, variantSeed: Math.floor(Math.random() * 0xffffffff) };
+            const artifact = buildPhpSqliteArtifact({ plan: seededPlan, userMessage: req.userMessage ?? "" });
             const previewHtml = renderPhpSqliteArtifactPreview({
               artifact,
-              plan,
+              plan: seededPlan,
               userMessage: req.userMessage ?? "",
             });
-            req.plan = plan;
+            req.plan = seededPlan;
             req.templateId = "php-sqlite-app";
             req.templateName = "PHP + SQLite backend";
             sendToBrowser(browser.ws, {
