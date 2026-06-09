@@ -510,7 +510,9 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
           const uid = authed.userId;
 
           const sendArtifactFallback = (): void => {
-            const plan = planFromPromptAnalysis(userPrompt, analysis);
+            // Случайный seed вариативности и на fallback-пути (туннеля нет/занят):
+            // одинаковый запрос всё равно даёт новый вид при каждой генерации.
+            const plan = { ...planFromPromptAnalysis(userPrompt, analysis), variantSeed: Math.floor(Math.random() * 0xffffffff) };
             const artifact = buildPhpSqliteArtifact({ plan, userMessage: userPrompt });
             const html = renderPhpSqliteArtifactPreview({ artifact, plan, userMessage: userPrompt });
             send({
