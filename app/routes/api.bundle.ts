@@ -57,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const safeName =
       parsed.data.filename?.replace(/[^a-zA-Z0-9._-]/g, "_") ?? "site.html";
 
-    return new Response(baked, {
+    return new Response(inlined.html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Content-Disposition": `attachment; filename="${safeName}"`,
@@ -65,6 +65,7 @@ export async function action({ request }: ActionFunctionArgs) {
         "X-Bundle-In-Bytes": String(sizeIn),
         "X-Bundle-Out-Bytes": String(sizeOut),
         "X-Bundle-Took-Ms": String(tookMs),
+        "X-Bundle-Images": `${inlined.embedded}/${inlined.embedded + inlined.failed}`,
       },
     });
   } catch (err) {
