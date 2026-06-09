@@ -847,6 +847,12 @@ export function injectPlanIntoTemplate(
     }
   }
 
+  // Seeded-акцент (косметика, поверх заполненных слотов). Только при наличии
+  // variantSeed — иначе (тесты, дефолт-вызовы) HTML не меняется.
+  if (typeof plan.variantSeed === "number") {
+    html = injectSkeletonAccent(html, plan.variantSeed);
+  }
+
   const fillRatio = slotsTotal > 0 ? filled / slotsTotal : 0;
 
   if (fillRatio < SLOT_FILL_THRESHOLD) {
