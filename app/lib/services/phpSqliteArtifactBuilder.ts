@@ -1268,7 +1268,7 @@ render_footer();
 `;
 }
 
-function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: StorefrontTheme; accent: string; accent2: string; radius: number; head: number; hero: number; cat: number; band: number; struct: number } {
+function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: StorefrontTheme; accent: string; accent2: string; radius: number; head: number; hero: number; cat: number; band: number; struct: number; surf: number; btn: number } {
   const kw = (plan.keywords || []).join(" ");
   const txt = `${plan.business_type} ${kw} ${(plan.sections || []).join(" ")}`.toLowerCase();
   const mood = String(plan.color_mood || "").toLowerCase();
