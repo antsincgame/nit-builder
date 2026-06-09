@@ -1856,15 +1856,22 @@ function buildLivePreviewBootScript(): string {
   }
   var DUMP="<?php error_reporting(E_ERROR|E_PARSE);ini_set('display_errors','1');require '/app/app/db.php';migrate();$o=array();foreach(array('products','orders','order_items','admins') as $t){$o[$t]=db()->query('SELECT * FROM '.$t)->fetchAll(PDO::FETCH_ASSOC);}echo json_encode($o);";
 
+  function reinit(){
+    if(php&&php.destroy){try{php.destroy();}catch(e){}}
+    php=new PhpCtor(PHP_OPTS);
+    php.addEventListener('output',function(e){var d=e.detail;outBuf+=(d&&d.join)?d.join(''):(d==null?'':d);});
+    php.addEventListener('error',function(e){var d=e.detail;phpErr+=(d&&d.join)?d.join(''):(d||'');});
+    return writeProject().then(function(){if(dbSnap){return php.writeFile('/app/storage/app.sqlite',dbSnap).catch(function(){});}});
+  }
   function runRequest(uri,method,body){
     return queue(function(){
-      outBuf='';
-      return php.run(buildEntry(uri,method,body)).then(function(){
+      phpErr='';outBuf='';
+      return reinit().then(function(){return php.run(buildEntry(uri,method,body));}).then(function(){
         var raw=outBuf;var html=raw;var redirect='';
         var ri=raw.indexOf('@@NITREDIRECT@@');
         if(ri>=0){html=raw.slice(0,ri);redirect=raw.slice(ri+15).trim();}
         else{var idx=raw.indexOf('@@NITMETA@@');if(idx>=0){html=raw.slice(0,idx);try{var meta=JSON.parse(raw.slice(idx+11));if(meta&&meta.sid){SID=meta.sid;}redirect=(meta&&meta.redirect)||'';}catch(e){}}}
-        return {html:html,redirect:redirect,raw:raw};
+        return php.readFile('/app/storage/app.sqlite').then(function(b){dbSnap=b;}).catch(function(){}).then(function(){return {html:html,redirect:redirect,raw:raw};});
       });
     });
   }
