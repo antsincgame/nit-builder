@@ -797,6 +797,7 @@ $reviews = ${reviewsPhp};
 $showcaseTitle = ${showcaseTitle};
 $showcaseLead = ${showcaseLead};
 $showcaseItems = ${showcasePhp};
+$heroKind = ${sv.hero};
 
 function products(): array {
     return db()->query('SELECT * FROM products WHERE is_active = 1 ORDER BY sort_order, id')->fetchAll();
