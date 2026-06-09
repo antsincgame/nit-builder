@@ -669,7 +669,8 @@ function buildIndexPhp(plan: Plan): string {
     ? (isRu(plan) ? "кофе · десерты · заказы" : "coffee · desserts · orders")
     : isRu(plan) ? "онлайн-витрина" : "online storefront");
   const contactLine = phpString(plan.contact_phone || plan.contact_email || (isRu(plan) ? "Ответим в течение дня" : "We reply within a day"));
-  const themeClass = phpString(`theme-${theme}`);
+  const sv = styleVariant(plan);
+  const themeClass = phpString(`theme-${theme} mood-${sv.neon ? "neon" : "light"} head-${sv.head} lay-${sv.layout}`);
   const heroEyebrow = phpString(theme === "beauty"
     ? "Запись без предоплаты"
     : theme === "food"
