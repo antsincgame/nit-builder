@@ -96,8 +96,12 @@ export function postPolishHtml(params: HtmlPostPolishParams): HtmlPostPolishResu
     const rewritten = rewriteNeonTokens(html, params.presetId);
     html = rewritten.html;
     fixes.push(...rewritten.fixes);
-    html = insertBeforeHeadEnd(html, lightStyleOverride(params.presetId));
-    fixes.push("light-style-override");
+    // Идемпотентность: не вставляем второй <style> при повторном проходе по уже
+    // финализированному HTML (остальные 4 инжектора так же огорожены по marker-id).
+    if (!html.includes('id="nit-post-polish-style"')) {
+      html = insertBeforeHeadEnd(html, lightStyleOverride(params.presetId));
+      fixes.push("light-style-override");
+    }
   }
 
   return { html, fixes: Array.from(new Set(fixes)) };
