@@ -90,8 +90,14 @@ export function bakeCollections(
   const missingFields: Array<{ collection: string; field: string }> = [];
 
   const bakeId = generateBakeId();
+  // Порядковый префикс на каждый маркер. id коллекции и поля состоят из
+  // [a-z0-9_], поэтому суффикс "<col>_<field>" сам по себе неоднозначен:
+  // collection "menu"+field "item_price" и collection "menu_item"+field "price"
+  // дали бы ОДИН маркер → перетёрлись бы в словаре и склеили данные разных
+  // коллекций. Счётчик гарантирует уникальность независимо от содержимого id.
+  let markerSeq = 0;
   const makeMarker = (kind: string, suffix: string): string =>
-    `__NIT_COL_${bakeId}_${kind}_${suffix}__`;
+    `__NIT_COL_${bakeId}_${markerSeq++}_${kind}_${suffix}__`;
 
   for (const collection of collections) {
     // id валидирован Zod-регэкспом [a-z][a-z0-9_]* — безопасен и в селекторе,
