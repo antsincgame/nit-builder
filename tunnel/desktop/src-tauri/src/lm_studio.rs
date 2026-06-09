@@ -54,6 +54,15 @@ struct ChatMessage {
 #[derive(Debug, Deserialize)]
 struct StreamChunk {
     choices: Option<Vec<StreamChoice>>,
+    /// Финальный usage-чанк (choices пустой) с реальными токенами. Приходит
+    /// при stream_options.include_usage.
+    usage: Option<Usage>,
+}
+
+#[derive(Debug, Deserialize)]
+struct Usage {
+    prompt_tokens: Option<u32>,
+    completion_tokens: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
