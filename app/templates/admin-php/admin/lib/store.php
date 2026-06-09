@@ -26,7 +26,16 @@ function nit_load_content(): array {
             $raw = @file_get_contents($path);
             if ($raw !== false) {
                 $data = json_decode($raw, true);
-                if (is_array($data)) return $data;
+                if (is_array($data)) {
+                    // Значения к строкам (как в nit_collection): e() объявлен как
+                    // ?string под strict_types — не-строка из руками испорченного
+                    // content.json иначе уронит вывод TypeError'ом. Не-скаляр → ''.
+                    $clean = [];
+                    foreach ($data as $k => $v) {
+                        $clean[$k] = is_string($v) ? $v : (is_scalar($v) ? (string) $v : '');
+                    }
+                    return $clean;
+                }
             }
         }
     }
