@@ -124,4 +124,17 @@ describe("inlineImagesAsDataUris", () => {
     expect(res.failed).toBe(1);
     expect(res.html).toContain("https://images.unsplash.com/a.jpg");
   });
+
+  it("длинный URL не бьётся коротким URL-префиксом (замена длинных раньше)", async () => {
+    vi.stubGlobal("fetch", okImageFetch());
+    const short = "https://images.unsplash.com/photo-1?w=400";
+    const long = "https://images.unsplash.com/photo-1?w=400&fit=crop";
+    const html = `<img src="${short}"><img src="${long}">`;
+    const res = await inlineImagesAsDataUris(html);
+    expect(res.embedded).toBe(2);
+    expect(res.failed).toBe(0);
+    expect(res.html).not.toContain(long);
+    expect(res.html).not.toContain("fit=crop"); // нет осколка от побитого длинного URL
+    expect(res.html).toContain("data:image/png;base64,");
+  });
 });
