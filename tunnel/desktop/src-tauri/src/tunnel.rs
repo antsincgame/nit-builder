@@ -407,16 +407,19 @@ async fn connect_and_serve(
                                                 full_text,
                                                 duration_ms,
                                                 finish_reason,
+                                                prompt_tokens,
+                                                completion_tokens,
                                             } => {
                                                 let _ = outgoing_for_task.send(
                                                     TunnelToServer::ResponseDone {
                                                         request_id: req_id_for_task.clone(),
                                                         full_text,
                                                         duration_ms,
-                                                        prompt_tokens: None,
-                                                        completion_tokens: Some(
-                                                            tokens as u32,
-                                                        ),
+                                                        // Реальные токены из usage LM Studio;
+                                                        // completion — fallback на счётчик чанков.
+                                                        prompt_tokens,
+                                                        completion_tokens: completion_tokens
+                                                            .or(Some(tokens as u32)),
                                                         finish_reason: Some(finish_reason),
                                                     },
                                                 );
