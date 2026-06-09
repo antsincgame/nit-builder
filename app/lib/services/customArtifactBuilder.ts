@@ -47,7 +47,7 @@ function benefitItems(plan: Plan): Array<{ title: string; description: string }>
 
 function cleanTitle(text: string, fallback: string): string {
   const cleaned = text
-    .replace(/\b(сделай|нужен|нужна|как в примерах|не шаблон|шедевральный|single-file|html|artifact)\b/gi, "")
+    .replace(/(^|[^\p{L}])(сделай|нужен|нужна|как в примерах|не шаблон|шедевральный|single-file|html|artifact)(?=[^\p{L}]|$)/giu, "$1")
     .replace(/\s+/g, " ")
     .replace(/[.,:;–—-]+\s*$/g, "")
     .trim();
