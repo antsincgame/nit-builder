@@ -152,17 +152,23 @@ export async function inlineImagesAsDataUris(html: string): Promise<InlineImages
 
   const dataUris = await Promise.all(urls.map((u) => fetchAsDataUri(u)));
 
+  // Заменяем длинные URL раньше коротких: иначе короткий URL, являющийся
+  // текстовым префиксом длинного (тот же URL + query), побьёт длинный при
+  // split/join. Base64-блоб уже встроенных не содержит "://" — пересечений нет.
+  const pairs = urls
+    .map((url, i) => ({ url, dataUri: dataUris[i] }))
+    .sort((a, b) => b.url.length - a.url.length);
+
   let out = html;
   let embedded = 0;
   let failed = 0;
-  urls.forEach((url, i) => {
-    const dataUri = dataUris[i];
+  for (const { url, dataUri } of pairs) {
     if (dataUri) {
       out = out.split(url).join(dataUri);
       embedded++;
     } else {
       failed++;
     }
-  });
+  }
   return { html: out, embedded, failed };
 }
