@@ -1864,7 +1864,7 @@ function buildLivePreviewBootScript(): string {
         var ri=raw.indexOf('@@NITREDIRECT@@');
         if(ri>=0){html=raw.slice(0,ri);redirect=raw.slice(ri+15).trim();}
         else{var idx=raw.indexOf('@@NITMETA@@');if(idx>=0){html=raw.slice(0,idx);try{var meta=JSON.parse(raw.slice(idx+11));if(meta&&meta.sid){SID=meta.sid;}redirect=(meta&&meta.redirect)||'';}catch(e){}}}
-        return {html:html,redirect:redirect};
+        return {html:html,redirect:redirect,raw:raw};
       });
     });
   }
