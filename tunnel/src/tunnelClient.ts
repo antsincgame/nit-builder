@@ -133,7 +133,10 @@ async function connectAndServe(
     const capabilities: TunnelCapabilities = {
       runtime: "lmstudio_proxy",
       model,
-      contextWindow: 32_000, // Qwen2.5 default; TODO: detect from /v1/models metadata
+      // LM Studio не отдаёт контекст по /v1/models. Реальное окно берём из
+      // env NIT_TUNNEL_CONTEXT_WINDOW (выстави под свою модель, напр. 40000);
+      // дефолт 32000 (Qwen2.5).
+      contextWindow: readContextWindow(),
     };
 
     const activeAborts = new Map<string, AbortController>();
