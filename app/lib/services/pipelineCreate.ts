@@ -117,6 +117,21 @@ function customArtifactLooksTooThin(html: string): boolean {
   );
 }
 
+// Пул характерных, но «лёгких» пресетов для seeded-разнообразия artifact-пути.
+// Зеркало пула в tunnelPipeline (общий смысл: при незаданном стиле дать вариацию,
+// которую модель уверенно вытянет). Тяжёлые (neon/terminal/luxe) — только явно.
+const SEEDED_AESTHETIC_PRESETS: StylePresetId[] = [
+  "clean-saas",
+  "warm-premium",
+  "editorial",
+  "earth-craft",
+  "bold-pop",
+];
+
+function pickSeededAestheticPreset(seed: number): StylePresetId {
+  return SEEDED_AESTHETIC_PRESETS[(seed >>> 0) % SEEDED_AESTHETIC_PRESETS.length]!;
+}
+
 /**
  * Repair-цикл админ-разметки (Tier 6): сгенерил → audit → один узкий
  * repair-раунд → повторный audit. Возвращает лучший из двух HTML.
