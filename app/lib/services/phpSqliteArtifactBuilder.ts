@@ -27,6 +27,10 @@ function phpString(value: unknown): string {
   return `'${String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 
+function pickBySeed<T>(arr: readonly T[], seed: number): T {
+  return arr[(seed >>> 0) % arr.length];
+}
+
 function isRu(plan: Plan): boolean {
   return plan.language === "ru";
 }
