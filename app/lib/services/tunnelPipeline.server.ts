@@ -114,6 +114,22 @@ function isNeutralPreset(id: StylePresetId): boolean {
   return id === "generic" || id === "clean-saas";
 }
 
+// Пул характерных, но «лёгких» пресетов для seeded-разнообразия artifact-пути,
+// когда промпт стиль не задал (иначе схлопывается в generic → один и тот же вид).
+// Тяжёлые пресеты (neon-cyber/tech-terminal/dark-luxe) сюда НЕ входят — остаются
+// строго по явному запросу юзера. Индексация по seed детерминирована.
+const SEEDED_AESTHETIC_PRESETS: StylePresetId[] = [
+  "clean-saas",
+  "warm-premium",
+  "editorial",
+  "earth-craft",
+  "bold-pop",
+];
+
+function pickSeededAestheticPreset(seed: number): StylePresetId {
+  return SEEDED_AESTHETIC_PRESETS[(seed >>> 0) % SEEDED_AESTHETIC_PRESETS.length]!;
+}
+
 export type TunnelPlanPrompt = { system: string; prompt: string };
 
 /**
