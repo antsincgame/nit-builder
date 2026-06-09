@@ -819,6 +819,11 @@ export function handleTunnelResponse(
       // в финальный HTML. Срезаем один раз для всех фаз (plan/code/repair).
       const piece = stripThinkBlocks(event.fullText ?? "");
 
+      // Реальные токены из usage (последний done — финальная code/continuation/
+      // repair-фаза, самая репрезентативная по занятости контекста).
+      if (typeof event.promptTokens === "number") req.promptTokens = event.promptTokens;
+      if (typeof event.completionTokens === "number") req.completionTokens = event.completionTokens;
+
       // ─── Фаза 1 (planner) ───
       // Туннель вернул JSON-план. Парсим, выбираем шаблон. Если skeleton-
       // injection заполнила слоты — отдаём готовый HTML без второго LLM-вызова.
