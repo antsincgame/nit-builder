@@ -1267,16 +1267,60 @@ render_footer();
 `;
 }
 
+function styleVariant(plan: Plan): { neon: boolean; seed: number; theme: StorefrontTheme; accent: string; accent2: string; radius: number; head: number; layout: number } {
+  const kw = (plan.keywords || []).join(" ");
+  const txt = `${plan.business_type} ${kw} ${(plan.sections || []).join(" ")}`.toLowerCase();
+  const mood = String(plan.color_mood || "").toLowerCase();
+  const neon = /neon|dark/.test(mood) || /неон|тёмн|темн|ночн|кибер|cyber|dark|neon|глитч|glitch/.test(txt);
+  let h = 2166136261 >>> 0;
+  const seedStr = `${plan.business_type}|${kw}`;
+  for (let i = 0; i < seedStr.length; i++) { h ^= seedStr.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  const theme = storefrontTheme(plan);
+  const neonAccents: [string, string][] = [["#22d3ee", "#a855f7"], ["#a855f7", "#22d3ee"], ["#4ade80", "#22d3ee"], ["#f0abfc", "#818cf8"], ["#38bdf8", "#34d399"], ["#fb7185", "#f0abfc"]];
+  const lightByTheme: Record<StorefrontTheme, [string, string][]> = {
+    beauty: [["#d9468f", "#f472b6"], ["#db2777", "#fb7185"], ["#e11d48", "#f9a8d4"]],
+    food: [["#b45309", "#f59e0b"], ["#ea580c", "#fbbf24"], ["#c2410c", "#f97316"]],
+    "real-estate": [["#15803d", "#34d399"], ["#0f766e", "#2dd4bf"], ["#047857", "#10b981"]],
+    clinic: [["#0891b2", "#22d3ee"], ["#0d9488", "#2dd4bf"], ["#2563eb", "#38bdf8"]],
+    courses: [["#6d28d9", "#a78bfa"], ["#4f46e5", "#818cf8"], ["#7c3aed", "#c084fc"]],
+    auto: [["#ea580c", "#fb923c"], ["#475569", "#fb923c"], ["#dc2626", "#f87171"]],
+    generic: [["#2563eb", "#60a5fa"], ["#7c3aed", "#a78bfa"], ["#0891b2", "#22d3ee"], ["#e11d48", "#fb7185"], ["#ea580c", "#fbbf24"], ["#0d9488", "#2dd4bf"]],
+  };
+  const list = neon ? neonAccents : (lightByTheme[theme] || lightByTheme.generic);
+  const pair = list[h % list.length];
+  const radius = [14, 18, 24, 30][(h >>> 3) % 4];
+  const head = (h >>> 5) % 3;
+  const layout = (h >>> 7) % 3;
+  return { neon, seed: h, theme, accent: pair[0], accent2: pair[1], radius, head, layout };
+}
+
 function buildStyleCss(plan: Plan): string {
-  const dark = plan.color_mood === "dark-premium" || plan.color_mood === "vibrant-neon";
-  const isBeauty = /beauty|красот|салон|космет/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
-  const isFood = /food|еда|доставк|ресторан|меню|кафе|кофе|кофейн|напит|десерт|пекар/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
-  const isRealEstate = /real estate|недвиж|объект/i.test(`${plan.business_type} ${plan.keywords.join(" ")}`);
-  const bg = dark ? "#090b13" : isBeauty ? "#fbf3f6" : isFood ? "#fbf1e3" : isRealEstate ? "#f3f7f4" : "#f7f4ee";
-  const ink = dark ? "#f6f7fb" : isFood ? "#2a1810" : "#111827";
-  const muted = dark ? "#9aa4b2" : isFood ? "#7a6255" : "#667085";
-  const card = dark ? "#111827" : isFood ? "rgba(255,250,242,.9)" : "rgba(255,255,255,.82)";
-  const accent = dark ? "#5eead4" : isBeauty ? "#d9468f" : isFood ? "#b45309" : isRealEstate ? "#15803d" : "#2563eb";
+  const v = styleVariant(plan);
+  const neon = v.neon;
+  const dark = neon;
+  const isBeauty = v.theme === "beauty";
+  const isFood = v.theme === "food";
+  const isRealEstate = v.theme === "real-estate";
+  const bg = neon ? "#070912" : isBeauty ? "#fbf3f6" : isFood ? "#fbf1e3" : isRealEstate ? "#f3f7f4" : "#f7f4ee";
+  const ink = neon ? "#eef2ff" : isFood ? "#2a1810" : "#111827";
+  const muted = neon ? "#94a3b8" : isFood ? "#7a6255" : "#667085";
+  const card = neon ? "rgba(18,22,40,.72)" : isFood ? "rgba(255,250,242,.9)" : "rgba(255,255,255,.82)";
+  const accent = v.accent;
+  const accent2 = v.accent2;
+  const line = neon ? "rgba(148,163,184,.2)" : "rgba(127,127,127,.22)";
+  const soft = neon ? "rgba(148,163,184,.08)" : "rgba(127,127,127,.08)";
+  const shadow = neon ? "0 24px 80px rgba(0,0,0,.55)" : "0 32px 100px rgba(15,23,42,.12)";
+  const radius = v.radius;
+  const neonCss = neon ? `body{background:radial-gradient(circle at 12% -10%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 36%),radial-gradient(circle at 88% 4%,color-mix(in srgb,var(--accent2) 16%,transparent),transparent 30%),linear-gradient(180deg,#070912,#0a0e1c)}
+body.mood-neon .hero-visual,body.mood-neon .product,body.mood-neon .panel,body.mood-neon .benefit-card,body.mood-neon .review-card,body.mood-neon .showcase-card,body.mood-neon .showcase-copy,body.mood-neon .admin-stats article,body.mood-neon .trust-strip article{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 20%,transparent),0 24px 70px rgba(0,0,0,.5)}
+body.mood-neon .hero-btn,body.mood-neon .top-cta,body.mood-neon button,body.mood-neon .admin-logout{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#07111a;box-shadow:0 0 26px color-mix(in srgb,var(--accent) 55%,transparent)}
+body.mood-neon .store-hero h1,body.mood-neon .admin-hero h1{text-shadow:0 0 34px color-mix(in srgb,var(--accent) 42%,transparent)}
+body.mood-neon .product strong,body.mood-neon .admin-stats strong,body.mood-neon .total,body.mood-neon .visual-card.main strong{text-shadow:0 0 20px color-mix(in srgb,var(--accent) 50%,transparent)}
+body.mood-neon .kicker,body.mood-neon .eyebrow,body.mood-neon .badge{border-color:color-mix(in srgb,var(--accent) 40%,transparent);box-shadow:0 0 16px color-mix(in srgb,var(--accent) 20%,transparent)}
+body.mood-neon input,body.mood-neon textarea,body.mood-neon select{background:rgba(148,163,184,.06)}` : "";
+  const headCss = v.head === 1 ? `body.head-1 .store-hero h1,body.head-1 .admin-hero h1,body.head-1 .showcase-copy h2,body.head-1 .section-kicker h2,body.head-1 .proof-section h2,body.head-1 .catalog-head h2{font-family:Georgia,"Times New Roman",serif;letter-spacing:-.035em}` : v.head === 2 ? `body.head-2 .store-hero h1,body.head-2 .catalog-head h2,body.head-2 .section-kicker h2,body.head-2 .admin-hero h1{text-transform:uppercase}body.head-2 .store-hero h1{letter-spacing:-.04em}` : "";
+  const layoutCss = v.layout === 1 ? `body.lay-1 .store-hero{grid-template-columns:440px minmax(0,1fr)}body.lay-1 .hero-visual{order:-1}` : v.layout === 2 ? `body.lay-2 .store-hero{grid-template-columns:1fr;text-align:center;justify-items:center}body.lay-2 .store-hero p{margin-left:auto;margin-right:auto}body.lay-2 .hero-actions{justify-content:center}body.lay-2 .hero-visual{display:none}body.lay-2 .store-hero h1{max-width:none}` : "";
+  const radiusCss = `body .product,body .panel,body .hero-visual,body .benefit-card,body .review-card,body .showcase-card,body .showcase-copy,body .admin-stats article,body .trust-strip article,body .order-card,body .product-form{border-radius:var(--radius)}`;
 
   return `:root{--bg:${bg};--ink:${ink};--muted:${muted};--card:${card};--accent:${accent};--line:rgba(127,127,127,.22);--soft:rgba(127,127,127,.08);--danger:#ef4444;--ok:#16a34a;--warn:#f59e0b;--shadow:0 32px 100px rgba(15,23,42,.12)}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 8% -12%,color-mix(in srgb,var(--accent) 16%,transparent),transparent 30%),radial-gradient(circle at 90% 8%,rgba(255,255,255,.42),transparent 26%),var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.5}.page-shell{min-height:100vh;background:linear-gradient(180deg,rgba(255,255,255,.28),transparent 420px)}
