@@ -384,10 +384,17 @@ export async function* executeHtmlSimple(
   if (artifactMode === "custom") {
     metrics.skeletonInjectSkipped("custom_artifact_mode");
     logger.info(SCOPE, "Skeleton-injection пропущена (custom_artifact_mode), вызываем Coder с нуля");
-    const customSystemPrompt = injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, stylePresetId);
+    // Seeded-разнообразие: при незаданном стиле (схлопнулся в generic) выбираем
+    // характерный пресет по seed — как на туннельном artifact-пути. Кодеру уходит
+    // реальная стилевая директива вместо нейтральной (один промпт → разный дизайн).
+    const artifactPresetId: StylePresetId =
+      !options.stylePresetId && stylePresetId === "generic"
+        ? pickSeededAestheticPreset(Math.floor(Math.random() * 0x100000000))
+        : stylePresetId;
+    const customSystemPrompt = injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, artifactPresetId);
     const customPromptDelta = customSystemPrompt.length - CUSTOM_ARTIFACT_SYSTEM_PROMPT.length;
     if (customPromptDelta > 0) {
-      yield { type: "style_preset_used", presetId: stylePresetId, promptDelta: customPromptDelta };
+      yield { type: "style_preset_used", presetId: artifactPresetId, promptDelta: customPromptDelta };
     }
 
     yield {
