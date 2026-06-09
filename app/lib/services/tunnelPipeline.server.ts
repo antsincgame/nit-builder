@@ -229,10 +229,22 @@ export function resolveTunnelPlan(
   sanitizedMessage: string,
   stylePresetIdInput?: StylePresetId,
   tier: ModelTier = "S",
+  variantSeed?: number,
 ): PlanResolution {
   const template = getTemplateById(plan.suggested_template_id) ?? getFallbackTemplate();
   const presetId: StylePresetId =
     stylePresetIdInput ?? inferStylePresetId(sanitizedMessage, plan);
+
+  // Seeded-разнообразие artifact-пути: если стиль не задан ни юзером, ни планом
+  // (схлопнулся в generic) — выбираем характерный пресет по variantSeed (по
+  // умолчанию случайный на каждую генерацию). Применяется ТОЛЬКО к artifact-ветке
+  // ниже; skeleton/coder работают по оригинальному presetId, поэтому быстрый
+  // skeleton-путь слабых моделей не демотируется, а слабая модель не получает
+  // тяжёлый стилевой addon.
+  const artifactPresetId: StylePresetId =
+    !stylePresetIdInput && presetId === "generic"
+      ? pickSeededAestheticPreset(variantSeed ?? Math.floor(Math.random() * 0x100000000))
+      : presetId;
 
   // Artifact-режим для сильных моделей (класс L): bespoke microsite с нуля,
   // БЕЗ адаптации шаблона. Сильная локальная модель тянет award-уровень, и
@@ -242,11 +254,11 @@ export function resolveTunnelPlan(
   if (tierProfile(tier).approach === "artifact" && TUNNEL_ARTIFACT_ENABLED) {
     return {
       kind: "coder",
-      system: injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, presetId),
+      system: injectStylePreset(CUSTOM_ARTIFACT_SYSTEM_PROMPT, artifactPresetId),
       prompt: buildCustomArtifactUserMessage({ userMessage: sanitizedMessage, plan }),
       templateId: template.id,
       templateName: template.name,
-      presetId,
+      presetId: artifactPresetId,
     };
   }
 
