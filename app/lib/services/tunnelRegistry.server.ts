@@ -136,6 +136,9 @@ export type PendingRequest = {
    * обрывалась по длине: финальный HTML мог быть обрезан. Для телеметрии UI.
    */
   truncated?: boolean;
+  /** Реальные токены последнего done из usage LM Studio (для телеметрии UI). */
+  promptTokens?: number;
+  completionTokens?: number;
   // ─── Двухфазный планировщик (tunnelPipeline) ───
   /**
    * Фаза запроса. "plan" — туннель генерит JSON-план (фаза 1), его текст НЕ
