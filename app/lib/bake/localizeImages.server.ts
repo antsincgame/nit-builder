@@ -1,0 +1,168 @@
+/**
+ * Локализация внешних картинок в standalone-HTML.
+ *
+ * Проблема: сгенерированный сайт ссылается на внешние картинки (Unsplash и пр.)
+ * через URL. Скачанный файл зависит от того, что CDN жив и доступен. Юзер хочет
+ * самодостаточный артефакт — картинки внутри файла, а не ссылками.
+ *
+ * Решение: находим внешние http(s)-картинки (<img src>, inline style url()),
+ * скачиваем и встраиваем как data:-URI прямо в HTML. Один файл — заливай куда
+ * угодно, ничего не отвалится.
+ *
+ * Безопасность (SSRF): HTML генерится LLM, URL могут быть произвольными. Поэтому:
+ *   - только http/https-схемы;
+ *   - резолвим хост и блокируем приватные/loopback/link-local IP (в т.ч.
+ *     metadata-эндпоинт 169.254.169.254, localhost, LAN, CGNAT);
+ *   - таймаут на запрос, лимит размера одной картинки и их количества;
+ *   - принимаем только content-type image/*.
+ * Остаточный риск DNS-rebinding (публичный хост резолвится в приватный IP между
+ * проверкой и фетчем) считаем приемлемым: качаем картинки лендингов, не секреты.
+ *
+ * Поведение best-effort: любая неудача по конкретной картинке — оставляем её
+ * исходной ссылкой, генерацию/экспорт не валим. Kill-switch: NIT_BUNDLE_INLINE_IMAGES=0.
+ *
+ * Модуль .server.ts — только server-side (зависит от node:dns, node:net, fetch).
+ */
+import { lookup } from "node:dns/promises";
+import net from "node:net";
+
+const MAX_IMAGES = 25;
+const MAX_BYTES = 8 * 1024 * 1024; // 8 MB на картинку — Unsplash ?w=800 куда меньше
+const FETCH_TIMEOUT_MS = 10_000;
+
+/** <img ... src="http(s)://..."> — основной случай. */
+const IMG_SRC_RE = /<img\b[^>]*?\ssrc=["'](https?:\/\/[^"'\s]+)["']/gi;
+/** inline style background: url(http(s)://...) — герои с фоном. */
+const CSS_URL_RE = /url\(\s*["']?(https?:\/\/[^"')\s]+)["']?\s*\)/gi;
+
+/** Собрать уникальные внешние URL картинок из HTML. */
+export function extractExternalImageUrls(html: string): string[] {
+  const urls = new Set<string>();
+  for (const m of html.matchAll(IMG_SRC_RE)) urls.add(m[1]);
+  for (const m of html.matchAll(CSS_URL_RE)) urls.add(m[1]);
+  return [...urls];
+}
+
+/** IP в приватном/loopback/link-local диапазоне? Невалидный → считаем небезопасным. */
+export function isPrivateIp(ip: string): boolean {
+  const v = net.isIP(ip);
+  if (v === 4) {
+    const p = ip.split(".").map(Number);
+    if (p.length !== 4 || p.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
+    const [a, b] = p;
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true; // link-local + cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    return false;
+  }
+  if (v === 6) {
+    const lower = ip.toLowerCase();
+    if (lower === "::1" || lower === "::") return true;
+    if (lower.startsWith("fe80")) return true; // link-local
+    if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // ULA fc00::/7
+    const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+    if (mapped) return isPrivateIp(mapped[1]);
+    return false;
+  }
+  return true; // не IP — резолв сделает вызывающий
+}
+
+async function isSafeHost(hostname: string): Promise<boolean> {
+  const h = hostname.toLowerCase();
+  if (!h || h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return false;
+  if (net.isIP(h)) return !isPrivateIp(h);
+  try {
+    const { address } = await lookup(h);
+    return !isPrivateIp(address);
+  } catch {
+    return false;
+  }
+}
+
+/** content-type image/* → расширение (для отладки/имён); null если не картинка. */
+function extFromContentType(ct: string): string | null {
+  switch (ct) {
+    case "image/jpeg":
+    case "image/jpg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    case "image/gif":
+      return "gif";
+    case "image/svg+xml":
+      return "svg";
+    case "image/avif":
+      return "avif";
+    default:
+      return null;
+  }
+}
+
+/** Скачать одну картинку → data:-URI. null при любой проблеме (best-effort). */
+async function fetchAsDataUri(url: string): Promise<string | null> {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  if (!(await isSafeHost(u.hostname))) return null;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, redirect: "follow" });
+    if (!res.ok) return null;
+    const ct = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+    if (!extFromContentType(ct)) return null;
+    const buf = new Uint8Array(await res.arrayBuffer());
+    if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) return null;
+    return `data:${ct};base64,${Buffer.from(buf).toString("base64")}`;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export type InlineImagesResult = {
+  /** HTML с встроенными data:-URI вместо доживших до встраивания ссылок. */
+  html: string;
+  /** Сколько картинок успешно встроено. */
+  embedded: number;
+  /** Сколько не удалось (остались ссылками). */
+  failed: number;
+};
+
+/**
+ * Встроить внешние картинки HTML как data:-URI. Best-effort, gated NIT_BUNDLE_INLINE_IMAGES.
+ * Дубли одного URL заменяются все разом. Порядок и разметка не меняются.
+ */
+export async function inlineImagesAsDataUris(html: string): Promise<InlineImagesResult> {
+  if (process.env.NIT_BUNDLE_INLINE_IMAGES === "0") {
+    return { html, embedded: 0, failed: 0 };
+  }
+  const urls = extractExternalImageUrls(html).slice(0, MAX_IMAGES);
+  if (urls.length === 0) return { html, embedded: 0, failed: 0 };
+
+  const dataUris = await Promise.all(urls.map((u) => fetchAsDataUri(u)));
+
+  let out = html;
+  let embedded = 0;
+  let failed = 0;
+  urls.forEach((url, i) => {
+    const dataUri = dataUris[i];
+    if (dataUri) {
+      out = out.split(url).join(dataUri);
+      embedded++;
+    } else {
+      failed++;
+    }
+  });
+  return { html: out, embedded, failed };
+}
