@@ -167,6 +167,7 @@ export const CODER_SYSTEM_PROMPT = `Ты — HTML-Кодер. Адаптируе
 - ТОЛЬКО один HTML-файл от <!DOCTYPE html> до </html>.
 - Никаких import, require, npm.
 - Никаких ссылок на локальные файлы. Только CDN, inline SVG, emoji, Unsplash.
+- Картинки шаблона (<img src="..."> и фоновые url(...)) оставляй С ТЕМ ЖЕ адресом — фото уже подобраны под нишу. НЕ подменяй их другими Unsplash-ссылками и НЕ выдумывай photo ID: несуществующие ломаются, а случайные не по теме (кофейне нужно фото кофе, а не горы и океан). Новый <img> добавляй только если в шаблоне для секции картинки нет вовсе.
 - Интерактивность: Alpine.js (https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js) или vanilla JS.
 - Служебные маркеры <!-- ═══ SECTION: X ═══ --> НЕ копируй в вывод.
 - Атрибуты data-edit, data-edit-type, data-edit-label, а также data-collection, data-collection-label, data-item, data-field, data-field-type, data-field-label сохраняются как есть, не удалять и не переименовывать (используются post-processor'ом для PHP-админки).
