@@ -83,6 +83,38 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return Response.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    // Пересборка превью на текущем движке без перегенерации: грузим текущий
+    // html, заменяем boot-скрипт на актуальный, сохраняем. Boot самодостаточен
+    // и сам чинит PHP под превью, поэтому работает и со старыми сайтами.
+    if (
+      body &&
+      typeof body === "object" &&
+      (body as { rebuild?: unknown }).rebuild === true
+    ) {
+      try {
+        const db = getAdminDatabases();
+        const site = await db.getDocument<NitSite>(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.sites,
+          siteId,
+        );
+        if (site.userId !== user.userId) {
+          return Response.json({ error: "Not found" }, { status: 404 });
+        }
+        const rebuilt = rebuildLivePreviewHtml(site.html);
+        if (rebuilt === site.html) {
+          return Response.json({ message: "Nothing to rebuild" });
+        }
+        const ok = await updateSite(user.userId, siteId, { html: rebuilt });
+        if (!ok) {
+          return Response.json({ error: "Not found" }, { status: 404 });
+        }
+        return Response.json({ message: "Rebuilt" });
+      } catch {
+        return Response.json({ error: "Rebuild failed" }, { status: 500 });
+      }
+    }
+
     const parsed = PatchSiteSchema.safeParse(body);
     if (!parsed.success) {
       return Response.json(
