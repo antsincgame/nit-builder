@@ -670,7 +670,7 @@ function buildIndexPhp(plan: Plan): string {
     : isRu(plan) ? "онлайн-витрина" : "online storefront");
   const contactLine = phpString(plan.contact_phone || plan.contact_email || (isRu(plan) ? "Ответим в течение дня" : "We reply within a day"));
   const sv = styleVariant(plan);
-  const themeClass = phpString(`theme-${theme} mood-${sv.neon ? "neon" : "light"} head-${sv.head} lay-${sv.layout}`);
+  const themeClass = phpString(`theme-${theme} mood-${sv.neon ? "neon" : "light"} head-${sv.head} hero-${sv.hero} cat-${sv.cat} band-${sv.band} struct-${sv.struct}`);
   const heroEyebrow = phpString(theme === "beauty"
     ? "Запись без предоплаты"
     : theme === "food"
