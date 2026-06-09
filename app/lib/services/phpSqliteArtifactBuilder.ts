@@ -694,8 +694,12 @@ function buildIndexPhp(plan: Plan): string {
           : pickBySeed(["Coffee and dessert menu", "What's on our counter today", "Coffee, desserts and seasonals"], sv.seed))
       : pickBySeed(["Витрина предложений", "Каталог предложений", "Выберите подходящий вариант"], sv.seed));
   const benefitsHeading = phpString(theme === "beauty"
-    ? "Сервис ощущается ещё до визита"
-    : theme === "food" ? (isRu(plan) ? "Заказ проходит как в хорошей кофейне: быстро и понятно" : "Ordering feels fast and clear") : "Не просто витрина, а понятный путь к заявке");
+    ? pickBySeed(["Сервис ощущается ещё до визита", "Почему гости возвращаются", "Забота видна в деталях"], sv.seed >>> 5)
+    : theme === "food"
+      ? (isRu(plan)
+          ? pickBySeed(["Заказ проходит как в хорошей кофейне: быстро и понятно", "Почему у нас удобно заказывать", "Быстро, вкусно и без лишних звонков"], sv.seed >>> 5)
+          : pickBySeed(["Ordering feels fast and clear", "Why ordering here is easy", "Fast, tasty, no phone calls"], sv.seed >>> 5))
+      : pickBySeed(["Не просто витрина, а понятный путь к заявке", "Почему с нами удобно", "Понятный путь от выбора к заявке"], sv.seed >>> 5));
   const benefits = plan.key_benefits?.length
     ? plan.key_benefits
     : [
