@@ -73,6 +73,8 @@ export async function* streamFromLmStudio(
 
   let fullText = "";
   let finishReason: "stop" | "length" | "unknown" = "unknown";
+  let promptTokens: number | undefined;
+  let completionTokens: number | undefined;
 
   try {
     const response = await fetch(`${config.baseUrl}/chat/completions`, {
