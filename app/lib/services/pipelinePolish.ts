@@ -85,10 +85,18 @@ export async function* executeHtmlPolish(
   const startMs = Date.now();
   const sanitizedRequest = sanitizeUserMessage(userRequest);
 
+  // Один счётчик старта на весь polish: каскад css_patch→section→full раньше
+  // инкрементировал generationStarted до 3 раз на один запрос, завышая in-flight
+  // и искажая success-rate (№10).
+  metrics.generationStarted("polish", provider.id);
+
   const classification = classifyPolishIntent(sanitizedRequest);
   const intent = options.polishIntent ?? classification.intent;
   const targetSection = options.targetSection ?? classification.targetSection;
   const reason = options.polishIntent ? "user override" : classification.reason;
+  // css_patch упал → даём шанс section-only (если секция известна), не прыгая
+  // сразу в дорогой full rewrite (№11).
+  let cssPatchFailed = false;
 
   metrics.polishIntent(intent, Boolean(targetSection));
   if (targetSection) metrics.polishSectionTarget(targetSection);
