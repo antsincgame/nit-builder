@@ -998,6 +998,40 @@ export function injectPlanIntoTemplate(
     }
   }
 
+  // Бренд (лого в nav + название в footer). Opt-in, без штрафа fillRatio.
+  if (plan.brand_name) {
+    const r = replaceBrand(html, plan.brand_name);
+    if (r.replaced > 0) {
+      html = r.html;
+      extendedFilled++;
+    }
+  }
+
+  // Команда/мастера. Ищем профильную секцию людей, ставим имя+роль по карточкам.
+  if (plan.team && plan.team.length > 0) {
+    const teamSectionIds = [
+      "team",
+      "masters",
+      "staff",
+      "barbers",
+      "instructors",
+      "doctors",
+      "stylists",
+      "trainers",
+      "crew",
+    ];
+    for (const sid of teamSectionIds) {
+      const range = findSectionRange(html, sid);
+      if (!range) continue;
+      const r = replaceTeamCards(html, range, plan.team);
+      if (r.replaced > 0) {
+        html = r.html;
+        extendedFilled++;
+        break;
+      }
+    }
+  }
+
   // Seeded-акцент (косметика, поверх заполненных слотов). Только при наличии
   // variantSeed — иначе (тесты, дефолт-вызовы) HTML не меняется.
   if (typeof plan.variantSeed === "number") {
