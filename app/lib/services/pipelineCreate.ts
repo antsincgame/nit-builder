@@ -735,12 +735,20 @@ export async function* executeHtmlSimple(
       signal,
     });
     const polished = postPolishHtml({ html: repairedHtml, presetId, plan: currentPlan });
+    // Единая image-политика (как туннель, №4): вернуть курированные картинки
+    // шаблона и заменить только битые/галлюцинированные unsplash-ссылки на picsum,
+    // не трогая то, что есть в шаблоне (allowlist из картинок шаблона, №3).
+    const cleanTemplate = loadTemplateHtml(template.id);
+    let finalHtml = CREATE_RESTORE_IMAGES_ENABLED
+      ? restoreTemplateImages(polished.html, cleanTemplate).html
+      : polished.html;
+    finalHtml = fixBrokenImages(finalHtml, new Set(collectImageUrls(cleanTemplate)));
     if (polished.fixes.length > 0) {
       yield { type: "post_polish_applied", fixes: polished.fixes };
     }
-    memory.currentHtml = polished.html;
+    memory.currentHtml = finalHtml;
     memory.updatedAt = Date.now();
-    updateSessionHtml(memory.sessionId, polished.html);
+    updateSessionHtml(memory.sessionId, finalHtml);
     metrics.generationCompleted("create", provider.id, totalMs);
     recordGeneration({
       sessionId: memory.sessionId,
@@ -755,7 +763,7 @@ export async function* executeHtmlSimple(
       planCached: planCachedFlag,
       injectMethod: "coder",
     });
-    yield { type: "step_complete", html: polished.html };
+    yield { type: "step_complete", html: finalHtml };
   } catch (err) {
     if ((err as Error).name === "AbortError") return;
     metrics.generationFailed("create", "coder_error");
