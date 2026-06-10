@@ -88,4 +88,12 @@ describe("normalizePlanForRequest", () => {
 
     expect(plan.suggested_template_id).toBe("blank-landing");
   });
+
+  it("слэнг «ноготочки» форсит beauty-master и нишевые секции", () => {
+    const plan = normalizePlanForRequest(BASE_PLAN, "Собери мне сайт про ноготочки");
+
+    expect(plan.suggested_template_id).toBe("beauty-master");
+    expect(plan.sections).toContain("gallery");
+    expect(plan.sections).toContain("booking");
+  });
 });
