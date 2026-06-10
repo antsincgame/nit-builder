@@ -156,6 +156,31 @@ describe("injectPlanIntoTemplate", () => {
     }
   });
 
+  it("не затирает услуги в #services дефолтными выгодами (нишевый шаблон)", () => {
+    // У beauty-master/автосервиса секция #services — курированные услуги,
+    // а не прайс, поэтому looksLikePriceSection её не защищал. Раньше services
+    // был в benefitsSectionIds и replaceBenefitCards затирал первые карточки
+    // выгодами. Теперь услуги шаблона остаются нетронутыми.
+    const servicesTemplate = `<html><head><title>X</title></head><body>
+      <section id="hero"><h1>X</h1><p>Y</p><a href="#">CTA</a></section>
+      <section id="services">
+        <h3>Маникюр</h3><p>Классический маникюр.</p>
+        <h3>Дизайн</h3><p>Френч и роспись.</p>
+        <h3>Укрепление</h3><p>Гель и акрил.</p>
+      </section>
+      <section id="testimonials"><p>Old</p></section>
+    </body></html>`;
+    const r = injectPlanIntoTemplate(servicesTemplate, FULL_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain("Маникюр");
+      expect(r.html).toContain("Дизайн");
+      expect(r.html).toContain("Укрепление");
+      // benefit-заголовок из FULL_PLAN НЕ должен влезть в услуги
+      expect(r.html).not.toContain("Свежесть");
+    }
+  });
+
   it("не рвёт структуру HTML", () => {
     const r = injectPlanIntoTemplate(BASE_TEMPLATE, FULL_PLAN);
     expect(r.ok).toBe(true);
