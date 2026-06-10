@@ -60,8 +60,14 @@ export function parseModelSizeB(modelName: string): number | undefined {
  * undefined — квант не указан или fp16/full (трактуется как полное качество).
  */
 export function parseQuantBits(modelName: string): number | undefined {
-  const m = modelName.toLowerCase().match(/(?:^|[-_.\s])i?q(\d)(?:[_\-.]|bit|$)/);
-  return m ? parseInt(m[1], 10) : undefined;
+  const lower = modelName.toLowerCase();
+  // GGUF-стиль: q4_k_m, Q6_K, iq2_xs, q4bit.
+  const gguf = lower.match(/(?:^|[-_.\s])i?q(\d)(?:[_\-.]|bit|$)/);
+  if (gguf) return parseInt(gguf[1], 10);
+  // MLX-стиль: ...-3bit, ...-4bit (без префикса q) — частый формат на Apple Silicon (№23).
+  const mlx = lower.match(/(?:^|[-_.\s])(\d)bit(?![a-z0-9])/);
+  if (mlx) return parseInt(mlx[1], 10);
+  return undefined;
 }
 
 /** Априорный класс только по имени: оверрайд → размер → безопасный дефолт S. */
