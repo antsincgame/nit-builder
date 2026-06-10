@@ -53,9 +53,10 @@ export function resetRerankerState(): void {
 }
 
 function cacheKey(query: string, docId: string): string {
-  // Док-ид вовлечён в ключ, но не сам текст — для seed доков (стабильных)
-  // этого достаточно. Для mutable docs нужно будет версионировать id.
-  const q = query.length > 200 ? query.slice(0, 200) : query;
+  // sha1 от полного query: раньше срез до 200 символов давал коллизии для
+  // длинных запросов с общим префиксом (чужой score из кэша). Док-ид —
+  // отдельным компонентом ключа.
+  const q = createHash("sha1").update(query).digest("hex");
   return `${q}\u0001${docId}`;
 }
 
