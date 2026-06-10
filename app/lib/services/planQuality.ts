@@ -328,7 +328,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     normalized.faq = defaultFaq();
   }
   if (wantsContact(query) && !normalized.contact_phone) {
-    normalized.contact_phone = "+7 (495) 123-45-67";
+    normalized.contact_phone = "+375 (XX) XXX-XX-XX";
   }
 
   const baseSections = normalized.hero_headline
