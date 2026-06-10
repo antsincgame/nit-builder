@@ -119,6 +119,9 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/index.php")).toContain("create_checkout_session");
     expect(file("app/payments.php")).toContain("handle_payment_webhook");
     expect(file("app/payments.php")).toContain("'completed'");
+    // Вебхук fail-closed: без PAYMENT_WEBHOOK_SECRET он отключён (503), а не
+    // пропускает неаутентифицированные обновления статуса заказа.
+    expect(file("app/payments.php")).toContain("webhook disabled: set PAYMENT_WEBHOOK_SECRET");
     expect(file("router.php")).toContain("readfile($file)");
     expect(file("router.php")).toContain("return true");
     expect(file("router.php")).toContain("'css' => 'text/css; charset=UTF-8'");
