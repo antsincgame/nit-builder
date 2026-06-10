@@ -29,6 +29,7 @@
  * Кэш осмыслен потому что seed-документы стабильны, а typical user-queries повторяются.
  */
 
+import { createHash } from "node:crypto";
 import { logger } from "~/lib/utils/logger";
 import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 
