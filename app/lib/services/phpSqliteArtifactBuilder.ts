@@ -801,7 +801,22 @@ function buildIndexPhp(plan: Plan): string {
 
   return `<?php
 declare(strict_types=1);
-session_start();
+
+// Безопасные параметры cookie сессии до session_start: HttpOnly, SameSite=Lax,
+// Secure под HTTPS (включая обратный прокси по X-Forwarded-Proto). Гард по
+// session_status — идемпотентность и совместимость с live-preview (php-wasm).
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    $__secure = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => $__secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 
 require_once dirname(__DIR__) . '/app/db.php';
 require_once dirname(__DIR__) . '/app/security.php';
