@@ -78,6 +78,11 @@ pub enum TunnelToServer {
         full_text: String,
         #[serde(rename = "durationMs")]
         duration_ms: u64,
+        // Имя модели, реально обработавшей запрос (override от сервера либо
+        // probe-модель). Сервер кладёт его в telemetry.model вместо статичного
+        // capabilities.model. Optional → старый сервер/клиент не ломается.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        model: Option<String>,
         #[serde(rename = "promptTokens", skip_serializing_if = "Option::is_none")]
         prompt_tokens: Option<u32>,
         #[serde(rename = "completionTokens", skip_serializing_if = "Option::is_none")]
