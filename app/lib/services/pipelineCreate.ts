@@ -65,7 +65,9 @@ import {
   type StylePresetId,
 } from "~/lib/llm/style-presets";
 import { obtainPlan } from "~/lib/services/pipelinePlanner";
-import { postPolishHtml } from "~/lib/services/htmlPostPolish";
+import { postPolishHtml, fixBrokenImages } from "~/lib/services/htmlPostPolish";
+import { restoreTemplateImages } from "~/lib/services/templateImages";
+import { collectImageUrls } from "~/lib/utils/imageInline";
 import { auditAdminMarkup } from "~/lib/bake/auditMarkup";
 import {
   stripCodeFences,
