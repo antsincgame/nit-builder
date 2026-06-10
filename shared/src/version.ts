@@ -9,4 +9,4 @@
  */
 
 export const NIT_SERVER_VERSION = "2.0.0-beta.1" as const;
-export const NIT_TUNNEL_CLIENT_VERSION = "0.2.2" as const;
+export const NIT_TUNNEL_CLIENT_VERSION = "0.2.3" as const;
