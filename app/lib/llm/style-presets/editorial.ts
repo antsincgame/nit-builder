@@ -23,7 +23,7 @@ export const EDITORIAL_PRESET: StylePreset = {
     "Фотографии заменяй graceful gradient/shape placeholders или inline SVG frames.",
   ],
   signatureMoves: [
-    `.editorial-title { font-family:'Playfair Display', serif; font-size:clamp(4rem, 10vw, 9rem); line-height:.86; letter-spacing:-.06em; }`,
+    `.editorial-title { font-family:'Playfair Display', serif; font-size:clamp(2.75rem, 6vw, 4.5rem); line-height:.86; letter-spacing:-.06em; }`,
     `.rule { height:1px; background:rgba(17,17,17,.16); }`,
     `.drop-num { font-family:'Playfair Display', serif; font-size:7rem; color:#8a5a44; }`,
   ],
