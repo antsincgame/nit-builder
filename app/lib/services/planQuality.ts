@@ -43,7 +43,7 @@ const TEMPLATE_RULES: Array<{ pattern: RegExp; templateId: string }> = [
   { pattern: /салон красоты|маникюр|ногт|ноготочк|нейл|nail|бров|ресниц|визаж|косметолог|окрашив|премиум сегмент/i, templateId: "beauty-master" },
   { pattern: /тату|tattoo|ink/i, templateId: "tattoo-studio" },
   { pattern: /барбер|брить|бород/i, templateId: "barbershop" },
-  { pattern: /цвет|букет|флорист|bohemian/i, templateId: "flower-shop" },
+  { pattern: /цвет(?:ок|ы|очн|ник)|букет|флорист|bohemian/i, templateId: "flower-shop" },
   { pattern: /фотограф|фотосесс|свадебн.*фото|съ[её]мк/i, templateId: "photographer" },
   { pattern: /архитектур|интерьер|loft|частные дома|авторск/i, templateId: "real-estate" },
   { pattern: /английск|язык|репетитор|ielts|егэ|цт/i, templateId: "tutor" },
