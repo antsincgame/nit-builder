@@ -61,6 +61,13 @@ afterEach(() => {
 });
 
 describe("POST /api/public-templates/:id/vote", () => {
+  // Голосование теперь требует авторизацию — мокаем залогиненного юзера для
+  // всех кейсов. Тесты на 400/405 до auth-проверки не доходят (она идёт после
+  // валидации тела), лишний мок им не мешает.
+  beforeEach(() => {
+    mockedGetAuth.mockResolvedValue({ userId: "voter1", email: "v@test.com" });
+  });
+
   it("up vote: 200 + новое значение votes", async () => {
     mockedVote.mockResolvedValue(6);
     const req = makeReq("/api/public-templates/t1/vote", {
