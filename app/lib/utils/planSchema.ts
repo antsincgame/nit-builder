@@ -30,6 +30,13 @@ const FaqItemSchema = z.object({
   answer: z.string().min(5).max(500),
 });
 
+/** Член команды/мастер для секции team/masters/staff. */
+const TeamMemberSchema = z.object({
+  name: z.string().min(1).max(60),
+  /** Роль/специализация ("Топ-мастер", "Барбер · 5 лет опыта"). Опц. */
+  role: z.string().max(80).optional(),
+});
+
 /**
  * Редактируемая зона в сгенерированном сайте — будет помечена в HTML
  * атрибутами data-edit="<id>" data-edit-type="<type>" data-edit-label="<label>"
