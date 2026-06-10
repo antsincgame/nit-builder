@@ -580,7 +580,9 @@ export async function* executeHtmlSimple(
   const skeletonSkipReason = !injection
     ? adminNeedsCoder
       ? "admin_markup_requires_coder"
-      : "style_preset_requires_coder"
+      : currentPlan.language !== "ru"
+        ? "non_ru_language"
+        : "style_preset_requires_coder"
     : injection.ok ? "missing_primary_cta" : injection.reason;
   metrics.skeletonInjectSkipped(skeletonSkipReason);
   logger.info(SCOPE, `Skeleton-injection пропущена (${skeletonSkipReason}), вызываем Coder`);
