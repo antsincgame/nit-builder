@@ -4,7 +4,8 @@
 //! - React UI (tunnel/desktop/ui) talks to Rust backend via Tauri IPC commands
 //! - Rust backend owns the tunnel runtime (tunnel.rs) running in a tokio task
 //! - Events from tunnel runtime are pushed to UI via tauri::Emitter
-//! - Credentials stored via tauri-plugin-store (encrypted on macOS Keychain where possible)
+//! - Credentials stored via tauri-plugin-store — plaintext JSON in the app-data
+//!   dir (no OS keychain encryption yet; the token is device-scoped and revocable)
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
