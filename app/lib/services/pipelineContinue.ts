@@ -24,6 +24,8 @@ import {
 } from "~/lib/services/sessionMemory";
 import { metrics } from "~/lib/services/metrics";
 import { recordGeneration } from "~/lib/services/feedbackStore";
+import { postPolishHtml } from "~/lib/services/htmlPostPolish";
+import { inferStylePresetId } from "~/lib/llm/style-presets";
 import {
   CONTINUATION_SYSTEM_PROMPT,
   CONTINUATION_TAIL_CHARS,
