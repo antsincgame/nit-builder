@@ -135,6 +135,13 @@ function pickSeededAestheticPreset(seed: number): StylePresetId {
 }
 
 /**
+ * Восстановление курированных картинок шаблона на серверном coder-пути (зеркало
+ * туннельного NIT_TUNNEL_RESTORE_IMAGES). Дефолт ON; NIT_CREATE_RESTORE_IMAGES="0"
+ * — отключить (мгновенный откат без релиза).
+ */
+const CREATE_RESTORE_IMAGES_ENABLED = process.env.NIT_CREATE_RESTORE_IMAGES !== "0";
+
+/**
  * Repair-цикл админ-разметки (Tier 6): сгенерил → audit → один узкий
  * repair-раунд → повторный audit. Возвращает лучший из двух HTML.
  *
