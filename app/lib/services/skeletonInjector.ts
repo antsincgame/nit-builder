@@ -15,7 +15,7 @@
  *   1. <title> — из plan.business_type (SEO, всегда работает)
  *   2. <h1> в #hero → hero_headline
  *   3. Первый <p> после h1 в #hero → hero_subheadline
- *   4. <h3>+<p> в features/benefits/why-us/services/about → key_benefits[i]
+ *   4. <h3>+<p> в features/benefits/why-us/about → key_benefits[i]
  *   5. social_proof_line → #testimonials/#social-proof/#reviews
  *   6. cta_microcopy → <small class="cta-microcopy"> под первой <a> в hero
  *
