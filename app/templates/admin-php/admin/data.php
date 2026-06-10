@@ -99,8 +99,14 @@ if ($col && isset($_GET['csv'])) {
     header('Content-Disposition: attachment; filename="' . rawurlencode($cid) . '.csv"');
     echo "\xEF\xBB\xBF"; // BOM — Excel-ru
     $out = fopen('php://output', 'w');
+    // Защита от CSV formula injection: ячейку, начинающуюся с = + - @ (или
+    // управляющих tab/CR), Excel/LibreOffice трактует как формулу. Префиксуем
+    // апострофом — значение остаётся текстом. fputcsv экранирует кавычки сам.
+    $csvSafe = static function (string $v): string {
+        return ($v !== '' && strpbrk($v[0], "=+-@\t\r") !== false) ? "'" . $v : $v;
+    };
     $head = [];
-    foreach ($fields as $f) { $head[] = (string)($f['label'] ?? $f['id'] ?? ''); }
+    foreach ($fields as $f) { $head[] = $csvSafe((string)($f['label'] ?? $f['id'] ?? '')); }
     fputcsv($out, $head, ';');
     foreach ($rows as $row) {
         if (!is_array($row)) continue;
@@ -108,7 +114,7 @@ if ($col && isset($_GET['csv'])) {
         foreach ($fields as $f) {
             $k = (string)($f['id'] ?? '');
             $v = $row[$k] ?? '';
-            $line[] = is_scalar($v) ? (string)$v : '';
+            $line[] = $csvSafe(is_scalar($v) ? (string)$v : '');
         }
         fputcsv($out, $line, ';');
     }
