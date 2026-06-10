@@ -418,6 +418,9 @@ async fn connect_and_serve(
                                                         request_id: req_id_for_task.clone(),
                                                         full_text,
                                                         duration_ms,
+                                                        // Имя реально работавшей модели — сервер
+                                                        // берёт его в telemetry.model.
+                                                        model: Some(model_for_done.clone()),
                                                         // Реальные токены из usage LM Studio;
                                                         // completion — fallback на счётчик чанков.
                                                         prompt_tokens,
