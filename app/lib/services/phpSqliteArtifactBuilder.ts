@@ -314,7 +314,7 @@ return [
 `;
 }
 
-function buildDbPhp(): string {
+function buildDbPhp(adminPassword: string): string {
   return `<?php
 declare(strict_types=1);
 
