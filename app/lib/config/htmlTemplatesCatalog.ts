@@ -28,7 +28,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
     category: "beauty",
     description: "Брутальный лендинг для барбершопа, мужской парикмахерской. Услуги, мастера, запись.",
     bestFor: ["барбершоп", "стрижка", "борода", "мастер", "парикмахер"],
-    sections: ["hero", "services", "masters", "gallery", "booking", "contact"],
+    sections: ["hero", "services", "masters", "booking"],
     style: "bold-dark",
     colorMood: "dark-premium",
     emoji: "💈",
