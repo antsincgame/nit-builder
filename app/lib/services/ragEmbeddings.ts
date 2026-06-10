@@ -173,6 +173,6 @@ export async function embedText(
 }
 
 export function resetEmbeddingState(): void {
-  disabled = false;
+  disabledUntil = 0;
   cache.clear();
 }
