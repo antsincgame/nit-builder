@@ -1945,7 +1945,7 @@ ${adminProductsHtml}
     <div class="db-grid">
 ${dbTablesHtml}
     </div>
-    <p class="db-foot muted">${ru ? "Демо-вход в админку: admin@example.com / admin123 — смените перед продакшеном." : "Demo admin: admin@example.com / admin123 — change before production."}</p>
+    <p class="db-foot muted">${ru ? "Вход в админку: admin@example.com — пароль в файле README.md проекта." : "Admin login: admin@example.com — see the project README.md for the password."}</p>
   </div>
 </div></div>
 
