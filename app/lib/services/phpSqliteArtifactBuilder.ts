@@ -2107,7 +2107,7 @@ function buildLivePreviewBootScript(): string {
       }
       h+='</tbody></table></div></div>';
     }
-    h+='</div><p class="db-foot muted">'+(isRu?'\u0414\u0435\u043C\u043E-\u0432\u0445\u043E\u0434: admin@example.com / admin123':'Demo admin: admin@example.com / admin123')+'</p></div>';
+    h+='</div><p class="db-foot muted">'+(isRu?'\u0414\u0435\u043C\u043E-\u0432\u0445\u043E\u0434: admin@example.com (README.md)':'Demo admin: admin@example.com (README.md)')+'</p></div>';
     return h;
   }
 
