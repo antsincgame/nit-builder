@@ -140,6 +140,12 @@ export const PlanSchema = z.object({
   social_proof_line: z.string().max(150).optional(),
   cta_microcopy: z.string().max(100).optional(),
 
+  /** Название бренда/бизнеса для шапки и футера ("BroDude", "Кофе Лес"). Коротко, 1-3 слова. */
+  brand_name: z.string().max(60).optional(),
+
+  /** Команда/мастера/специалисты (name + role) для секции team/masters/staff/barbers. */
+  team: z.array(TeamMemberSchema).max(8).optional(),
+
   // ─── Tier 4: расширенные секции (опц., заполнять только когда уместно) ───
 
   /** 2-4 тарифа для #pricing секции. В нишах без явных тарифов (юрист, ритуал) пропускать. */
