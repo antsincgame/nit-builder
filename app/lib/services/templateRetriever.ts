@@ -27,10 +27,13 @@ type IndexEntry = { id: string; vec: number[] };
 
 let cachedIndex: IndexEntry[] | null = null;
 let indexBuildPromise: Promise<IndexEntry[]> | null = null;
-let permanentlyDisabled = false;
+// Пауза ретривера после генуинного сбоя (не таймаут/отмена). Раньше был
+// вечный permanentlyDisabled до рестарта процесса.
+const DISABLE_COOLDOWN_MS = 60_000;
+let disabledUntil = 0;
 
 function isDisabled(): boolean {
-  if (permanentlyDisabled) return true;
+  if (Date.now() < disabledUntil) return true;
   return process.env.NIT_DISABLE_EMBEDDING_RETRIEVER === "1";
 }
 
