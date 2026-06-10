@@ -21,7 +21,9 @@
 
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { logger } from "~/lib/utils/logger";
+import { isAbortLike } from "~/lib/utils/isAbortLike";
 import {
   embedText,
   isRagDisabled,
