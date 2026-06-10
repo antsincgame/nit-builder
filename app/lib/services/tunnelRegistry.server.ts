@@ -823,6 +823,11 @@ export function handleTunnelResponse(
       // repair-фаза, самая репрезентативная по занятости контекста).
       if (typeof event.promptTokens === "number") req.promptTokens = event.promptTokens;
       if (typeof event.completionTokens === "number") req.completionTokens = event.completionTokens;
+      // Имя модели, реально обработавшей запрос (из response_done туннеля).
+      // Заменяет статичный capabilities.model (момент hello): он мог устареть
+      // или оказаться эмбеддером при мульти-модельном LM Studio. Последний done
+      // (финальная фаза) — самый репрезентативный, как и с токенами выше.
+      if (typeof event.model === "string" && event.model) req.model = event.model;
 
       // ─── Фаза 1 (planner) ───
       // Туннель вернул JSON-план. Парсим, выбираем шаблон. Если skeleton-
