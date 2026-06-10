@@ -281,7 +281,23 @@ export function resolveTunnelPlan(
     plan.needs_admin === true &&
     ((plan.editable_zones?.length ?? 0) > 0 ||
       (plan.collections?.length ?? 0) > 0);
-  if (presetId === "generic" && plan.language === "ru" && !adminNeedsCoder) {
+  // Нишевый шаблон уже полностью свёрстан (barbershop.html: тёмный, фон-фото,
+  // шрифты, амбер). Для него skeleton (подстановка текстов в готовый дизайн)
+  // даёт шаблон 1:1, а coder/пресет перекрашивает и упрощает (барбершоп выходил
+  // белым/плоским). Уверенную нишу гоним через skeleton даже при не-generic
+  // пресете — но только если юзер НЕ задал стиль явно (UI-пресет или стилевое
+  // слово в промпте): иначе уважаем запрос и идём в coder с этим пресетом.
+  const nicheId = inferConfidentTemplateId(sanitizedMessage);
+  const preferTemplateSkeleton =
+    nicheId !== null &&
+    template.id === nicheId &&
+    !stylePresetIdInput &&
+    inferStylePresetId(sanitizedMessage) === "generic";
+  if (
+    (presetId === "generic" || preferTemplateSkeleton) &&
+    plan.language === "ru" &&
+    !adminNeedsCoder
+  ) {
     const cleanTemplateHtml = loadTemplateHtml(template.id);
     // Seeded-акцент skeleton-вывода: на одинаковый промпт — разный акцент
     // (на мигрированных шаблонах). variantSeed по умолчанию случайный на генерацию.
