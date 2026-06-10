@@ -170,3 +170,98 @@ describe("injectPlanIntoTemplate", () => {
     }
   });
 });
+
+const NICHE_TEMPLATE = `<!DOCTYPE html>
+<html><head><title>OLD BRAND — студия</title></head><body>
+<nav>
+  <a href="#" class="logo">💈 OLD BRAND</a>
+  <a href="#masters">Мастера</a>
+  <a href="#booking" class="btn">Записаться</a>
+</nav>
+<section id="hero">
+  <p>Эйбров</p>
+  <h1>Старый заголовок</h1>
+  <p>Старый подзаголовок.</p>
+  <a href="#booking" class="cta">Записаться</a>
+</section>
+<section id="masters">
+  <h2>Наши мастера</h2>
+  <div class="card"><h3>СТАРЫЙ ОДИН</h3><p>Роль один</p></div>
+  <div class="card"><h3>СТАРЫЙ ДВА</h3><p>Роль два</p></div>
+  <div class="card"><h3>СТАРЫЙ ТРИ</h3><p>Роль три</p></div>
+</section>
+<section id="booking">
+  <a href="tel:+375290000000" class="btn-phone">📞 +375 29 000-00-00</a>
+  <p><address class="addr">ул. Старая 1, Минск</address> · Пн-Вс</p>
+</section>
+<footer><p class="brand">💈 OLD BRAND</p></footer>
+</body></html>`;
+
+const NICHE_PLAN: Plan = {
+  ...FULL_PLAN,
+  business_type: "барбершоп",
+  suggested_template_id: "barbershop",
+  brand_name: "BroDude",
+  team: [
+    { name: "Иван Петров", role: "Топ-мастер" },
+    { name: "Пётр Сидоров", role: "Барбер" },
+  ],
+  contact_phone: "+375 (33) 765-43-21",
+  contact_address: "Минск, ул. Немига 5",
+};
+
+describe("injectPlanIntoTemplate — бренд/команда/контакт", () => {
+  it("подставляет brand_name в nav и footer, сохраняя эмодзи", () => {
+    const r = injectPlanIntoTemplate(NICHE_TEMPLATE, NICHE_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).not.toContain("OLD BRAND");
+      expect(r.html).toContain("💈 BroDude");
+      const hits = (r.html.match(/BroDude/g) ?? []).length;
+      expect(hits).toBeGreaterThanOrEqual(2);
+    }
+  });
+
+  it("подставляет имена и роли команды в секцию masters", () => {
+    const r = injectPlanIntoTemplate(NICHE_TEMPLATE, NICHE_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain("Иван Петров");
+      expect(r.html).toContain("Топ-мастер");
+      expect(r.html).toContain("Пётр Сидоров");
+      expect(r.html).not.toContain("СТАРЫЙ ОДИН");
+      // третья карточка не затронута (в плане 2 мастера)
+      expect(r.html).toContain("СТАРЫЙ ТРИ");
+    }
+  });
+
+  it("заменяет телефон, сохраняя класс кнопки", () => {
+    const r = injectPlanIntoTemplate(NICHE_TEMPLATE, NICHE_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain('class="btn-phone"');
+      expect(r.html).toContain("+375 (33) 765-43-21");
+      expect(r.html).toContain('href="tel:+375337654321"');
+    }
+  });
+
+  it("заменяет адрес в <address>", () => {
+    const r = injectPlanIntoTemplate(NICHE_TEMPLATE, NICHE_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain("Минск, ул. Немига 5");
+      expect(r.html).not.toContain("ул. Старая 1");
+    }
+  });
+
+  it("extended-слоты не штрафуют fillRatio и не ломают структуру", () => {
+    const r = injectPlanIntoTemplate(NICHE_TEMPLATE, NICHE_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.extendedSlotsFilled).toBeGreaterThanOrEqual(3);
+      const openH3 = (r.html.match(/<h3\b/g) ?? []).length;
+      const closeH3 = (r.html.match(/<\/h3>/g) ?? []).length;
+      expect(openH3).toBe(closeH3);
+    }
+  });
+});
