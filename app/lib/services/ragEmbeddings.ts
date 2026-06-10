@@ -60,7 +60,7 @@ function cacheKey(payload: string, kind: EmbeddingKind | "none"): string {
 
 export function isRagDisabled(): boolean {
   if (process.env.NIT_RAG_ENABLED === "0") return true;
-  return disabled;
+  return Date.now() < disabledUntil;
 }
 
 export function getTargetEmbeddingDims(): number | null {
