@@ -24,6 +24,23 @@ export async function action({ request }: ActionFunctionArgs) {
     return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
+  // CPU-bound (Tailwind compile + inline картинок), эндпоинт без auth —
+  // rate-limit по IP против DoS повторными тяжёлыми POST'ами.
+  const rl = checkRateLimit(request, {
+    scope: "bundle",
+    windowMs: 60_000,
+    maxRequests: 30,
+  });
+  if (!rl.allowed) {
+    return Response.json(
+      { error: "Too many requests. Try again in a minute.", retryAfterMs: rl.retryAfterMs },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rl.retryAfterMs ?? 60_000) / 1000)) },
+      },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
