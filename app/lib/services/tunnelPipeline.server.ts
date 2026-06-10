@@ -62,6 +62,7 @@ import {
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
 import { inferConfidentTemplateId } from "~/lib/services/templateKeywordSelector";
 import { restoreTemplateImages } from "~/lib/services/templateImages";
+import { collectImageUrls } from "~/lib/utils/imageInline";
 import { pruneTemplateForPlan } from "~/lib/utils/templatePrune";
 import { postPolishHtml } from "~/lib/services/htmlPostPolish";
 import { auditAdminMarkup } from "~/lib/bake/auditMarkup";
