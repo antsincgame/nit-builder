@@ -80,3 +80,21 @@ export function inferTemplateFromPrompt(prompt: string): {
     sections: chosen.sections,
   };
 }
+
+/**
+ * Возвращает id шаблона ТОЛЬКО при сильном совпадении: ключ из bestFor
+ * встречается подстрокой в промпте (та же логика strong-match, что в
+ * scoreTemplate, +10). Без fallback'а — если уверенной ниши нет, возвращает
+ * null. Нужно там, где ложный выбор хуже отсутствия (например, сверка секций
+ * плана с каноничными секциями нишевого шаблона). Порядок каталога определяет
+ * приоритет при нескольких совпадениях (как в inferTemplateFromPrompt).
+ */
+export function inferConfidentTemplateId(prompt: string): string | null {
+  const promptLower = prompt.toLowerCase();
+  for (const t of TEMPLATE_CATALOG) {
+    for (const kw of t.bestFor) {
+      if (promptLower.includes(kw.toLowerCase())) return t.id;
+    }
+  }
+  return null;
+}
