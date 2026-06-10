@@ -111,7 +111,7 @@ export async function retrieveTemplates(
   if (!trimmed) return null;
 
   try {
-    const index = await buildIndex();
+    const index = await buildIndex(signal);
     const { embedding } = await embed({
       model: getEmbeddingModel(),
       value: applyEmbeddingPrefix(trimmed, "query"),
@@ -121,12 +121,18 @@ export async function retrieveTemplates(
     scored.sort((a, b) => b.score - a.score);
     return scored.slice(0, topK).map((s) => s.id);
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    // Отмену пробрасываем; таймаут бюджета — транзиент (null, без отключения);
+    // генуинный сбой → cooldown вместо вечного отключения.
+    if (isAbortLike(err)) {
+      if ((err as { name?: string }).name === "AbortError") throw err;
+      cachedIndex = null;
+      return null;
+    }
     logger.warn(
       SCOPE,
-      `Embedding retrieval failed (${(err as Error).message}), disabling retriever for this session`,
+      `Embedding retrieval failed (${(err as Error).message}), ретривер на паузе ${DISABLE_COOLDOWN_MS / 1000}с`,
     );
-    permanentlyDisabled = true;
+    disabledUntil = Date.now() + DISABLE_COOLDOWN_MS;
     cachedIndex = null;
     return null;
   }
