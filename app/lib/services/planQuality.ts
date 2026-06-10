@@ -306,7 +306,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
       { title: "Цена до начала", description: "Считаем стоимость после фото в WhatsApp за 15 минут." },
       { title: "Безопасно для детей", description: "Используем составы без резкого запаха, можно сидеть через 4 часа." },
     ];
-    normalized.social_proof_line = "3500+ диванов и ковров очищены с 2021 года";
+    normalized.social_proof_line = "Выездная чистка диванов, ковров и кресел на дому";
     normalized.cta_microcopy = "Расчёт по фото в WhatsApp — бесплатно";
     normalized.suggested_template_id = "blank-landing";
   }
