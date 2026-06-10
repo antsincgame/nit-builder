@@ -30,6 +30,7 @@ export type HttpPipelineEvent =
   | { type: "template_selected"; templateId: string; templateName: string }
   | { type: "step_start"; roleName: string }
   | { type: "text_delta"; text: string; accumulated: string }
+  | { type: "truncated"; canContinue: boolean; attemptsLeft: number }
   | { type: "step_complete"; html?: string }
   | { type: "error"; message: string };
 
