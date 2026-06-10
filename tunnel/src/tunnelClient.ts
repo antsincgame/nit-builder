@@ -289,6 +289,10 @@ async function handleGenerate(
         send({
           type: "response_done",
           requestId: req.requestId,
+          // Имя модели, реально обработавшей запрос: серверный override
+          // (req.model) либо probe-модель туннеля. Сервер кладёт его в
+          // telemetry.model — точнее статичного capabilities.model.
+          model: req.model ?? model,
           fullText: delta.fullText ?? fullText,
           durationMs: delta.durationMs ?? Date.now() - startedAt,
           // Реальные токены из usage LM Studio; completionTokens — fallback на
