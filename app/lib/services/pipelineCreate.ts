@@ -447,7 +447,10 @@ export async function* executeHtmlSimple(
         rawHtml = "";
         for await (const delta of result.textStream) {
           rawHtml += delta;
-          yield { type: "text", text: delta };
+          // Стримим только первую попытку: на ретрае (вторая из-за тонкого
+          // результата) поток заменял бы уже показанный сайт другим прямо на
+          // глазах — мелькание двух сайтов. Финал придёт в step_complete (№19).
+          if (attempt === 0) yield { type: "text", text: delta };
         }
 
         const preview = stripCodeFences(rawHtml);
