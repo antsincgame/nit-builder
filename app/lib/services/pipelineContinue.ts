@@ -144,7 +144,9 @@ export async function* executeHtmlContinue(
       metrics.generationCompleted("continue", provider.id, totalMs);
       recordGeneration({
         sessionId: memory.sessionId,
-        mode: "create",
+        // Реальный режим прерванной генерации (create или polish), а не всегда
+        // "create" — иначе feedback-датасет для LoRA врёт (№13).
+        mode: t.mode,
         outcome: "success",
         provider: provider.id,
         model: provider.defaultModel,
