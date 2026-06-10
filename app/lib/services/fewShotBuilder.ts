@@ -44,6 +44,7 @@ import { formatPlanCompact, approxTokenCount } from "~/lib/services/compactPlanF
 import { buildContextualText, extractQueryContext } from "~/lib/services/contextualEmbed";
 import { rerank, isRerankerDisabled } from "~/lib/services/ragReranker";
 import { reciprocalRankFusion } from "~/lib/services/rrfFusion";
+import { isAbortLike } from "~/lib/utils/isAbortLike";
 import {
   detectExtendedTriggers,
   applyExtendedTriggerBoost,
