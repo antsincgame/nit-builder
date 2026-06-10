@@ -31,17 +31,9 @@ const MAX_IMAGES = 25;
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB на картинку — Unsplash ?w=800 куда меньше
 const FETCH_TIMEOUT_MS = 10_000;
 
-/** <img ... src="http(s)://..."> — основной случай. */
-const IMG_SRC_RE = /<img\b[^>]*?\ssrc=["'](https?:\/\/[^"'\s]+)["']/gi;
-/** inline style background: url(http(s)://...) — герои с фоном. */
-const CSS_URL_RE = /url\(\s*["']?(https?:\/\/[^"')\s]+)["']?\s*\)/gi;
-
-/** Собрать уникальные внешние URL картинок из HTML. */
+/** Собрать уникальные внешние URL картинок из HTML (<img src>, srcset, url()). */
 export function extractExternalImageUrls(html: string): string[] {
-  const urls = new Set<string>();
-  for (const m of html.matchAll(IMG_SRC_RE)) urls.add(m[1]);
-  for (const m of html.matchAll(CSS_URL_RE)) urls.add(m[1]);
-  return [...urls];
+  return collectImageUrls(html);
 }
 
 /** IP в приватном/loopback/link-local диапазоне? Невалидный → считаем небезопасным. */
