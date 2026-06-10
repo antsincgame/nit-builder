@@ -216,6 +216,7 @@ export type Plan = z.infer<typeof PlanSchema>;
 export type PlanBenefit = z.infer<typeof BenefitSchema>;
 export type PlanPricingTier = z.infer<typeof PricingTierSchema>;
 export type PlanFaqItem = z.infer<typeof FaqItemSchema>;
+export type PlanTeamMember = z.infer<typeof TeamMemberSchema>;
 export type PlanEditableZone = z.infer<typeof EditableZoneSchema>;
 export type PlanCollection = z.infer<typeof CollectionSchema>;
 export type PlanCollectionField = z.infer<typeof CollectionFieldSchema>;
