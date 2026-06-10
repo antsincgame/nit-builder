@@ -37,3 +37,18 @@ describe("inferTemplateFromPrompt", () => {
     expect(a.id).toBe(b.id);
   });
 });
+
+describe("inferConfidentTemplateId — нейл-ниши", () => {
+  it("слэнг «ноготочки» уверенно ведёт на beauty-master", () => {
+    expect(inferConfidentTemplateId("Собери мне сайт про ноготочки")).toBe("beauty-master");
+  });
+
+  it("маникюр и ногти тоже ведут на beauty-master", () => {
+    expect(inferConfidentTemplateId("сайт для маникюра")).toBe("beauty-master");
+    expect(inferConfidentTemplateId("наращивание ногтей")).toBe("beauty-master");
+  });
+
+  it("без уверенной ниши возвращает null", () => {
+    expect(inferConfidentTemplateId("xxxyyyzzz")).toBeNull();
+  });
+});
