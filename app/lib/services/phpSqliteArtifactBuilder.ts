@@ -1482,7 +1482,10 @@ Open http://localhost:8080
 Admin:
 - URL: http://localhost:8080/admin/login
 - Email: admin@example.com
-- Password: admin123
+- Password: ${adminPassword}
+
+The admin password is auto-generated and unique to this project. To change it,
+edit the seed in app/db.php (the migrate function) or update the admins table.
 
 ## Database
 
