@@ -26,6 +26,8 @@
  *   8. faq → h3/h4+p или dt+dd в #faq
  *   9. hours_text → текст в #hours или #contact
  *  10. contact_phone/email/address → <a href="tel/mailto"> и <address> в #contact/#footer
+ *  11. brand_name → лого в <nav> и название в <footer>
+ *  12. team → карточки имя+роль в #team/#masters/#staff/...
  *
  * Порог. Если < SLOT_FILL_THRESHOLD core-слотов реально заменено → фолбэк на Coder.
  *
