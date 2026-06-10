@@ -51,6 +51,30 @@ export async function action({ request, params }: ActionFunctionArgs) {
     );
   }
 
+  // Голосовать могут только залогиненные (раньше эндпоинт был открыт всем —
+  // накручивалось curl-скриптом). Проверка идёт ПОСЛЕ валидации тела, но ДО
+  // мутации votes — на безопасность порядок не влияет.
+  const user = await getAuth(request);
+  if (!user) {
+    return Response.json({ error: "Unauthorized", code: "NO_SESSION" }, { status: 401 });
+  }
+
+  // 1 голос на (юзера, шаблон) в сутки. useClientKey:false — ключ по
+  // юзеру+шаблону, не по IP, чтобы смена IP не сбрасывала лимит. In-memory
+  // (сброс на рестарте) — мягкая защита до persistent registry (v2.3+).
+  const voteRl = checkRateLimit(request, {
+    scope: `vote:${templateId}:${user.userId}`,
+    windowMs: 24 * 60 * 60_000,
+    maxRequests: 1,
+    useClientKey: false,
+  });
+  if (!voteRl.allowed) {
+    return Response.json(
+      { error: "Вы уже голосовали за этот шаблон." },
+      { status: 429 },
+    );
+  }
+
   const delta = parsed.data.direction === "up" ? 1 : -1;
   const newVotes = await voteForTemplate(templateId, delta);
   if (newVotes === null) {
