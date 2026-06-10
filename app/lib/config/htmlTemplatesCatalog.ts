@@ -104,7 +104,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
     name: "Мастер красоты",
     category: "beauty",
     description: "Маникюр, брови, ресницы, визаж. Работы, прайс, запись.",
-    bestFor: ["маникюр", "ногти", "брови", "ресницы", "визажист", "косметолог"],
+    bestFor: ["маникюр", "ногт", "ноготочк", "нейл", "nail", "брови", "ресницы", "визажист", "косметолог"],
     sections: ["hero", "services", "gallery", "pricing", "booking"],
     style: "feminine-soft",
     colorMood: "warm-pastel",
