@@ -155,9 +155,10 @@ export async function* executeHtmlPolish(
       if ((err as Error).name === "AbortError") return;
       const reasonCode = (err as Error).name === "ZodError" ? "schema" : "generation";
       metrics.cssPatchFallback(reasonCode);
+      cssPatchFailed = true;
       logger.warn(
         SCOPE,
-        `CSS patch failed (${(err as Error).message}), falling back to full rewrite`,
+        `CSS patch failed (${(err as Error).message}), falling back to section/full rewrite`,
       );
     }
   }
