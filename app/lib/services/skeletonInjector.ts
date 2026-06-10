@@ -65,7 +65,9 @@ export type InjectionResult =
       extendedSlotsFilled: number;
     };
 
-/** Находит [start, end) индексы секции по id. */
+/** Находит [start, end) индексы секции по id. Балансирует вложенные <section>:
+ *  первый встречный </section> закрыл бы вложенную секцию и оборвал диапазон
+ *  раньше времени (№22). */
 function findSectionRange(
   html: string,
   sectionId: string,
@@ -75,9 +77,19 @@ function findSectionRange(
   );
   if (!startMatch || startMatch.index === undefined) return null;
   const start = startMatch.index;
-  const endMatch = html.slice(start).match(/<\/section\s*>/i);
-  if (!endMatch || endMatch.index === undefined) return null;
-  return { start, end: start + endMatch.index + endMatch[0].length };
+  const tagRe = /<section\b[^>]*>|<\/section\s*>/gi;
+  tagRe.lastIndex = start + startMatch[0].length;
+  let depth = 1;
+  let m: RegExpExecArray | null;
+  while ((m = tagRe.exec(html)) !== null) {
+    if (m[0][1] === "/") {
+      depth--;
+      if (depth === 0) return { start, end: m.index + m[0].length };
+    } else {
+      depth++;
+    }
+  }
+  return null;
 }
 
 function escapeHtml(s: string): string {
