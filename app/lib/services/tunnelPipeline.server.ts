@@ -453,12 +453,16 @@ export function finalizeTunnelHtml(
   // Детерминированно возвращаем курированные картинки шаблона: слабая модель
   // переписывает <img src> на нерелевантные/битые ссылки (барбершопу — лес),
   // а промпт-правило игнорит. Ниша-агностично; no-op если у шаблона нет <img>.
+  // Курированные картинки шаблона в allowlist: restoreTemplateImages вернёт их
+  // в <img>, а fixBrokenImages ниже не должен перетереть их (и CSS-фоны) на
+  // случайный picsum (№3). Allowlist считаем из шаблона.
+  const tpl = getTemplateById(plan.suggested_template_id) ?? getFallbackTemplate();
+  const templateHtml = loadTemplateHtml(tpl.id);
   if (TUNNEL_RESTORE_IMAGES_ENABLED) {
-    const tpl = getTemplateById(plan.suggested_template_id) ?? getFallbackTemplate();
-    html = restoreTemplateImages(html, loadTemplateHtml(tpl.id)).html;
+    html = restoreTemplateImages(html, templateHtml).html;
   }
-  // Битые Unsplash-картинки (если вдруг остались) → picsum.
-  html = fixBrokenImages(html);
+  // Битые Unsplash-картинки (галлюцинации модели, не из шаблона) → picsum.
+  html = fixBrokenImages(html, new Set(collectImageUrls(templateHtml)));
   // SEO-голова из плана (детерминированно, идемпотентно) — слабая модель её почти
   // не ставит.
   if (TUNNEL_SEO_ENABLED) html = applySeoHead(html, plan);
