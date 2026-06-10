@@ -522,9 +522,20 @@ function buildRouterPhp(): string {
 declare(strict_types=1);
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$file = __DIR__ . '/public' . $path;
+$publicDir = __DIR__ . '/public';
+$file = $publicDir . $path;
 
 if ($path !== '/' && is_file($file)) {
+    // Защита от path traversal: отдаём только файлы РЕАЛЬНО внутри public/.
+    // Без realpath-проверки '../' в пути (при неверном docroot или не-Apache
+    // окружении) дал бы readfile произвольного файла вне каталога.
+    $real = realpath($file);
+    $base = realpath($publicDir);
+    if ($real === false || $base === false
+        || strncmp($real, $base . DIRECTORY_SEPARATOR, strlen($base) + 1) !== 0) {
+        http_response_code(404);
+        exit;
+    }
     $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     $types = [
         'css' => 'text/css; charset=UTF-8',
