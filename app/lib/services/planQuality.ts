@@ -364,6 +364,12 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
       normalized.sections = nicheMeta.sections.includes("hero")
         ? [...nicheMeta.sections]
         : ["hero", ...nicheMeta.sections];
+      // Выравниваем визуальный mood под нишу: слабый план приходит с дефолтным
+      // light-minimal, и нишевый шаблон (barbershop=dark-premium) терял характер —
+      // кодер красил барбершоп в белый. color_mood→пресет в inferStylePresetId
+      // (dark-premium→dark-luxe); явные стилевые слова в промпте юзера остаются
+      // приоритетнее (проверяются раньше color_mood), поэтому «светлый» победит.
+      normalized.color_mood = nicheMeta.colorMood;
     }
   }
 
