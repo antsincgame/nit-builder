@@ -235,6 +235,9 @@ function tryServeFile(
       ? "public, max-age=31536000, immutable"
       : "public, max-age=3600",
   );
+  // Статика минует SSR-обработчик (entry.server.tsx), где ставятся остальные
+  // security-заголовки — добавляем nosniff здесь, чтобы JS/CSS не sniff'ались.
+  res.setHeader("X-Content-Type-Options", "nosniff");
 
   createReadStream(filePath).pipe(res);
   return true;
