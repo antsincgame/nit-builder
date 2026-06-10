@@ -28,6 +28,7 @@
 
 import { createHash } from "node:crypto";
 import { logger } from "~/lib/utils/logger";
+import { isAbortLike } from "~/lib/utils/isAbortLike";
 import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 
 const SCOPE = "ragEmbeddings";
