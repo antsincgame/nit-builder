@@ -22,7 +22,8 @@ const Schema = z
     targetSection: z.string().min(1).max(50).optional(),
     artifactMode: z.enum(["template", "custom", "auto", "php-sqlite"]).optional(),
     stylePresetId: z
-      .enum(["generic", "neon-cyber", "clean-saas", "warm-premium", "editorial", "tech-terminal"])
+      .string()
+      .refine(isKnownPresetId, "unknown style preset")
       .optional(),
   })
   .refine(
