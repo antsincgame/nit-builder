@@ -590,6 +590,11 @@ export function useGenerationFlow(
 
           // Спасать нечего (обрыв на plan-фазе / пустой стрим): сообщение +
           // повтор. Сайт уже есть (polish-ошибка) — остаёмся в split-view.
+          // Чистим накопленный partial неудачной генерации, иначе превью и
+          // «Скачать» (streamingHtml || html) показывали бы оборванный кусок
+          // вместо последней рабочей версии (№6).
+          setStreamingHtml("");
+          pendingHtmlRef.current = "";
           setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
           if (!htmlRef.current) {
             setMode("welcome");
