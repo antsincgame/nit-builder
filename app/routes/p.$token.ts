@@ -49,6 +49,14 @@ export async function loader({ params, request }: LoaderFunctionArgs) {
     "Content-Type": "text/html; charset=utf-8",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "no-referrer",
+    // Изоляция чужого сайта: страница доступна по публичной ссылке и
+    // открывается залогиненными юзерами на origin приложения. Сгенерированный
+    // HTML несёт произвольный JS (Coder/Alpine, css_patch), поэтому держим его
+    // в песочнице — как iframe sandbox без allow-same-origin: скрипты работают
+    // для визуала, но opaque-origin отрезает доступ к cookie/localStorage и
+    // same-origin запросам к /api от имени открывшего ссылку.
+    "Content-Security-Policy":
+      "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox",
   };
 
   let html = share.html;
