@@ -164,7 +164,7 @@ export async function* executeHtmlPolish(
   }
 
   // === Tier 3.5: section-only polish ===
-  if (intent === "full_rewrite" && targetSection && isSectionPolishEnabled()) {
+  if ((intent === "full_rewrite" || cssPatchFailed) && targetSection && isSectionPolishEnabled()) {
     const extracted = extractSection(memory.currentHtml, targetSection);
     if (extracted.found) {
       metrics.sectionPolishAttempted();
