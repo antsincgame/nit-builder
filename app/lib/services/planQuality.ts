@@ -41,7 +41,7 @@ const TEMPLATE_RULES: Array<{ pattern: RegExp; templateId: string }> = [
   { pattern: /йог|пилатес|ретрит|медитац|wellness/i, templateId: "yoga-studio" },
   { pattern: /кофе|кофей|coffee|specialty|спешелти|кафе|пекарн|пакарн|хлеб|булоч|выпеч|бариста|бранч|обжар|cupping/i, templateId: "coffee-shop" },
   { pattern: /ресторан|пицц|паста|кухн|шеф/i, templateId: "restaurant" },
-  { pattern: /салон красоты|маникюр|бров|ресниц|визаж|косметолог|окрашив|премиум сегмент/i, templateId: "beauty-master" },
+  { pattern: /салон красоты|маникюр|ногт|ноготочк|нейл|nail|бров|ресниц|визаж|косметолог|окрашив|премиум сегмент/i, templateId: "beauty-master" },
   { pattern: /тату|tattoo|ink/i, templateId: "tattoo-studio" },
   { pattern: /барбер|брить|бород/i, templateId: "barbershop" },
   { pattern: /цвет|букет|флорист|bohemian/i, templateId: "flower-shop" },
