@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { inferTemplateFromPrompt } from "~/lib/services/templateKeywordSelector";
+import { inferTemplateFromPrompt, inferConfidentTemplateId } from "~/lib/services/templateKeywordSelector";
 
 describe("inferTemplateFromPrompt", () => {
   it("матчит keyword из bestFor напрямую", () => {
