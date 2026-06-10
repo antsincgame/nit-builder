@@ -274,17 +274,45 @@ export async function getUserBySessionSecret(
 /**
  * Look up a user by their Appwrite user ID using the admin Users API.
  * Used by the signed-cookie auth path (no Appwrite session needed).
+ *
+ * Кэш с TTL 30s. Hot-path: getAuth() дёргает это на КАЖДОМ authed-запросе и
+ * heartbeat — без кэша каждый клик/тик = round-trip в Appwrite admin Users API
+ * (вдобавок к уже-кэшированному getUserSessionVersion рядом). email юзера
+ * меняется крайне редко, поэтому 30s-устаревание безопасно. Промах (юзера нет)
+ * НЕ кэшируем — иначе свежезарегистрированный 30s считался бы отсутствующим.
  */
+type UserCacheEntry = { user: { userId: string; email: string }; cachedAt: number };
+const USER_CACHE_TTL_MS = 30_000;
+const USER_CACHE_MAX = 10_000;
+const userByIdCache = new Map<string, UserCacheEntry>();
+
 export async function getUserById(
   userId: string,
 ): Promise<{ userId: string; email: string } | null> {
+  const now = Date.now();
+  const cached = userByIdCache.get(userId);
+  if (cached && now - cached.cachedAt < USER_CACHE_TTL_MS) {
+    return cached.user;
+  }
+
   try {
     const users = getAdminUsers();
     const user = await users.get(userId);
-    return { userId: user.$id, email: user.email };
+    const result = { userId: user.$id, email: user.email };
+    if (userByIdCache.size >= USER_CACHE_MAX) {
+      const oldest = userByIdCache.keys().next().value;
+      if (oldest) userByIdCache.delete(oldest);
+    }
+    userByIdCache.set(userId, { user: result, cachedAt: now });
+    return result;
   } catch {
     return null;
   }
+}
+
+/** @internal — для тестов: сброс кэша getUserById между it(). */
+export function _resetUserByIdCache(): void {
+  userByIdCache.clear();
 }
 
 /**
