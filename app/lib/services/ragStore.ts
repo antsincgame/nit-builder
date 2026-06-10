@@ -283,7 +283,7 @@ export async function search(
   try {
     qVec = await embedText(embedSource, opts.signal, { kind: "query" });
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    if (isAbortLike(err)) throw err;
     return [];
   }
   if (!qVec) return [];
