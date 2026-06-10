@@ -644,19 +644,20 @@ function replaceContactInfo(
   }
 
   if (plan.contact_email) {
-    const emailRe = /<a\b[^>]*href=["']mailto:[^"']*["'][^>]*>([\s\S]*?)<\/a>/i;
-    const m = updated.match(emailRe);
-    if (m && m.index !== undefined) {
-      const openTag = m[0].slice(0, m[0].indexOf(">") + 1);
+    const email = plan.contact_email;
+    // Аналогично телефону — меняем все mailto:-ссылки.
+    const emailReG = /<a\b[^>]*href=["']mailto:[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
+    let emailReplaced = false;
+    updated = updated.replace(emailReG, (full) => {
+      emailReplaced = true;
+      const openTag = full.slice(0, full.indexOf(">") + 1);
       const newOpen = openTag.replace(
         /href=["']mailto:[^"']*["']/i,
-        `href="mailto:${escapeHtml(plan.contact_email)}"`,
+        `href="mailto:${escapeHtml(email)}"`,
       );
-      const newAnchor = `${newOpen}${escapeHtml(plan.contact_email)}</a>`;
-      updated =
-        updated.slice(0, m.index) + newAnchor + updated.slice(m.index + m[0].length);
-      replacedCount++;
-    }
+      return `${newOpen}${escapeHtml(email)}</a>`;
+    });
+    if (emailReplaced) replacedCount++;
   }
 
   if (plan.contact_address) {
