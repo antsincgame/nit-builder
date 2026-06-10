@@ -323,6 +323,9 @@ async fn connect_and_serve(
                                 // Task sends all outgoing messages via outgoing_tx channel.
                                 let lm_model =
                                     override_model.unwrap_or_else(|| model.clone());
+                                // lm_model уходит в move во внутренний spawn (stream_chat);
+                                // клонируем имя модели для телеметрии в ResponseDone.
+                                let model_for_done = lm_model.clone();
                                 let proxy_for_task = proxy.clone();
                                 let events_for_task = events.clone();
                                 let outgoing_for_task = outgoing_tx.clone();
