@@ -166,7 +166,15 @@ export async function* executeHtmlContinue(
       return;
     }
 
-    const finalHtml = stripCodeFences(joined);
+    // Финализируем как обычный create: truncated-ветки отдают сырой HTML без
+    // post-polish, поэтому прогоняем его здесь — boilerplate-копи и стилевые
+    // гварды (№13). Пресет восстанавливаем из плана/промпта.
+    const presetId = inferStylePresetId(t.userMessage, t.plan);
+    const finalHtml = postPolishHtml({
+      html: stripCodeFences(joined),
+      presetId,
+      plan: t.plan,
+    }).html;
     memory.currentHtml = finalHtml;
     memory.updatedAt = Date.now();
     updateSessionHtml(memory.sessionId, finalHtml);
@@ -174,7 +182,7 @@ export async function* executeHtmlContinue(
     metrics.generationCompleted("continue", provider.id, totalMs);
     recordGeneration({
       sessionId: memory.sessionId,
-      mode: "create",
+      mode: t.mode,
       outcome: "success",
       provider: provider.id,
       model: provider.defaultModel,
