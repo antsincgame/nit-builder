@@ -21,7 +21,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ServerToBrowser } from "@nit/shared";
 import type { ControlSocketStatus, TunnelStatus } from "~/lib/hooks/useControlSocket";
-import { runHttpPipeline } from "~/lib/services/pipelineHttpFallback";
+import { runHttpPipeline, type HttpPipelineEvent } from "~/lib/services/pipelineHttpFallback";
 import { saveToHistory, type HistoryEntry } from "~/lib/stores/historyStore";
 import { saveRemoteSite, updateRemoteSite } from "~/lib/stores/remoteHistoryStore";
 import { toast } from "~/lib/stores/toastStore";
