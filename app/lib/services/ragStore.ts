@@ -207,7 +207,11 @@ export async function addDocument(input: {
 
   const id =
     input.id ??
-    `${input.category}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+    // Контент-адресный id: одинаковый текст в одной категории даёт один id и
+    // дедупится между repair-ранами и бампами SEED_VERSION. Раньше был
+    // случайный id → копирайт-сиды (hero/benefits/...) лились дублями каждый
+    // bootstrap, раздувая стор и искажая IDF в BM25.
+    `${input.category}:${createHash("sha1").update(input.text).digest("hex")}`;
 
   if (documents.has(id)) {
     const existing = documents.get(id)!;
