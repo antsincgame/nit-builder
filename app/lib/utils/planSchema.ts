@@ -239,6 +239,9 @@ export function extractPlanJson(raw: string): unknown {
 export function buildCopyHint(plan: Plan): string | null {
   const parts: string[] = [];
 
+  if (plan.brand_name) {
+    parts.push(`BRAND NAME (название бренда в шапке/футере, используй дословно): ${plan.brand_name}`);
+  }
   if (plan.hero_headline) {
     parts.push(`HERO HEADLINE (используй дословно): ${plan.hero_headline}`);
   }
