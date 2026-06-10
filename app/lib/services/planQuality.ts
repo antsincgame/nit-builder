@@ -29,7 +29,7 @@ const SECTION_RULES: Array<{ pattern: RegExp; sections: string[] }> = [
 ];
 
 const TEMPLATE_RULES: Array<{ pattern: RegExp; templateId: string }> = [
-  { pattern: /game studio|indie|гейм|игр|steam|wishlist|trailer/i, templateId: "game-studio" },
+  { pattern: /game studio|indie|гейм|(?<![\p{L}])игр(?:а|ы|у|е)(?![\p{L}])|steam|wishlist|trailer/iu, templateId: "game-studio" },
   { pattern: /химчист|диван|ковр|уборк|клининг|выезд|whatsapp/i, templateId: "blank-landing" },
   { pattern: /студи[яи]\s+интерьер|дизайн\s+интерьер|интерьер.*портфолио|портфолио.*интерьер/i, templateId: "blank-landing" },
   { pattern: /перевод|переводчик|локализац|германи|израил/i, templateId: "blank-landing" },
