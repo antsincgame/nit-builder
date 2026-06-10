@@ -60,6 +60,7 @@ import {
   loadTemplateHtmlForLlm,
 } from "~/lib/config/htmlTemplates.server";
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
+import { inferConfidentTemplateId } from "~/lib/services/templateKeywordSelector";
 import { restoreTemplateImages } from "~/lib/services/templateImages";
 import { pruneTemplateForPlan } from "~/lib/utils/templatePrune";
 import { postPolishHtml } from "~/lib/services/htmlPostPolish";
