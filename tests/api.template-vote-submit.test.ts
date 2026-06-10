@@ -30,6 +30,7 @@ import {
   logGeneration,
 } from "~/lib/server/appwrite.server";
 import { getAuth } from "~/lib/server/requireAuth.server";
+import { _resetRateLimitState } from "~/lib/utils/rateLimit";
 
 const mockedVote = voteForTemplate as unknown as ReturnType<typeof vi.fn>;
 const mockedGetUserTemplate = getUserTemplate as unknown as ReturnType<typeof vi.fn>;
