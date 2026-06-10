@@ -102,32 +102,61 @@ function extFromContentType(ct: string): string | null {
   }
 }
 
-/** Скачать одну картинку → data:-URI. null при любой проблеме (best-effort). */
-async function fetchAsDataUri(url: string): Promise<string | null> {
+/** Максимум хопов редиректа при скачивании картинки. */
+const MAX_IMAGE_REDIRECTS = 3;
+
+/** http(s)-схема + не приватный хост. Проверяется на КАЖДОМ хопе редиректа. */
+async function isFetchableImageUrl(rawUrl: string): Promise<boolean> {
   let u: URL;
   try {
-    u = new URL(url);
+    u = new URL(rawUrl);
   } catch {
-    return null;
+    return false;
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
-  if (!(await isSafeHost(u.hostname))) return null;
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  return isSafeHost(u.hostname);
+}
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, redirect: "follow" });
-    if (!res.ok) return null;
-    const ct = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-    if (!extFromContentType(ct)) return null;
-    const buf = new Uint8Array(await res.arrayBuffer());
-    if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) return null;
-    return `data:${ct};base64,${Buffer.from(buf).toString("base64")}`;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+/** Скачать одну картинку → data:-URI. null при любой проблеме (best-effort). */
+async function fetchAsDataUri(url: string): Promise<string | null> {
+  // Редиректы обрабатываем ВРУЧНУЮ с повторной проверкой хоста на каждом хопе.
+  // С redirect:"follow" исходный публичный URL мог ответить 302 на
+  // http://169.254.169.254/ (cloud metadata) или на внутренний IP, и проверка
+  // хоста (сделанная только для исходного URL) это не ловила — прямой
+  // redirect-SSRF. Теперь каждый Location валидируется как новый URL.
+  let currentUrl = url;
+
+  for (let hop = 0; hop <= MAX_IMAGE_REDIRECTS; hop++) {
+    if (!(await isFetchableImageUrl(currentUrl))) return null;
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(currentUrl, { signal: ctrl.signal, redirect: "manual" });
+
+      // 3xx + Location → валидируем новый хост и идём дальше (до лимита хопов).
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (!location) return null;
+        currentUrl = new URL(location, currentUrl).toString();
+        continue;
+      }
+
+      if (!res.ok) return null;
+      const ct = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+      if (!extFromContentType(ct)) return null;
+      const buf = new Uint8Array(await res.arrayBuffer());
+      if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) return null;
+      return `data:${ct};base64,${Buffer.from(buf).toString("base64")}`;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
   }
+
+  // Превышен лимит редиректов — не скачиваем.
+  return null;
 }
 
 export type InlineImagesResult = {
