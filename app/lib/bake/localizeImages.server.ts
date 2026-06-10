@@ -174,23 +174,21 @@ export async function inlineImagesAsDataUris(html: string): Promise<InlineImages
 
   const dataUris = await Promise.all(urls.map((u) => fetchAsDataUri(u)));
 
-  // Заменяем длинные URL раньше коротких: иначе короткий URL, являющийся
-  // текстовым префиксом длинного (тот же URL + query), побьёт длинный при
-  // split/join. Base64-блоб уже встроенных не содержит "://" — пересечений нет.
-  const pairs = urls
-    .map((url, i) => ({ url, dataUri: dataUris[i] }))
-    .sort((a, b) => b.url.length - a.url.length);
-
-  let out = html;
+  // Подменяем только в безопасных зонах (src/srcset/<style>/inline-style), не
+  // трогая class-атрибуты Tailwind bg-[url(...)] — иначе ломается CSS-селектор
+  // и фон исчезает (см. imageInline). Длинные URL заменяются раньше коротких.
+  const map = new Map<string, string>();
   let embedded = 0;
   let failed = 0;
-  for (const { url, dataUri } of pairs) {
+  urls.forEach((url, i) => {
+    const dataUri = dataUris[i];
     if (dataUri) {
-      out = out.split(url).join(dataUri);
+      map.set(url, dataUri);
       embedded++;
     } else {
       failed++;
     }
-  }
+  });
+  const out = replaceImageUrlsScoped(html, map);
   return { html: out, embedded, failed };
 }
