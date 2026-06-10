@@ -19,6 +19,7 @@ import { TEMPLATE_CATALOG } from "~/lib/config/htmlTemplatesCatalog";
 import { normalizeLmStudioBaseUrl } from "~/lib/llm/client";
 import { logger } from "~/lib/utils/logger";
 import { applyEmbeddingPrefix } from "~/lib/services/ragEmbeddings";
+import { isAbortLike } from "~/lib/utils/isAbortLike";
 
 const SCOPE = "templateRetriever";
 
