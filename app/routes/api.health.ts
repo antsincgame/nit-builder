@@ -16,7 +16,6 @@ export async function loader() {
     uptime: process.uptime(),
     appwrite: {
       configured: isAppwriteConfigured(),
-      endpoint: process.env.APPWRITE_ENDPOINT ?? null,
     },
     tunnels: {
       uniqueUsersWithTunnel: stats.uniqueUsersWithTunnel,
