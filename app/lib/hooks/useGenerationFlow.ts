@@ -34,7 +34,7 @@ import type { StylePresetId } from "~/lib/llm/style-presets";
 // (вместо внутреннего template_id вроде «Языковая школа», который путает людей).
 const SECTION_LABELS: Record<string, string> = {
   hero: "первый экран",
-  about: "о школе",
+  about: "о нас",
   story: "история",
   "how-it-works": "как это работает",
   "why-us": "почему мы",
