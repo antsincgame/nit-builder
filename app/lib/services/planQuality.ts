@@ -349,6 +349,24 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     }
   }
 
+  // Сверка секций с нишевым шаблоном. Выше форсится нишевый ШАБЛОН, но
+  // plan.sections только ДОПОЛНЯЛСЯ (addUniqueSections) и не чистился — школьные
+  // «programs»/«about» от слабого планировщика оставались, не совпадая с нишей
+  // (барбершоп получал секцию «программы»). Если ниша уверенно распознана по
+  // bestFor-подстроке И выбранный шаблон = именно она — приводим секции к
+  // каноничным секциям этого шаблона (hero гарантированно первой). Гейт строгий
+  // (inferConfidentTemplateId, не широкие TEMPLATE_RULES), поэтому общие кейсы
+  // вроде «детский центр → programs» не затрагиваются (нишевого шаблона нет).
+  const confidentNicheId = inferConfidentTemplateId(query);
+  if (confidentNicheId && normalized.suggested_template_id === confidentNicheId) {
+    const nicheMeta = getTemplateById(confidentNicheId);
+    if (nicheMeta && nicheMeta.sections.length > 0) {
+      normalized.sections = nicheMeta.sections.includes("hero")
+        ? [...nicheMeta.sections]
+        : ["hero", ...nicheMeta.sections];
+    }
+  }
+
   // ─── Tier 5/6: админ-инварианты (planSchema декларирует их именно здесь) ───
   // 7B нередко выдаёт collections, забыв needs_admin=true. Без флага
   // buildCollectionsHint возвращает null → Coder не размечает → repair
