@@ -917,7 +917,6 @@ export function injectPlanIntoTemplate(
       "benefits",
       "features",
       "why-us",
-      "services",
       "about",
     ];
     let injectedBenefits = false;
