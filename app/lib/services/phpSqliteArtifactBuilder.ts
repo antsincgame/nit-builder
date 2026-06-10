@@ -1059,10 +1059,10 @@ if ($path === '/admin/login') {
       <form method="post">
         <?= csrf_field() ?>
         <label>Email <input name="email" type="email" value="admin@example.com" required></label>
-        <label>Пароль <input name="password" type="password" placeholder="admin123" required></label>
+        <label>Пароль <input name="password" type="password" required></label>
         <button>Войти</button>
       </form>
-      <p class="muted">Demo password: admin123. Смените пароль перед продакшеном.</p>
+      <p class="muted">Пароль администратора указан в README.md проекта.</p>
     </section>
     <?php
     render_footer();
