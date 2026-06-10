@@ -54,6 +54,15 @@ export type HttpFallbackResult = {
   templateName: string;
   /** Был ли новый sessionId назначен сервером — caller должен сохранить для последующих запросов. */
   newSessionId: string | undefined;
+  /**
+   * Генерация упёрлась в лимит токенов (finishReason=length) — нужна докрутка
+   * через mode=continue. На WS-пути докрутку крутит сервер сам; на HTTP это
+   * client-driven, поэтому флаг прокинут наружу. Опционально для обратной
+   * совместимости со старыми вызовами/моками.
+   */
+  truncated?: boolean;
+  /** Сколько ещё попыток докрутки разрешает сервер (0 — лимит исчерпан). */
+  attemptsLeft?: number;
 };
 
 /**
