@@ -117,6 +117,8 @@ export async function runHttpPipeline(
   let templateId = "";
   let templateName = "";
   let newSessionId: string | undefined;
+  let truncated = false;
+  let attemptsLeft = 0;
 
   await parseSseStream(res, (event) => {
     switch (event.type) {
