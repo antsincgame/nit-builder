@@ -25,6 +25,7 @@
  */
 import { lookup } from "node:dns/promises";
 import net from "node:net";
+import { collectImageUrls, replaceImageUrlsScoped } from "~/lib/utils/imageInline";
 
 const MAX_IMAGES = 25;
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB на картинку — Unsplash ?w=800 куда меньше
