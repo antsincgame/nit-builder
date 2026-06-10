@@ -5,6 +5,7 @@ import { extractZonesFromHtml } from "~/lib/bake/extractZones.server";
 import { extractCollectionsFromHtml } from "~/lib/bake/extractCollections.server";
 import type { PlanCollection } from "~/lib/utils/planSchema";
 import { logger } from "~/lib/utils/logger";
+import { checkRateLimit } from "~/lib/utils/rateLimit";
 
 // ─── POST /api/bundle/php — ZIP с PHP-админкой ──────────────────
 //
