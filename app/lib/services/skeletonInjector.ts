@@ -139,12 +139,24 @@ function replaceFirstTagInRange(
   return { html: newHtml, replaced: true };
 }
 
+/** Похоже ли содержимое секции на прайс/меню, а не на карточки-преимущества.
+ *  Признак: валюта (≥2 символа) или явный price-класс. */
+function looksLikePriceSection(sectionHtml: string): boolean {
+  const currencyHits = (sectionHtml.match(/[₽$€£]|\b(?:руб|byn|usd|eur)\b/gi) ?? []).length;
+  if (currencyHits >= 2) return true;
+  return /class=["'][^"']*\bprice\b/i.test(sectionHtml);
+}
+
 function replaceBenefitCards(
   html: string,
   sectionRange: { start: number; end: number },
   benefits: Array<{ title: string; description: string }>,
 ): { html: string; replaced: number } {
   const sectionHtml = html.slice(sectionRange.start, sectionRange.end);
+  // Не затираем прайс/меню-секции: у нишевых шаблонов (барбершоп, ресторан)
+  // секция services — это сетка цен, и benefit-инжект превратил бы прайс в
+  // «Быстрый ответ». Пропускаем (replaced:0) — цикл попробует следующую секцию.
+  if (looksLikePriceSection(sectionHtml)) return { html, replaced: 0 };
   const headingRe = /<(h[23])\b[^>]*>([\s\S]*?)<\/\1>/gi;
   type Heading = { tag: string; openIdx: number; closeEnd: number };
   const headings: Heading[] = [];
