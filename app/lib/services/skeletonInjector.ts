@@ -144,7 +144,7 @@ function replaceFirstTagInRange(
 /** Похоже ли содержимое секции на прайс/меню, а не на карточки-преимущества.
  *  Признак: валюта (≥2 символа) или явный price-класс. */
 function looksLikePriceSection(sectionHtml: string): boolean {
-  const currencyHits = (sectionHtml.match(/[₽$€£]|\b(?:руб|byn|usd|eur)\b/gi) ?? []).length;
+  const currencyHits = (sectionHtml.match(/[₽$€£]|(?<![\p{L}\d])руб(?:л[а-яё]*)?(?![\p{L}\d])|\b(?:byn|usd|eur)\b/giu) ?? []).length;
   if (currencyHits >= 2) return true;
   return /class=["'][^"']*\bprice\b/i.test(sectionHtml);
 }
