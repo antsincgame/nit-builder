@@ -21,6 +21,7 @@ import {
   buildStoredZipBlob,
   extractPhpSqliteArtifact,
 } from "~/lib/utils/artifactExport";
+import { inlineExternalImages } from "~/lib/utils/inlineImagesClient";
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
