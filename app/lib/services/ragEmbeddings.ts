@@ -36,10 +36,14 @@ const EMBED_MODEL =
   process.env.LMSTUDIO_EMBEDDING_MODEL ?? "text-embedding-nomic-embed-text-v1.5";
 const MAX_TEXT_LEN = 4000;
 const MAX_CACHE = 2000;
+// Пауза RAG после генуинного сбоя embedding API (не таймаута/отмены). Раньше
+// был вечный disabled до рестарта — один сбой глушил RAG навсегда. Cooldown
+// поднимает RAG автоматически.
+const DISABLE_COOLDOWN_MS = 60_000;
 
 export type EmbeddingKind = "query" | "passage";
 
-let disabled = false;
+let disabledUntil = 0;
 const cache = new Map<string, number[]>();
 
 function cacheKey(payload: string, kind: EmbeddingKind | "none"): string {
