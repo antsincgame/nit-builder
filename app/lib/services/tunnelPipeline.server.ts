@@ -304,7 +304,7 @@ export function resolveTunnelPlan(
     // (на мигрированных шаблонах). variantSeed по умолчанию случайный на генерацию.
     const injection = injectPlanIntoTemplate(cleanTemplateHtml, {
       ...plan,
-      variantSeed: plan.variantSeed ?? Math.floor(Math.random() * 0x100000000),
+      variantSeed: variantSeed ?? plan.variantSeed ?? Math.floor(Math.random() * 0x100000000),
     });
     if (injection.ok && htmlContainsPrimaryCta(injection.html, plan)) {
       // pipelineCreate для skeleton-пути НЕ применяет post-polish, только
