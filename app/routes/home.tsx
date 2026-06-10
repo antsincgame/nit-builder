@@ -239,32 +239,39 @@ export default function Home() {
     }
 
     const filename = `nit-${lastTemplateId || "site"}-${Date.now()}.html`;
+
+    // 1. Берём «запечённый» HTML с бандл-роута (инлайн CSS из Tailwind CDN).
+    //    Роут недоступен — продолжаем с исходным HTML как есть.
+    let finalHtml = content;
     try {
       const resp = await fetch("/api/bundle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ html: content, filename }),
       });
-      if (!resp.ok) throw new Error(`bundle ${resp.status}`);
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Сайт скачан");
+      if (resp.ok) {
+        finalHtml = await resp.text();
+      } else {
+        console.error(`[downloadHtml] bundle ${resp.status}, отдаём исходный HTML`);
+      }
     } catch (err) {
-      console.error("[downloadHtml] bundle failed, fallback to raw:", err);
-      const blob = new Blob([content], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Сайт скачан");
+      console.error("[downloadHtml] bundle недоступен, отдаём исходный HTML:", err);
     }
+
+    // 2. Встраиваем внешние картинки в браузере (data:-URI). На сервере инлайн
+    //    мог не сработать (закрыт egress к CDN) — у клиента картинки точно
+    //    грузятся, поэтому файл становится автономным. Best-effort, не бросает.
+    finalHtml = await inlineExternalImages(finalHtml);
+
+    // 3. Сохраняем готовый файл.
+    const blob = new Blob([finalHtml], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Сайт скачан");
   }, [html, streamingHtml, lastTemplateId]);
 
   const downloadPhp = useCallback(async () => {
