@@ -1,4 +1,5 @@
 import { getTemplateById } from "~/lib/config/htmlTemplatesCatalog";
+import { inferConfidentTemplateId } from "~/lib/services/templateKeywordSelector";
 import type { Plan } from "~/lib/utils/planSchema";
 
 const BANNED_REPLACEMENTS: Array<[RegExp, string]> = [
