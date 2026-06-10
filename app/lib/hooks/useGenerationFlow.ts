@@ -944,7 +944,16 @@ export function useGenerationFlow(
     }
     setLoading(false);
     toast.warning("Генерация отменена");
-    setMode("welcome");
+    // Отмена полировки готового сайта не должна выкидывать в welcome — html
+    // живой. Чистим оборванный partial и остаёмся в редактировании; в welcome
+    // уходим только если сайта ещё нет (отмена самой первой генерации) (№24).
+    if (htmlRef.current) {
+      setStreamingHtml("");
+      pendingHtmlRef.current = "";
+      setMode("editing");
+    } else {
+      setMode("welcome");
+    }
   }, []);
 
   const loadFromHistory = useCallback((entry: HistoryEntry) => {
