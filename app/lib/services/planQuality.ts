@@ -369,7 +369,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
       // кодер красил барбершоп в белый. color_mood→пресет в inferStylePresetId
       // (dark-premium→dark-luxe); явные стилевые слова в промпте юзера остаются
       // приоритетнее (проверяются раньше color_mood), поэтому «светлый» победит.
-      normalized.color_mood = nicheMeta.colorMood;
+      normalized.color_mood = nicheMeta.colorMood as Plan["color_mood"];
     }
   }
 
