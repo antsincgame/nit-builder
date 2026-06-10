@@ -1,4 +1,4 @@
 # Маркер невыпускающей сборки туннеля (workflow tunnel-ci-build.yml).
 # Бамп числа ниже → push в main → сборка CLI + Linux-desktop (компиляция Rust),
 # без публикации релиза. Полный релиз — теги tunnel-v* / tunnel-desktop-v*.
-build: 1
+build: 2
