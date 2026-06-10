@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authOrGuest, checkGuestLimit } from "~/lib/server/auth";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
 import { getOrCreateSession } from "~/lib/services/sessionMemory";
+import { isKnownPresetId } from "~/lib/llm/style-presets";
 import {
   executeHtmlSimple,
   executeHtmlPolish,
