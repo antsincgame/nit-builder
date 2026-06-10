@@ -415,13 +415,22 @@ function create_checkout_session(int $orderId, float $total): array {
 function handle_payment_webhook(): void {
     $config = app_config()['payments'];
     $secret = (string) ($config['webhook_secret'] ?? '');
-    if ($secret !== '') {
-        $received = $_SERVER['HTTP_X_NIT_PAYMENT_SECRET'] ?? '';
-        if (!is_string($received) || !hash_equals($secret, $received)) {
-            http_response_code(401);
-            echo 'invalid signature';
-            return;
-        }
+
+    // Без секрета вебхук не аутентифицирован — кто угодно мог бы пометить заказ
+    // оплаченным обычным POST'ом. Отказываем, пока PAYMENT_WEBHOOK_SECRET не задан
+    // (раньше при пустом секрете проверка пропускалась — fail-open). Ручной режим
+    // вебхук не использует: статус заказа там меняет админ через защищённую панель.
+    if ($secret === '') {
+        http_response_code(503);
+        echo 'webhook disabled: set PAYMENT_WEBHOOK_SECRET';
+        return;
+    }
+
+    $received = $_SERVER['HTTP_X_NIT_PAYMENT_SECRET'] ?? '';
+    if (!is_string($received) || !hash_equals($secret, $received)) {
+        http_response_code(401);
+        echo 'invalid signature';
+        return;
     }
 
     $payload = json_decode(file_get_contents('php://input') ?: '{}', true);
