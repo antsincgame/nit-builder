@@ -44,7 +44,7 @@ const SECTION_LABELS: Record<string, string> = {
   program: "программы",
   classes: "программы",
   schedule: "расписание",
-  team: "преподаватели",
+  team: "команда",
   instructors: "преподаватели",
   masters: "мастера",
   doctors: "специалисты",
