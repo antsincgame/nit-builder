@@ -266,6 +266,14 @@ const PREMIUM_BASE_STYLE = `<style id="nit-premium-base">
 @media (prefers-reduced-motion:no-preference){.nit-reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.16,1,.3,1),transform .7s cubic-bezier(.16,1,.3,1)}.nit-reveal.nit-vis{opacity:1;transform:none}}
 </style>`;
 
+// Кап заголовков: модель/шаблоны порой ставят text-8xl/9xl или clamp с большим vw
+// → h1/h2 занимают весь экран. В отличие от премиум-базы (:where, спец. 0) этот
+// слой НАМЕРЕННО перебивает вывод !important. Только h1/h2 — h3+ обычно в норме.
+const TYPE_GUARD_STYLE = `<style id="nit-type-guard">
+h1{font-size:clamp(2.25rem, 1.6rem + 2.6vw, 4rem)!important}
+h2{font-size:clamp(1.6rem, 1.2rem + 1.7vw, 2.6rem)!important}
+</style>`;
+
 const INTER_FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
 
 // Scroll-reveal: плавное появление секций при скролле — приём, который слабая
