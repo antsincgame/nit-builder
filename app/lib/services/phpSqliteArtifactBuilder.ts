@@ -366,7 +366,7 @@ function migrate(): void {
     db()->exec($schema);
 
     $stmt = db()->prepare('INSERT INTO admins (email, password_hash) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM admins WHERE email = ?)');
-    $stmt->execute(['admin@example.com', password_hash('admin123', PASSWORD_DEFAULT), 'admin@example.com']);
+    $stmt->execute(['admin@example.com', password_hash(${phpString(adminPassword)}, PASSWORD_DEFAULT), 'admin@example.com']);
 }
 `;
 }
