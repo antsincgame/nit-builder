@@ -141,5 +141,5 @@ export async function retrieveTemplates(
 export function _resetRetrieverState(): void {
   cachedIndex = null;
   indexBuildPromise = null;
-  permanentlyDisabled = false;
+  disabledUntil = 0;
 }
