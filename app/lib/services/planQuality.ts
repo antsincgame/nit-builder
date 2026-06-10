@@ -342,7 +342,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
   const inferredTemplate = inferTemplateId(query);
   if (inferredTemplate && getTemplateById(inferredTemplate)) {
     const currentExists = getTemplateById(normalized.suggested_template_id);
-    const strongTemplateHint = /game studio|indie|гейм|игр|steam|wishlist|trailer|химчист|диван|ковр|уборк|клининг|выезд|whatsapp|стомат|клиник|saas|edtech|платформ|фитнес|йог|кофе|кофей|спешелти|обжар|cupping|пекарн|пакарн|хлеб|булоч|выпеч|ресторан|барбер|юрист|фотограф|архитектур|интерьер|loft|английск|маникюр|ногт|ноготочк|нейл|nail|салон|торт|цвет|букет|флорист|перевод|германи|израил|тату/i.test(query);
+    const strongTemplateHint = /game studio|indie|гейм|steam|wishlist|trailer|химчист|диван|ковр|уборк|клининг|выезд|whatsapp|стомат|клиник|saas|edtech|платформ|фитнес|йог|кофе|кофей|спешелти|обжар|cupping|пекарн|пакарн|хлеб|булоч|выпеч|ресторан|барбер|юрист|фотограф|архитектур|интерьер|loft|английск|маникюр|ногт|ноготочк|нейл|nail|салон|торт|букет|флорист|перевод|германи|израил|тату/i.test(query);
     if (!currentExists || normalized.suggested_template_id === "blank-landing" || strongTemplateHint) {
       normalized.suggested_template_id = inferredTemplate;
     }
