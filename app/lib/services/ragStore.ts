@@ -248,7 +248,7 @@ export async function addDocument(input: {
       const vec = await embedText(embedSource, undefined, { kind: "passage" });
       if (vec) doc.embedding = vec;
     } catch (err) {
-      if ((err as Error).name === "AbortError") throw err;
+      if (isAbortLike(err)) throw err;
       logger.warn(SCOPE, `Embed failed for ${id}: ${(err as Error).message}`);
     }
   }
