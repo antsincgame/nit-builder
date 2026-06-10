@@ -301,7 +301,7 @@ export async function buildFewShotPlansAdaptive(
       triggerBoosted: boostResult.boostedCount,
     };
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    if (isAbortLike(err)) throw err;
     logger.warn(SCOPE, `Few-shot fetch failed: ${(err as Error).message}`);
     return empty;
   }
