@@ -426,7 +426,12 @@ export function useGenerationFlow(
           let diagLine = "";
           if (tel) {
             const parts: string[] = [];
-            if (tel.model) parts.push(tel.model);
+            // Имя модели показываем, только если это не эмбеддер. Туннель
+            // иногда репортит в capabilities эмбеддинг-модель (она нужна для
+            // RAG), хотя генерировала другая модель — тогда имя вводит в
+            // заблуждение (контекст рядом при этом от настоящей модели кодера).
+            // Лучше скрыть имя, чем показать чужое.
+            if (tel.model && !/embed/i.test(tel.model)) parts.push(tel.model);
             if (tel.promptTokens && tel.contextWindow) {
               const pct = Math.round((tel.promptTokens / tel.contextWindow) * 100);
               parts.push(
