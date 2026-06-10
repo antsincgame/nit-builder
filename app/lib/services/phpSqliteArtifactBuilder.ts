@@ -1535,6 +1535,7 @@ export function buildPhpSqliteArtifact(params: {
   userMessage: string;
 }): PhpSqliteArtifact {
   const { plan } = params;
+  const adminPassword = generateAdminPassword();
   return {
     kind: "php-sqlite-app",
     version: 1,
