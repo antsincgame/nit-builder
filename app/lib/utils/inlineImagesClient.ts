@@ -8,24 +8,18 @@
  * их здесь: fetch → blob → data:-URI → подмена в HTML. Файл становится
  * автономным независимо от сетевых ограничений сервера.
  *
+ * Сбор URL и подмена вынесены в общий чистый хелпер imageInline: подмена идёт
+ * только в безопасных зонах (src/srcset/<style>/inline-style), без class-
+ * атрибутов Tailwind bg-[url(...)], иначе ломается CSS-селектор и фон исчезает.
+ *
  * Устойчивость: всё best-effort. Любая проблема с конкретной картинкой (CORS,
  * 404, не-изображение, превышен лимит) → ссылка остаётся как была. Функция
  * никогда не бросает — скачивание не должно ломаться из-за инлайна.
  */
+import { collectImageUrls, replaceImageUrlsScoped } from "~/lib/utils/imageInline";
 
 const MAX_IMAGES = 40;
 const MAX_BYTES = 8 * 1024 * 1024; // 8 МБ на картинку
-
-/** Вытащить внешние http(s)-URL из <img src> и CSS url(). */
-function extractExternalUrls(html: string): string[] {
-  const urls = new Set<string>();
-  const imgRe = /<img\b[^>]*?\ssrc=["'](https?:\/\/[^"'\s]+)["']/gi;
-  const cssRe = /url\(\s*["']?(https?:\/\/[^"')\s]+)["']?\s*\)/gi;
-  let m: RegExpExecArray | null;
-  while ((m = imgRe.exec(html)) !== null) urls.add(m[1]!);
-  while ((m = cssRe.exec(html)) !== null) urls.add(m[1]!);
-  return [...urls].slice(0, MAX_IMAGES);
-}
 
 /** Скачать одну картинку и вернуть data:-URI, либо null при любой проблеме. */
 async function fetchAsDataUri(url: string): Promise<string | null> {
@@ -48,24 +42,20 @@ async function fetchAsDataUri(url: string): Promise<string | null> {
 }
 
 /**
- * Встроить все внешние картинки HTML как data:-URI. Возвращает HTML с
- * подменёнными ссылками; недоступные картинки остаются внешними ссылками.
+ * Встроить внешние картинки HTML как data:-URI. Возвращает HTML с подменёнными
+ * ссылками; недоступные картинки остаются внешними ссылками.
  */
 export async function inlineExternalImages(html: string): Promise<string> {
   try {
-    const urls = extractExternalUrls(html);
+    const urls = collectImageUrls(html).slice(0, MAX_IMAGES);
     if (urls.length === 0) return html;
     const dataUris = await Promise.all(urls.map(fetchAsDataUri));
-    // Подменяем сначала длинные URL — короткий не должен «съесть» вложенный.
-    const pairs = urls
-      .map((url, i) => ({ url, dataUri: dataUris[i] ?? null }))
-      .filter((p): p is { url: string; dataUri: string } => !!p.dataUri)
-      .sort((a, b) => b.url.length - a.url.length);
-    let out = html;
-    for (const { url, dataUri } of pairs) {
-      out = out.split(url).join(dataUri);
-    }
-    return out;
+    const map = new Map<string, string>();
+    urls.forEach((url, i) => {
+      const dataUri = dataUris[i];
+      if (dataUri) map.set(url, dataUri);
+    });
+    return replaceImageUrlsScoped(html, map);
   } catch {
     return html;
   }
