@@ -175,7 +175,6 @@ export async function* executeHtmlPolish(
         `Section-polish path: section="${targetSection}" (${sectionChars}ch) of full HTML (${fullHtmlChars}ch), savings=${Math.round((1 - sectionChars / fullHtmlChars) * 100)}%`,
       );
 
-      metrics.generationStarted("polish", provider.id);
       yield {
         type: "step_start",
         roleName: `Полировщик (секция "${targetSection}")`,
