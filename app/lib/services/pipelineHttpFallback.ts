@@ -157,6 +157,16 @@ export async function runHttpPipeline(
         });
         break;
 
+      case "truncated":
+        truncated = true;
+        attemptsLeft = (event.attemptsLeft as number) ?? 0;
+        params.onEvent({
+          type: "truncated",
+          canContinue: (event.canContinue as boolean) ?? false,
+          attemptsLeft,
+        });
+        break;
+
       case "step_complete":
         if (event.html) accumulated = event.html as string;
         params.onEvent({ type: "step_complete", html: event.html as string | undefined });
