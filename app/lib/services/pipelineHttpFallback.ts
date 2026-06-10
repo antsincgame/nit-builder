@@ -186,5 +186,7 @@ export async function runHttpPipeline(
     templateId,
     templateName,
     newSessionId,
+    truncated,
+    attemptsLeft,
   };
 }
