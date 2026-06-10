@@ -770,10 +770,15 @@ export default function Home() {
             className={`flex-col overflow-hidden relative bg-[#141414] ${mobileTab === "preview" ? "flex" : "hidden"} md:flex`}
           >
             {showLiveSite ? (
+              // Превью — недоверенный HTML от LLM. allow-scripts БЕЗ
+              // allow-same-origin намеренно: эта пара разрешений снимает
+              // песочницу (контент дотягивается до родителя, cookies и токенов,
+              // что давало XSS из plan-строк в php-превью). Без same-origin
+              // скрипты живут в null-origin и навредить приложению не могут (№25).
               <iframe
                 title="Предпросмотр сайта"
                 srcDoc={previewHtml}
-                sandbox={isBackendArtifact ? "allow-scripts allow-same-origin" : "allow-scripts"}
+                sandbox="allow-scripts"
                 className="nit-preview w-full h-full border-0 bg-white"
               />
             ) : (
