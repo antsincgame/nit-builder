@@ -275,6 +275,19 @@ function storefrontDisplayName(plan: Plan): string {
   return cleanBrand(plan);
 }
 
+function generateAdminPassword(): string {
+  // Случайный пароль админа на этапе сборки артефакта: алфавит без визуально
+  // неоднозначных символов (0/O, 1/l/I), 16 символов ≈ 93 бита. Заменяет
+  // захардкоженный admin123 — у каждого сгенерированного сайта свой пароль,
+  // менять руками не нужно. Web Crypto доступен и на сервере (Node 19+), и в
+  // браузере (модуль импортируется клиентским artifactExport).
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  let out = "";
+  for (let i = 0; i < bytes.length; i++) out += alphabet[bytes[i]! % alphabet.length];
+  return out;
+}
+
 function buildConfigPhp(plan: Plan): string {
   return `<?php
 declare(strict_types=1);
