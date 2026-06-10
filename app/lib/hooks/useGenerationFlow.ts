@@ -699,7 +699,39 @@ export function useGenerationFlow(
       abortCtrlRef.current = ctrl;
 
       try {
-        const result = await runHttpPipeline({
+        // Обработчик событий SSE. На create-раунде стримим партиал в iframe
+        // (event.accumulated — растущий HTML). На continue-раундах accumulated
+        // содержит ТОЛЬКО хвост (новый кусок), показ которого = битый фрагмент,
+        // поэтому на докрутке превью не трогаем — обновим полным HTML между
+        // раундами (см. ниже). isContinue разводит эти два случая.
+        const makeHttpOnEvent = (isContinue: boolean) => (event: HttpPipelineEvent) => {
+          switch (event.type) {
+            case "session_init":
+              sessionIdRef.current = event.sessionId;
+              break;
+            case "plan_ready":
+              if (!isContinue) setCurrentStep("template");
+              break;
+            case "template_selected":
+              if (!isContinue) {
+                setTemplateName(event.templateName);
+                setCurrentStep("template");
+              }
+              break;
+            case "step_start":
+              if (event.roleName === "Кодер" || event.roleName === "Backend builder") setCurrentStep("code");
+              break;
+            case "text_delta":
+              if (!isContinue) scheduleIframeUpdate(event.accumulated, event.accumulated.length);
+              break;
+            case "truncated":
+            case "step_complete":
+            case "error":
+              break;
+          }
+        };
+
+        let result = await runHttpPipeline({
           mode: "create",
           projectId,
           prompt,
@@ -707,35 +739,46 @@ export function useGenerationFlow(
           artifactMode,
           stylePresetId: createOptions.stylePresetId,
           signal: ctrl.signal,
-          onEvent: (event) => {
-            switch (event.type) {
-              case "session_init":
-                sessionIdRef.current = event.sessionId;
-                break;
-              case "plan_ready":
-                setCurrentStep("template");
-                break;
-              case "template_selected":
-                setTemplateName(event.templateName);
-                setCurrentStep("template");
-                break;
-              case "step_start":
-                if (event.roleName === "Кодер" || event.roleName === "Backend builder") setCurrentStep("code");
-                break;
-              case "text_delta":
-                scheduleIframeUpdate(event.accumulated, event.accumulated.length);
-                break;
-              case "step_complete":
-              case "error":
-                break;
-            }
-          },
+          onEvent: makeHttpOnEvent(false),
         });
+
+        // template_selected приходит только на create-раунде, поэтому шаблон
+        // фиксируем сразу — continue-раунды его не переотдают (иначе после
+        // докрутки templateId затёрся бы пустым и сайт не сохранился).
+        const templateId = result.templateId;
+        const templateName = result.templateName;
+
+        // Докрутка на HTTP-пути. create-генерация при finishReason=length себя
+        // не дозаправляет: сервер кладёт partial в session memory и отдаёт
+        // truncated, ожидая mode=continue (на WS-пути это делает сам сервер).
+        // Крутим, пока сервер разрешает (attemptsLeft>0); step_complete каждого
+        // раунда несёт уже склеенный ПОЛНЫЙ HTML — берём свежий result.finalHtml
+        // и продвигаем превью. continueGuard — страховка от расхождения с
+        // серверным лимитом MAX_CONTINUATION_ATTEMPTS.
+        let continueGuard = 0;
+        while (result.truncated && (result.attemptsLeft ?? 0) > 0 && continueGuard < 6) {
+          continueGuard++;
+          setCurrentStep("code");
+          result = await runHttpPipeline({
+            mode: "continue",
+            projectId,
+            prompt,
+            sessionId: sessionIdRef.current,
+            signal: ctrl.signal,
+            onEvent: makeHttpOnEvent(true),
+          });
+          scheduleIframeUpdate(result.finalHtml, result.finalHtml.length);
+        }
+        if (result.truncated) {
+          toast.warning(
+            "Сайт мог получиться обрезанным — модель упёрлась в лимит токенов. Нажми «Повторить» или упрости запрос (меньше блоков).",
+          );
+        }
 
         setCurrentStep("done");
         setHtml(result.finalHtml);
         setStreamingHtml("");
-        setLastTemplateId(result.templateId);
+        setLastTemplateId(templateId);
 
         // Polish undo/redo: новая версия в стек (HTTP fallback path).
         pushVersion({
@@ -745,19 +788,19 @@ export function useGenerationFlow(
           timestamp: Date.now(),
         });
 
-        if (result.finalHtml && result.templateId) {
+        if (result.finalHtml && templateId) {
           saveToHistory({
             prompt,
             html: result.finalHtml,
-            templateId: result.templateId,
-            templateName: result.templateName,
+            templateId,
+            templateName,
           });
           if (currentAuth.status === "authenticated") {
             void saveRemoteSite({
               prompt,
               html: result.finalHtml,
-              templateId: result.templateId,
-              templateName: result.templateName,
+              templateId,
+              templateName,
             }).then((id) => {
               if (id) setCurrentSiteId(id);
             });
