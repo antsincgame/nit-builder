@@ -56,6 +56,15 @@ export type TunnelToServer =
       promptTokens?: number;
       completionTokens?: number;
       /**
+       * Имя модели, реально обработавшей запрос (req.model ?? probe-модель из
+       * /v1/models, где эмбеддеры уже отфильтрованы). Сервер берёт его в
+       * telemetry.model вместо статичного capabilities.model (тот фиксируется в
+       * момент hello и может устареть либо оказаться эмбеддером при мульти-
+       * модельном LM Studio). Optional: старые клиенты не шлют → сервер падает
+       * обратно на capabilities.model. Backward-compatible, без bump версии.
+       */
+      model?: string;
+      /**
        * Причина остановки генерации у локальной модели. "length" означает что
        * модель упёрлась в maxOutputTokens и HTML оборван — сервер запустит
        * server-driven continuation (см. tunnelRegistry). Optional: старые
