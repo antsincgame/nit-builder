@@ -282,6 +282,7 @@ export async function* executeHtmlPolish(
   }
 
   metrics.generationStarted("polish", provider.id);
+  metrics.generationStarted("polish", provider.id);
   yield {
     type: "step_start",
     roleName: "Полировщик",
