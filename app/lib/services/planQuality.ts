@@ -288,7 +288,7 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
       { title: "Срок от 24 часов", description: "Срочные выписки и анализы переводим за 1 рабочий день." },
       { title: "Для клиник Германии и Израиля", description: "Готовим PDF в формате, который удобно отправить врачу координатору." },
     ];
-    normalized.social_proof_line = "1200+ медицинских переводов для пациентов с 2023 года";
+    normalized.social_proof_line = "Переводы медицинских документов для клиник Германии и Израиля";
     normalized.cta_microcopy = "Консультация по пакету документов — бесплатно";
     normalized.keywords = addKeywordHints(
       ["медицинский перевод", "перевод документов", "Германия", "Израиль", "лечение"],
