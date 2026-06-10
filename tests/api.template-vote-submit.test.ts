@@ -53,6 +53,7 @@ beforeEach(() => {
   mockedGetUserTemplate.mockReset();
   mockedLogGeneration.mockReset();
   mockedGetAuth.mockReset();
+  _resetRateLimitState();
 });
 
 afterEach(() => {
