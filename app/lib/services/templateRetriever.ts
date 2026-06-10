@@ -56,7 +56,7 @@ function templateToText(
   return `${t.name}. ${t.description} Подходит для: ${t.bestFor.join(", ")}. Стиль: ${t.style}. Категория: ${t.category}.`;
 }
 
-async function buildIndex(): Promise<IndexEntry[]> {
+async function buildIndex(signal?: AbortSignal): Promise<IndexEntry[]> {
   if (cachedIndex) return cachedIndex;
   if (indexBuildPromise) return indexBuildPromise;
 
@@ -68,6 +68,7 @@ async function buildIndex(): Promise<IndexEntry[]> {
     const { embeddings } = await embedMany({
       model: getEmbeddingModel(),
       values: docs.map((d) => d.text),
+      abortSignal: signal,
     });
     const index: IndexEntry[] = docs.map((d, i) => ({
       id: d.id,
