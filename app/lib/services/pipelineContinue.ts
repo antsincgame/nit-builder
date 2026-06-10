@@ -167,14 +167,17 @@ export async function* executeHtmlContinue(
     }
 
     // Финализируем как обычный create: truncated-ветки отдают сырой HTML без
-    // post-polish, поэтому прогоняем его здесь — boilerplate-копи и стилевые
-    // гварды (№13). Пресет восстанавливаем из плана/промпта.
-    const presetId = inferStylePresetId(t.userMessage, t.plan);
-    const finalHtml = postPolishHtml({
-      html: stripCodeFences(joined),
-      presetId,
-      plan: t.plan,
-    }).html;
+    // post-polish, поэтому прогоняем его здесь (boilerplate-копи и стилевые
+    // гварды, №13). План в truncation опционален (polish-обрыв его не несёт) —
+    // без плана post-polish невозможен, оставляем HTML как есть.
+    const stripped = stripCodeFences(joined);
+    const finalHtml = t.plan
+      ? postPolishHtml({
+          html: stripped,
+          presetId: inferStylePresetId(t.userMessage, t.plan),
+          plan: t.plan,
+        }).html
+      : stripped;
     memory.currentHtml = finalHtml;
     memory.updatedAt = Date.now();
     updateSessionHtml(memory.sessionId, finalHtml);
