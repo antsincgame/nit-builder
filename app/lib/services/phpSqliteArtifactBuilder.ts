@@ -1547,10 +1547,10 @@ export function buildPhpSqliteArtifact(params: {
       "SQLite is the default; MySQL can be enabled through environment variables.",
     ],
     files: [
-      { path: "README.md", content: buildReadme(plan) },
+      { path: "README.md", content: buildReadme(plan, adminPassword) },
       { path: "router.php", content: buildRouterPhp() },
       { path: "app/config.php", content: buildConfigPhp(plan) },
-      { path: "app/db.php", content: buildDbPhp() },
+      { path: "app/db.php", content: buildDbPhp(adminPassword) },
       { path: "app/security.php", content: buildSecurityPhp() },
       { path: "app/auth.php", content: buildAuthPhp() },
       { path: "app/payments.php", content: buildPaymentsPhp() },
