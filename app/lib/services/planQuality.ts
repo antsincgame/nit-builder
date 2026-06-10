@@ -12,7 +12,7 @@ const BANNED_REPLACEMENTS: Array<[RegExp, string]> = [
   [/многолетний опыт/gi, "проверенный процесс"],
   [/широкий спектр/gi, "понятный набор"],
   [/лучшие цены/gi, "прозрачные цены"],
-  [/безупречн\w*/gi, "аккуратные"],
+  [/безупречн[а-яё]*/gi, "аккуратные"],
 ];
 
 const SECTION_RULES: Array<{ pattern: RegExp; sections: string[] }> = [
