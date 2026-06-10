@@ -1,23 +1,23 @@
 /**
  * POST /api/public-templates/:id/vote — голосование за публичный шаблон.
  *
- * v2.2 Phase 3 Community templates voting. БЕЗ auth — открыт любому
- * (включая guest'ов), как и сам list/fetch endpoints.
+ * v2.2 Phase 3 Community templates voting. Требует авторизацию (session
+ * cookie) + серверный лимит 1 голос на (юзера, шаблон) в сутки. Раньше было
+ * открыто всем с де-дупом лишь на клиенте (localStorage) — накручивалось
+ * тривиальным curl-скриптом. Persistent voting registry (userId+templateId
+ * unique) — backlog для v2.3+; текущий лимит in-memory (сброс на рестарте).
  *
  * Body: { direction: "up" | "down" }
  *
- * Защита от спама на сервере минимальна (см. doc в voteForTemplate в
- * appwrite.server.ts) — основная de-duplication делается на клиенте через
- * localStorage "nit-voted-templates" set. Это компромисс: persistent
- * voting registry с userId+templateId unique constraint — backlog для v2.3+.
- *
- * Возвращает 404 если шаблон не существует или не публичный, 200 с новым
- * значением votes при успехе.
+ * Возвращает 401 без сессии, 429 при повторном голосе, 404 если шаблон не
+ * существует или не публичный, 200 с новым значением votes при успехе.
  */
 
 import type { ActionFunctionArgs } from "react-router";
 import { z } from "zod";
 import { voteForTemplate } from "~/lib/server/appwrite.server";
+import { getAuth } from "~/lib/server/requireAuth.server";
+import { checkRateLimit } from "~/lib/utils/rateLimit";
 
 const VoteSchema = z.object({
   direction: z.enum(["up", "down"]),
