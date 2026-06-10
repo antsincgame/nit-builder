@@ -104,7 +104,6 @@ export async function* executeHtmlPolish(
   yield { type: "polish_mode", intent, reason, targetSection };
 
   if (intent === "css_patch") {
-    metrics.generationStarted("polish", provider.id);
     yield {
       type: "step_start",
       roleName: targetSection ? `CSS-Патчер (${targetSection})` : "CSS-Патчер",
