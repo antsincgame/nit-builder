@@ -134,7 +134,7 @@ function addKeywordHints(keywords: string[], query: string): string[] {
 }
 
 function wantsPricing(query: string): boolean {
-  return /тариф|прайс|цен[аы]|стоимост|₽|руб|рассрочк|аренд|за\s+\d+\s*(час|часа|минут)/i.test(query);
+  return /тариф|прайс|цен[аы]|стоимост|₽|рассрочк|аренд|за\s+\d+\s*(час|часа|минут)/i.test(query);
 }
 
 function wantsHours(query: string): boolean {
