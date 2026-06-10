@@ -156,12 +156,18 @@ export async function embedText(
     cache.set(key, vec);
     return vec;
   } catch (err) {
-    if ((err as Error).name === "AbortError") throw err;
+    // Отмену пользователя (AbortError) пробрасываем; таймаут бюджета RAG
+    // (AbortSignal.timeout → TimeoutError) транзиентный — пропускаем без
+    // отключения, иначе один холодный эмбеддинг >лимита глушил бы весь RAG.
+    if (isAbortLike(err)) {
+      if ((err as { name?: string }).name === "AbortError") throw err;
+      return null;
+    }
     logger.warn(
       SCOPE,
-      `Embedding failed (${(err as Error).message}), disabling RAG for this session`,
+      `Embedding failed (${(err as Error).message}), RAG на паузе ${DISABLE_COOLDOWN_MS / 1000}с`,
     );
-    disabled = true;
+    disabledUntil = Date.now() + DISABLE_COOLDOWN_MS;
     return null;
   }
 }
