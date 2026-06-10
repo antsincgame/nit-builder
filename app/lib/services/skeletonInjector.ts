@@ -673,6 +673,140 @@ function replaceContactInfo(
   return { html: updated, replaced: replacedCount };
 }
 
+/**
+ * Бренд/название бизнеса. Меняет логотип в <nav> (первый <a>) и название в
+ * <footer>. Эвристика, шаблоно-агностична: эмодзи/иконка-префикс сохраняется,
+ * меняется только словесная часть. <title> не трогаем — его ставит replaceTitle.
+ */
+function replaceBrand(
+  html: string,
+  brandName: string,
+): { html: string; replaced: number } {
+  if (!brandName.trim()) return { html, replaced: 0 };
+
+  const navMatch = html.match(/<nav\b[\s\S]*?<\/nav>/i);
+  if (!navMatch || navMatch.index === undefined) return { html, replaced: 0 };
+  const navStart = navMatch.index;
+  const navHtml = navMatch[0];
+
+  const aMatch = navHtml.match(/<a\b[^>]*>([\s\S]*?)<\/a>/i);
+  if (!aMatch || aMatch.index === undefined) return { html, replaced: 0 };
+  const innerText = (aMatch[1] ?? "").replace(/<[^>]+>/g, "").trim();
+  if (innerText.length < 2) return { html, replaced: 0 };
+
+  // Префикс из эмодзи/символов перед словами ("💈 ") сохраняем.
+  const leadPrefix = innerText.match(/^[^\p{L}\p{N}]*/u)?.[0] ?? "";
+  const oldCore = innerText.slice(leadPrefix.length).trim();
+  if (oldCore.length < 2) return { html, replaced: 0 };
+
+  const aOpenLen = aMatch[0].indexOf(">") + 1;
+  const aInnerStart = navStart + aMatch.index + aOpenLen;
+  const aInnerEnd = navStart + aMatch.index + aMatch[0].length - "</a>".length;
+  let updated =
+    html.slice(0, aInnerStart) +
+    `${leadPrefix}${escapeHtml(brandName)}` +
+    html.slice(aInnerEnd);
+  let replaced = 1;
+
+  // Футер: меняем словесную часть бренда (эмодзи и разметка сохраняются,
+  // бьём только по словам oldCore).
+  const footMatch = updated.match(/<footer\b[\s\S]*?<\/footer>/i);
+  if (
+    footMatch &&
+    footMatch.index !== undefined &&
+    footMatch[0].includes(oldCore)
+  ) {
+    const newFoot = footMatch[0].split(oldCore).join(escapeHtml(brandName));
+    updated =
+      updated.slice(0, footMatch.index) +
+      newFoot +
+      updated.slice(footMatch.index + footMatch[0].length);
+    replaced++;
+  }
+
+  return { html: updated, replaced };
+}
+
+/**
+ * Команда/мастера. В team/masters/staff-секции каждая карточка: h3 = имя,
+ * следующий <p> = роль. Зеркало replaceBenefitCards, но роль опциональна.
+ */
+function replaceTeamCards(
+  html: string,
+  sectionRange: { start: number; end: number },
+  team: Array<{ name: string; role?: string }>,
+): { html: string; replaced: number } {
+  const sectionHtml = html.slice(sectionRange.start, sectionRange.end);
+  const headingRe = /<(h[23])\b[^>]*>([\s\S]*?)<\/\1>/gi;
+  type Heading = { tag: string; openIdx: number; closeEnd: number };
+  const headings: Heading[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = headingRe.exec(sectionHtml)) !== null) {
+    headings.push({
+      tag: m[1]!.toLowerCase(),
+      openIdx: m.index,
+      closeEnd: m.index + m[0].length,
+    });
+  }
+  if (headings.length === 0) return { html, replaced: 0 };
+
+  const cardLevel = headings.some((h) => h.tag === "h3") ? "h3" : "h2";
+  const cards = headings.filter((h) => h.tag === cardLevel);
+  if (cards.length === 0) return { html, replaced: 0 };
+
+  type Replacement = { from: number; to: number; text: string };
+  const replacements: Replacement[] = [];
+  const limit = Math.min(cards.length, team.length);
+  for (let i = 0; i < limit; i++) {
+    const card = cards[i]!;
+    const member = team[i]!;
+    const nextCard = cards[i + 1];
+    const cardEnd = nextCard ? nextCard.openIdx : sectionHtml.length;
+
+    const headingOpenRe = new RegExp(`<${card.tag}\\b[^>]*>`, "i");
+    const headingTextStart =
+      card.openIdx +
+      (sectionHtml.slice(card.openIdx).match(headingOpenRe)?.[0].length ?? 0);
+    const headingTextEnd = card.closeEnd - `</${card.tag}>`.length;
+    replacements.push({
+      from: headingTextStart,
+      to: headingTextEnd,
+      text: escapeHtml(member.name),
+    });
+
+    if (member.role) {
+      const after = sectionHtml.slice(card.closeEnd, cardEnd);
+      const pMatch = after.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+      if (pMatch && pMatch.index !== undefined) {
+        const pOpenLen = pMatch[0].indexOf(">") + 1;
+        const pTextStart = card.closeEnd + pMatch.index + pOpenLen;
+        const pTextEnd =
+          card.closeEnd + pMatch.index + pMatch[0].length - "</p>".length;
+        replacements.push({
+          from: pTextStart,
+          to: pTextEnd,
+          text: escapeHtml(member.role),
+        });
+      }
+    }
+  }
+
+  if (replacements.length === 0) return { html, replaced: 0 };
+
+  replacements.sort((a, b) => b.from - a.from);
+  let updatedSection = sectionHtml;
+  for (const r of replacements) {
+    updatedSection =
+      updatedSection.slice(0, r.from) + r.text + updatedSection.slice(r.to);
+  }
+
+  const newHtml =
+    html.slice(0, sectionRange.start) +
+    updatedSection +
+    html.slice(sectionRange.end);
+  return { html: newHtml, replaced: limit };
+}
+
 export function injectPlanIntoTemplate(
   templateHtml: string,
   plan: Plan,
