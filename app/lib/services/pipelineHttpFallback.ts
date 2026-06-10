@@ -35,7 +35,7 @@ export type HttpPipelineEvent =
   | { type: "error"; message: string };
 
 export type HttpFallbackParams = {
-  mode: "create" | "polish";
+  mode: "create" | "polish" | "continue";
   projectId: string;
   prompt: string;
   /** sessionId возвращается сервером в первом событии и должен быть переиспользован для polish. */
