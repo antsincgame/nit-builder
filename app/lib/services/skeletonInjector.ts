@@ -625,21 +625,22 @@ function replaceContactInfo(
   let replacedCount = 0;
 
   if (plan.contact_phone) {
-    const phoneDigits = plan.contact_phone.replace(/[^\d+]/g, "");
-    const phoneRe = /<a\b[^>]*href=["']tel:[^"']*["'][^>]*>([\s\S]*?)<\/a>/i;
-    const m = updated.match(phoneRe);
-    if (m && m.index !== undefined) {
-      // Сохраняем открывающий тег (класс/стиль кнопки), меняем href и текст.
-      const openTag = m[0].slice(0, m[0].indexOf(">") + 1);
+    const phone = plan.contact_phone;
+    const phoneDigits = phone.replace(/[^\d+]/g, "");
+    // Меняем ВСЕ tel:-ссылки (hero/booking/footer), иначе на странице остаются
+    // два разных номера: новый в одной кнопке и шаблонный в остальных (№16).
+    const phoneReG = /<a\b[^>]*href=["']tel:[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
+    let phoneReplaced = false;
+    updated = updated.replace(phoneReG, (full) => {
+      phoneReplaced = true;
+      const openTag = full.slice(0, full.indexOf(">") + 1);
       const newOpen = openTag.replace(
         /href=["']tel:[^"']*["']/i,
         `href="tel:${escapeHtml(phoneDigits)}"`,
       );
-      const newAnchor = `${newOpen}${escapeHtml(plan.contact_phone)}</a>`;
-      updated =
-        updated.slice(0, m.index) + newAnchor + updated.slice(m.index + m[0].length);
-      replacedCount++;
-    }
+      return `${newOpen}${escapeHtml(phone)}</a>`;
+    });
+    if (phoneReplaced) replacedCount++;
   }
 
   if (plan.contact_email) {
