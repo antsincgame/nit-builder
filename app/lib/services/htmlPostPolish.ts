@@ -305,7 +305,7 @@ if(document.readyState!=="loading")run();else document.addEventListener("DOMCont
 export function applyPremiumBaseLayer(html: string): string {
   if (html.includes('id="nit-premium-base"')) return html;
   const hasGoogleFonts = /fonts\.googleapis\.com/i.test(html);
-  const headInject = `${hasGoogleFonts ? "" : INTER_FONT_LINK}${PREMIUM_BASE_STYLE}`;
+  const headInject = `${hasGoogleFonts ? "" : INTER_FONT_LINK}${PREMIUM_BASE_STYLE}${TYPE_GUARD_STYLE}`;
   let out = html.includes("</head>")
     ? html.replace("</head>", `${headInject}\n</head>`)
     : `${headInject}\n${html}`;
