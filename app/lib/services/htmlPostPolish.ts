@@ -22,12 +22,12 @@ function insertBeforeHeadEnd(html: string, style: string): string {
 }
 
 function hasNeonLeak(html: string): boolean {
-  // glitch/scanline/#ff2e93/#d4ff00/JetBrains Mono — реальные сигнатуры neon-cyber
-  // пресета (классы, @keyframes, палитра, шрифт). acid/cyber/hud огораживаем \b:
-  // как CSS-идентификаторы они стоят отдельным словом (acid-text, cyber, HUD), но
-  // внутри прозы (cybersecurity, Hudson, acidic) матчиться не должны — иначе
-  // светлый пресет ловит ложный "leak" и получает лишний override.
-  return /glitch|scanline|#ff2e93|#d4ff00|\bacid\b|\bcyber\b|\bhud\b|JetBrains Mono/i.test(html);
+  // ТОЛЬКО стилевые сигнатуры neon-cyber: glitch/scanline (классы и @keyframes),
+  // неоновая палитра (#ff2e93 маджента, #d4ff00 кислота, #33c7ff циан) и
+  // моноширинный neon-шрифт. Слова acid/cyber/hud из ПРОЗЫ больше НЕ триггерят:
+  // киберспорт-школа на clean-saas ловила ложный leak и получала body
+  // background !important поверх легитимного контента (№10 v4).
+  return /glitch|scanline|#ff2e93|#d4ff00|#33c7ff|JetBrains Mono/i.test(html);
 }
 
 function isLightPreset(id: StylePresetId): boolean {
