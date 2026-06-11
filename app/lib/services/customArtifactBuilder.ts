@@ -125,13 +125,13 @@ export function buildCustomArtifactHtml(params: {
         acid: "#d4ff00",
       }
     : {
-        bg: "#f2ebde",
-        bg2: "#e7dcc8",
-        ink: "#111111",
-        muted: "#5e574f",
-        primary: "#1d3fd8",
-        accent: "#ff4d1c",
-        acid: "#d4ff00",
+        bg: pal.background,
+        bg2: pal.muted,
+        ink: pal.foreground,
+        muted: `color-mix(in srgb, ${pal.foreground} 58%, ${pal.background})`,
+        primary: pal.primary,
+        accent: pal.accent,
+        acid: pal.accent,
       };
 
   const panels = [
