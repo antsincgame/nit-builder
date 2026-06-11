@@ -26,7 +26,8 @@ describe("buildCustomArtifactHtml", () => {
 
     expect(html).not.toContain("#33c7ff");
     expect(html).not.toContain("#ff2e93");
-    expect(html).toContain("#f2ebde");
+    // warm-premium (color_mood warm-pastel) берёт палитру из getPalette → фон #fdf6ec (v4 №2)
+    expect(html).toContain("#fdf6ec");
     expect(html).not.toContain("A dedicated narrative block");
   });
 });
