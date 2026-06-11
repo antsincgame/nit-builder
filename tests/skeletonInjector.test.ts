@@ -181,6 +181,23 @@ describe("injectPlanIntoTemplate", () => {
     }
   });
 
+  it("заменяет hero-eyebrow (кикер над h1) на business_type", () => {
+    const tpl = `<html><head><title>x</title></head><body>
+      <section id="hero"><p>Мастер маникюра · Минск</p><h1>old</h1><p>old sub</p><a href="#">cta</a></section>
+      <section id="features"><h3>b1</h3><p>d1</p><h3>b2</h3><p>d2</p><h3>b3</h3><p>d3</p></section>
+      <section id="testimonials"><p>old</p></section>
+    </body></html>`;
+    const r = injectPlanIntoTemplate(tpl, {
+      ...FULL_PLAN,
+      business_type: "студия наращивания ресниц",
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain("студия наращивания ресниц");
+      expect(r.html).not.toContain("Мастер маникюра");
+    }
+  });
+
   it("не рвёт структуру HTML", () => {
     const r = injectPlanIntoTemplate(BASE_TEMPLATE, FULL_PLAN);
     expect(r.ok).toBe(true);
