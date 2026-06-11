@@ -111,6 +111,17 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
     emoji: "💅",
   },
   {
+    id: "service-studio",
+    name: "Студия красоты и ухода",
+    category: "beauty",
+    description: "Нейтральный тёплый шаблон для бьюти/велнес-услуг: ресницы, брови, косметология, депиляция, массаж, спа. Услуги, цены, отзывы, запись.",
+    bestFor: ["ресниц", "наращивание ресниц", "ламинирование ресниц", "бров", "визаж", "косметолог", "косметологи", "чистка лица", "пилинг", "депиляци", "эпиляци", "шугаринг", "массаж", "спа-салон", "велнес", "бьюти", "уход за лицом", "уход за телом"],
+    sections: ["hero", "features", "services", "pricing", "testimonials", "faq", "contact"],
+    style: "warm-editorial-soft",
+    colorMood: "warm-pastel",
+    emoji: "✨",
+  },
+  {
     id: "car-service",
     name: "Автосервис",
     category: "service",
