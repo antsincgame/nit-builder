@@ -91,7 +91,7 @@ export const PALETTES: Record<ColorMood, ColorPalette> = {
     description: "чистый белый фон, индиго-акцент, много воздуха, тонкие серые границы",
     background: "#ffffff",
     foreground: "#0a0a0a",
-    primary: "#4f46e5",
+    primary: "#6366f1",
     primaryForeground: "#ffffff",
     accent: "#404040",
     muted: "#f4f4f5",
