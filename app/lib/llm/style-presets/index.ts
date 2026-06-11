@@ -56,14 +56,30 @@ function hasAntiCyberIntent(text: string): boolean {
   return /без\s+(неон|глитч|glitch|cyber|кибер)|no\s+(neon|glitch|cyber)|avoid\s+(neon|glitch|cyber)/i.test(text);
 }
 
-const TERMINAL_PATTERNS = [/terminal|cli|console|crt|phosphor|терминал|командн|devops|cybersec/];
-const EDITORIAL_PATTERNS = [/editorial|magazine|журнал|редакц|serif|luxury brand|fashion|портфолио|lookbook/];
-const NEON_PATTERNS = [/cyber|кибер|neon|неон|glitch|глитч|brutal|брутал|hud|web3|crypto|крипт/];
-const WARM_PATTERNS = [/warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach/];
-const CLEAN_PATTERNS = [/apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard/];
-const DARK_LUXE_PATTERNS = [/люкс|luxe|элитн|нуар|noir/];
-const EARTH_CRAFT_PATTERNS = [/эко(?!ном)|крафт|органик|натуральн|ремесл|керамик/];
-const BOLD_POP_PATTERNS = [/ярк(ий|ая|ое|ие)|сочн|игрив|playful|поп.?арт|pop.?art|стикер|мемфис|memphis/];
+// Стилевые паттерны матчатся ПО НАЧАЛУ СЛОВА (юникод-граница слева): подстрока
+// внутри другого слова больше не срабатывает (нуар ⊂ Ренуар, неон ⊂ … и т.п.).
+// Стемы намеренно остаются префиксами (минимал → минимализм, премиум →
+// премиальный), поэтому правую границу НЕ ставим. [\p{L}\p{N}] + флаг u —
+// корректная работа с кириллицей: JS \b опирается на [A-Za-z0-9_] и для
+// кириллицы не работает. wb() оборачивает тело паттерна левой границей. (№3 v4)
+//
+// brutal/брутал УБРАНЫ из NEON: брутализм ≠ киберпанк. Для ниш, которые сам
+// каталог называет «брутальными» (barbershop/tattoo), это слово должно
+// оставлять маршрут за skeleton нишевого шаблона (preferTemplateSkeleton
+// требует generic), а не уводить S-tier в neon-cyber → перекрашенный 7B.
+const LEFT_WORD_BOUNDARY = "(?<![\\p{L}\\p{N}])";
+function wb(body: string): RegExp {
+  return new RegExp(LEFT_WORD_BOUNDARY + "(?:" + body + ")", "u");
+}
+
+const TERMINAL_PATTERNS = [wb("terminal|cli|console|crt|phosphor|терминал|командн|devops|cybersec")];
+const EDITORIAL_PATTERNS = [wb("editorial|magazine|журнал|редакц|serif|luxury brand|fashion|портфолио|lookbook")];
+const NEON_PATTERNS = [wb("cyber|кибер|neon|неон|glitch|глитч|hud|web3|crypto|крипт")];
+const WARM_PATTERNS = [wb("warm|т[её]пл|premium|премиум|дорог|framer|stripe|живой|ivory|cream|peach")];
+const CLEAN_PATTERNS = [wb("apple|linear|clean|minimal|минимал|светл|white|saas|стартап|b2b|dashboard")];
+const DARK_LUXE_PATTERNS = [wb("люкс|luxe|элитн|нуар|noir")];
+const EARTH_CRAFT_PATTERNS = [wb("эко(?!ном)|крафт|органик|натуральн|ремесл|керамик")];
+const BOLD_POP_PATTERNS = [wb("ярк(ий|ая|ое|ие)|сочн|игрив|playful|поп.?арт|pop.?art|стикер|мемфис|memphis")];
 
 export function inferStylePresetId(
   userMessage: string,
