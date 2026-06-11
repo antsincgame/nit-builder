@@ -1069,6 +1069,15 @@ export function injectPlanIntoTemplate(
     }
   }
 
+  // Hero eyebrow (кикер над h1) — из business_type, чтобы не противоречил нише.
+  if (plan.business_type) {
+    const r = replaceHeroEyebrow(html, plan.business_type);
+    if (r.replaced) {
+      html = r.html;
+      extendedFilled++;
+    }
+  }
+
   // Бренд (лого в nav + название в footer). Opt-in, без штрафа fillRatio.
   if (plan.brand_name) {
     const r = replaceBrand(html, plan.brand_name);
