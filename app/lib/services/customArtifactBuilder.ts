@@ -217,8 +217,8 @@ ${fontLink}
   --line:color-mix(in srgb,var(--primary) 24%,transparent);
   --line-soft:color-mix(in srgb,var(--primary) 10%,transparent);
   --shadow:0 40px 120px color-mix(in srgb,var(--primary) 18%,transparent);
-  --display:"Unbounded",system-ui,sans-serif;
-  --mono:"JetBrains Mono",ui-monospace,monospace;
+  --display:"${fontDisplay}",system-ui,sans-serif;
+  --mono:"${fontBody}",${fontBodyFallback};
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;background:var(--bg)}
