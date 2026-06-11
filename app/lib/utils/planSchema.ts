@@ -229,6 +229,7 @@ export const PlanSchema = z.object({
 
 export type Plan = z.infer<typeof PlanSchema>;
 export type PlanBenefit = z.infer<typeof BenefitSchema>;
+export type PlanService = z.infer<typeof ServiceSchema>;
 export type PlanPricingTier = z.infer<typeof PricingTierSchema>;
 export type PlanFaqItem = z.infer<typeof FaqItemSchema>;
 export type PlanTeamMember = z.infer<typeof TeamMemberSchema>;
