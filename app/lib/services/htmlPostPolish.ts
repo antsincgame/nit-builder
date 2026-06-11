@@ -321,42 +321,59 @@ export function applyPremiumBaseLayer(html: string): string {
 
 // ─── Вау-слой (фирменный характер для нейтральной ветки generic/clean-saas) ───
 //
-// Нейтральные пресеты намеренно монохромны, и слабая модель рисует пресный ч/б.
-// Этот слой добавляет фирменный характер по СТАБИЛЬНЫМ якорям, которые движок
-// ставит единообразно: data-nit-section (скелет), h1, eyebrow'ы (.text-accent),
-// скругления карточек, капсулы иконок. Применять ТОЛЬКО для нейтральной ветки —
-// тематические пресеты (dark-luxe/neon/bold-pop) имеют свой характер и вызваны
-// юзером явно. Идемпотентно. Перекраски токенов (#0a0a0a/bg-primary) самогасятся,
-// если промпт уже заставил модель задать акцентный primary нативно.
+// Нейтральные пресеты намеренно монохромны, и слабая 7-9B рисует пресный ч/б.
+// Слой добавляет характер по РЕАЛЬНЫМ якорям вывода кодера: #hero (id секции),
+// h1, акцентные eyebrow'ы, скругления карточек, кнопки. Весь цвет — из ОДНОГО
+// сид-акцента var(--wow-a), детерминированного от business_type: у каждого сайта
+// свой оттенок (а не общий фиолет), через color-mix. Применять ТОЛЬКО для
+// нейтральной ветки — тематические пресеты имеют свой характер. Идемпотентно.
+// Перекраски кнопок (bg-primary/#0a0a0a) самогасятся, если их в выводе нет.
 
-const WOW_LAYER_STYLE = `<style id="nit-wow-layer">
-:root{--wow-a1:#6366f1;--wow-a2:#8b5cf6;--wow-a3:#d946ef;--wow-grad:linear-gradient(120deg,var(--wow-a1) 0%,var(--wow-a2) 52%,var(--wow-a3) 100%)}
-[data-nit-section="hero"]{background:radial-gradient(58% 52% at 12% -8%,rgba(99,102,241,.20),transparent 60%),radial-gradient(50% 46% at 104% 0%,rgba(217,70,239,.16),transparent 58%),radial-gradient(60% 60% at 50% 120%,rgba(139,92,246,.12),transparent 60%),#fbfbff !important}
-[data-nit-section="hero"] h1{background:linear-gradient(118deg,#0b1020 0%,#4338ca 48%,#7c3aed 78%,#c026d3 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
-p.text-accent{color:var(--wow-a1) !important}
-p.text-accent::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--wow-grad);margin-right:9px;vertical-align:middle;transform:translateY(-1px)}
-a.group:hover .text-accent,a:hover .text-accent{color:rgba(255,255,255,.92) !important}
-.text-primary{color:var(--wow-a1) !important}
-[class~="bg-black/5"]{background:var(--wow-grad) !important;color:#fff !important;box-shadow:0 10px 24px -8px rgba(99,102,241,.6) !important}
-[class~="bg-[#0a0a0a]"],[class~="bg-primary"]{background:var(--wow-grad) !important;border:none !important;color:#fff !important;box-shadow:0 14px 30px -10px rgba(99,102,241,.55) !important}
-[class~="bg-[#0a0a0a]"]:hover,[class~="bg-primary"]:hover{transform:translateY(-2px);box-shadow:0 20px 40px -10px rgba(124,58,237,.6) !important}
-.border-slate-200{border-color:rgba(99,102,241,.35) !important}
-.rounded-3xl{box-shadow:0 24px 60px -22px rgba(79,70,229,.40) !important;transition:transform .2s ease,box-shadow .25s ease}
-.rounded-3xl:hover{transform:translateY(-4px);box-shadow:0 34px 80px -22px rgba(124,58,237,.5) !important}
-.bg-muted{background:linear-gradient(180deg,#f6f5ff 0%,#fdfcff 100%) !important}
-[data-nit-section="programs"] .grid > *:nth-child(2){outline:2px solid rgba(124,58,237,.55);outline-offset:-2px;border-radius:24px;transform:translateY(-8px);box-shadow:0 40px 90px -30px rgba(124,58,237,.55) !important}
-::selection{background:rgba(124,58,237,.22)}
+// Пул насыщенных акцентов, читаемых на светлом фоне (созвучен skeleton-пулу).
+const WOW_ACCENT_POOL = [
+  "#6366f1", "#0d9488", "#b45309", "#be123c", "#7c3aed", "#0369a1", "#c026d3",
+] as const;
+
+// Детерминированный сид из строки (FNV-1a) — стабильный акцент на бизнес.
+function wowSeed(s: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function buildWowLayerStyle(accent: string): string {
+  return `<style id="nit-wow-layer">
+:root{--wow-a:${accent};--wow-grad:linear-gradient(120deg,var(--wow-a),color-mix(in srgb,var(--wow-a) 50%,#d946ef))}
+#hero,section#hero,[data-nit-section="hero"]{background-image:radial-gradient(58% 52% at 12% -8%,color-mix(in srgb,var(--wow-a) 18%,transparent),transparent 60%),radial-gradient(50% 46% at 104% 0%,color-mix(in srgb,var(--wow-a) 13%,transparent),transparent 58%),radial-gradient(60% 60% at 50% 122%,color-mix(in srgb,var(--wow-a) 8%,transparent),transparent 60%) !important}
+#hero h1,[data-nit-section="hero"] h1{background:linear-gradient(118deg,#0b1020 0%,color-mix(in srgb,var(--wow-a) 70%,#1e1b4b) 55%,var(--wow-a) 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+p.text-accent,.acc-text{color:var(--wow-a) !important}
+p.text-accent::before,.acc-text::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--wow-grad);margin-right:9px;vertical-align:middle;transform:translateY(-1px)}
+a:hover .text-accent,a:hover .acc-text{color:rgba(255,255,255,.92) !important}
+.rounded-3xl,.rounded-2xl{box-shadow:0 24px 60px -22px color-mix(in srgb,var(--wow-a) 38%,transparent) !important;transition:transform .2s ease,box-shadow .25s ease}
+.rounded-3xl:hover,.rounded-2xl:hover{transform:translateY(-4px);box-shadow:0 34px 80px -22px color-mix(in srgb,var(--wow-a) 50%,transparent) !important}
+.acc-bg,[class~="bg-primary"],[class~="bg-[#0a0a0a]"],[class~="bg-black/5"]{background:var(--wow-grad) !important;border:none !important;color:#fff !important;box-shadow:0 14px 30px -10px color-mix(in srgb,var(--wow-a) 55%,transparent) !important}
+.acc-bg:hover,[class~="bg-primary"]:hover,[class~="bg-[#0a0a0a]"]:hover{transform:translateY(-2px);box-shadow:0 20px 40px -10px color-mix(in srgb,var(--wow-a) 60%,transparent) !important}
+.border-slate-200{border-color:color-mix(in srgb,var(--wow-a) 35%,transparent) !important}
+::selection{background:color-mix(in srgb,var(--wow-a) 22%,transparent)}
 </style>`;
+}
 
 /**
  * Накладывает вау-слой. Идемпотентно (повторный вызов — no-op). Вызывать ТОЛЬКО
- * для нейтральных пресетов — решает caller (finalizeTunnelHtml).
+ * для нейтральных пресетов — решает caller (finalizeTunnelHtml). Акцент берётся
+ * из plan.business_type (сид) — разные бизнесы получают разный оттенок.
  */
-export function applyWowLayer(html: string): string {
+export function applyWowLayer(html: string, plan?: { business_type?: string }): string {
   if (html.includes('id="nit-wow-layer"')) return html;
+  const accent =
+    WOW_ACCENT_POOL[wowSeed(plan?.business_type || "nit") % WOW_ACCENT_POOL.length]!;
+  const style = buildWowLayerStyle(accent);
   return html.includes("</head>")
-    ? html.replace("</head>", `${WOW_LAYER_STYLE}\n</head>`)
-    : `${WOW_LAYER_STYLE}\n${html}`;
+    ? html.replace("</head>", `${style}\n</head>`)
+    : `${style}\n${html}`;
 }
 
 // ─── Лечение оборванного вывода модели ─────────────────────────────
