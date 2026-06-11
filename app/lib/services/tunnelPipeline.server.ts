@@ -307,11 +307,14 @@ export function resolveTunnelPlan(
       variantSeed: variantSeed ?? plan.variantSeed ?? Math.floor(Math.random() * 0x100000000),
     });
     if (injection.ok && htmlContainsPrimaryCta(injection.html, plan)) {
-      // pipelineCreate для skeleton-пути НЕ применяет post-polish, только
-      // stripCodeFences — повторяем 1-в-1.
+      // Skeleton — самый частый путь слабых моделей. post-polish ему не нужен
+      // (шаблон уже свёрстан), но SEO-голова (description/OG/JSON-LD) на нём
+      // терялась: applySeoHead вызывался только в finalizeTunnelHtml (coder).
+      // Он идемпотентен и дёшев — ставим её и здесь, под тем же флагом (№7 v4).
+      const skeletonHtml = stripCodeFences(injection.html);
       return {
         kind: "skeleton",
-        html: stripCodeFences(injection.html),
+        html: TUNNEL_SEO_ENABLED ? applySeoHead(skeletonHtml, plan) : skeletonHtml,
         templateId: template.id,
         templateName: template.name,
       };
