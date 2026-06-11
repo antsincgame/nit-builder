@@ -3,36 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ваш бизнес — добро пожаловать</title>
+<title>Лендинг вашего проекта</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>body { font-family: 'Inter', sans-serif; }</style>
+<style>
+:root{--nit-accent:#6366f1;--nit-accent-ink:#ffffff}
+body{font-family:'Inter',sans-serif}
+.acc-text{color:var(--nit-accent)}
+.acc-bg{background:var(--nit-accent);color:var(--nit-accent-ink)}
+.acc-bg:hover{filter:brightness(.93)}
+.acc-soft{background:color-mix(in srgb,var(--nit-accent) 12%,#ffffff)}
+.acc-hover{transition:color .2s ease}
+.acc-hover:hover{color:var(--nit-accent)}
+.acc-border-hover:hover{border-color:var(--nit-accent)}
+.acc-shadow{box-shadow:0 18px 40px -14px color-mix(in srgb,var(--nit-accent) 50%,transparent)}
+.acc-chip{display:inline-flex;align-items:center;gap:.5rem;padding:.45rem .95rem;border-radius:999px;background:color-mix(in srgb,var(--nit-accent) 10%,#ffffff);color:var(--nit-accent);font-weight:600;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase}
+.acc-grad-text{background:linear-gradient(120deg,var(--nit-accent),color-mix(in srgb,var(--nit-accent) 45%,#d946ef));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+.hero-mesh{background:radial-gradient(58% 55% at 12% 8%,color-mix(in srgb,var(--nit-accent) 15%,transparent),transparent 60%),radial-gradient(48% 50% at 102% 0,color-mix(in srgb,var(--nit-accent) 11%,transparent),transparent 58%),radial-gradient(55% 60% at 50% 122%,color-mix(in srgb,var(--nit-accent) 8%,transparent),transparent 60%),#ffffff}
+</style>
 </head>
 <body class="bg-white text-slate-900 antialiased">
 
 <nav x-data="{open:false}" class="fixed w-full top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100">
   <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-    <a href="#" class="font-bold text-xl">🌟 Brand</a>
+    <a href="#hero" class="font-bold text-xl tracking-tight">Бренд</a>
     <div class="hidden md:flex gap-8 text-sm font-medium">
-      <a href="#about" class="hover:text-blue-600">О нас</a>
-      <a href="#features" class="hover:text-blue-600">Преимущества</a>
-      <a href="#contact" class="hover:text-blue-600">Контакты</a>
+      <a href="#features" class="acc-hover">Возможности</a>
+      <a href="#about" class="acc-hover">Как мы работаем</a>
+      <a href="#contact" class="acc-hover">Контакты</a>
     </div>
-    <a href="#contact" class="hidden md:inline-block px-5 py-2 bg-slate-900 text-white rounded-full text-sm font-medium hover:bg-blue-600 transition">Связаться</a>
-    <button @click="open=!open" class="md:hidden"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <a href="#contact" class="hidden md:inline-block px-5 py-2 acc-bg rounded-full text-sm font-semibold transition">Связаться</a>
+    <button @click="open=!open" class="md:hidden" aria-label="Открыть меню"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   </div>
-  <div x-show="open" class="md:hidden border-t border-slate-100 px-6 py-4 space-y-3"><a href="#about" class="block">О нас</a><a href="#features" class="block">Преимущества</a><a href="#contact" class="block">Контакты</a></div>
+  <div x-show="open" class="md:hidden border-t border-slate-100 px-6 py-4 space-y-3"><a href="#features" class="block">Возможности</a><a href="#about" class="block">Как мы работаем</a><a href="#contact" class="block">Контакты</a></div>
 </nav>
 
-<section id="hero" class="pt-32 pb-24 px-6 bg-gradient-to-b from-blue-50 to-white">
+<section id="hero" class="hero-mesh pt-32 pb-24 px-6">
   <div class="max-w-5xl mx-auto text-center">
-    <p class="text-blue-600 font-medium uppercase tracking-widest text-sm mb-4">Добро пожаловать</p>
-    <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">Создаём то,<br>что <span class="text-blue-600">работает</span></h1>
-    <p class="text-xl text-slate-600 max-w-2xl mx-auto mb-10">Краткое описание того, чем занимается ваш бизнес. Простой текст, который объясняет ценность для клиента за 10 секунд.</p>
+    <p class="acc-chip mb-6">Запуск нового проекта</p>
+    <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight tracking-tight">Понятный продукт,<br>который <span class="acc-grad-text">решает задачу</span></h1>
+    <p class="text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed">Опишите суть предложения: какую задачу вы решаете и для кого. Одно-два предложения, понятных за десять секунд.</p>
     <div class="flex flex-wrap justify-center gap-4">
-      <a href="#contact" class="px-8 py-4 bg-blue-600 text-white rounded-full font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-600/30">Связаться</a>
-      <a href="#about" class="px-8 py-4 border-2 border-slate-300 rounded-full font-semibold hover:border-slate-900 transition">Узнать больше</a>
+      <a href="#contact" class="px-8 py-4 acc-bg rounded-full font-semibold acc-shadow transition">Связаться</a>
+      <a href="#features" class="px-8 py-4 border border-slate-300 rounded-full font-semibold acc-border-hover transition">Узнать больше</a>
     </div>
     <div class="mt-14 md:mt-16 max-w-4xl mx-auto rounded-3xl shadow-2xl overflow-hidden ring-1 ring-slate-200/70" aria-hidden="true">
       <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&amp;q=80" alt="" class="w-full h-52 md:h-64 object-cover" width="1200" height="520" loading="lazy" decoding="async">
@@ -43,13 +57,13 @@
 <section id="about" class="py-24 px-6">
   <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
     <div>
-      <p class="text-blue-600 font-medium uppercase tracking-widest text-sm mb-4">О нас</p>
-      <h2 class="text-4xl md:text-5xl font-bold mb-6">Кто мы и что делаем</h2>
-      <p class="text-lg text-slate-600 mb-6 leading-relaxed">Здесь рассказ о вашей компании, команде, истории и ценностях. Пара абзацев о том, почему клиенты выбирают именно вас.</p>
-      <p class="text-lg text-slate-600 leading-relaxed">Конкретные достижения, годы на рынке, количество клиентов — всё, что создаёт доверие.</p>
+      <p class="acc-text font-semibold uppercase tracking-widest text-sm mb-4">Как мы работаем</p>
+      <h2 class="text-4xl md:text-5xl font-bold mb-6 tracking-tight">Подход, а не обещания</h2>
+      <p class="text-lg text-slate-600 mb-6 leading-relaxed">Расскажите, как устроена работа: с чего начинаете, как ведёте проект и что получает клиент на каждом этапе. Конкретика вместо общих слов.</p>
+      <p class="text-lg text-slate-600 leading-relaxed">Добавьте факты, которые создают доверие: сроки, цифры, опыт, формат поддержки.</p>
     </div>
     <div class="relative">
-      <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800" alt="Team" class="rounded-3xl shadow-2xl w-full h-[450px] object-cover">
+      <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800" alt="" class="rounded-3xl shadow-2xl w-full h-[450px] object-cover">
     </div>
   </div>
 </section>
@@ -57,24 +71,24 @@
 <section id="features" class="py-24 px-6 bg-slate-50">
   <div class="max-w-6xl mx-auto">
     <div class="text-center mb-16">
-      <p class="text-blue-600 font-medium uppercase tracking-widest text-sm mb-4">Преимущества</p>
-      <h2 class="text-4xl md:text-5xl font-bold">Почему выбирают нас</h2>
+      <p class="acc-text font-semibold uppercase tracking-widest text-sm mb-4">Возможности</p>
+      <h2 class="text-4xl md:text-5xl font-bold tracking-tight">Что вы получаете</h2>
     </div>
     <div class="grid md:grid-cols-3 gap-8">
       <div class="bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl transition">
-        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl mb-5">⚡</div>
-        <h3 class="text-xl font-bold mb-3">Быстро</h3>
-        <p class="text-slate-600">Решаем задачи оперативно, без долгих согласований и бюрократии.</p>
+        <div class="w-14 h-14 acc-soft rounded-2xl flex items-center justify-center mb-5"><svg class="w-7 h-7 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+        <h3 class="text-xl font-bold mb-3">Быстрый запуск</h3>
+        <p class="text-slate-600 leading-relaxed">Понятный процесс без лишних согласований: от заявки до результата — короткий путь.</p>
       </div>
       <div class="bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl transition">
-        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl mb-5">🎯</div>
-        <h3 class="text-xl font-bold mb-3">Точно</h3>
-        <p class="text-slate-600">Понимаем задачу с первого раза и попадаем в ожидания клиента.</p>
+        <div class="w-14 h-14 acc-soft rounded-2xl flex items-center justify-center mb-5"><svg class="w-7 h-7 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <h3 class="text-xl font-bold mb-3">Прозрачный процесс</h3>
+        <p class="text-slate-600 leading-relaxed">Вы видите, что и зачем делается на каждом шаге. Никаких чёрных ящиков и сюрпризов.</p>
       </div>
       <div class="bg-white p-8 rounded-3xl shadow-sm hover:shadow-xl transition">
-        <div class="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center text-2xl mb-5">💎</div>
-        <h3 class="text-xl font-bold mb-3">Качественно</h3>
-        <p class="text-slate-600">Отвечаем за результат. Гарантии, поддержка, долгосрочные отношения.</p>
+        <div class="w-14 h-14 acc-soft rounded-2xl flex items-center justify-center mb-5"><svg class="w-7 h-7 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+        <h3 class="text-xl font-bold mb-3">Ответственность за результат</h3>
+        <p class="text-slate-600 leading-relaxed">Отвечаем за итог: гарантии, поддержка и долгосрочные отношения, а не разовая сделка.</p>
       </div>
     </div>
   </div>
@@ -82,20 +96,29 @@
 
 <section id="contact" class="py-24 px-6">
   <div class="max-w-4xl mx-auto text-center">
-    <p class="text-blue-600 font-medium uppercase tracking-widest text-sm mb-4">Контакты</p>
-    <h2 class="text-4xl md:text-5xl font-bold mb-6">Готовы начать?</h2>
-    <p class="text-slate-600 text-xl mb-10 max-w-2xl mx-auto">Напишите нам — ответим в течение часа в рабочее время.</p>
+    <p class="acc-text font-semibold uppercase tracking-widest text-sm mb-4">Контакты</p>
+    <h2 class="text-4xl md:text-5xl font-bold mb-6 tracking-tight">Обсудим ваш проект?</h2>
+    <p class="text-slate-600 text-xl mb-10 max-w-2xl mx-auto leading-relaxed">Напишите или позвоните — ответим в рабочее время и предложим следующий шаг.</p>
     <div class="grid md:grid-cols-3 gap-6 max-w-3xl mx-auto">
-      <a href="tel:+375291234567" class="p-6 bg-slate-50 rounded-2xl hover:bg-blue-50 transition block"><div class="text-3xl mb-2">📞</div><div class="font-semibold">Телефон</div><div class="text-blue-600 text-sm mt-1">+375 29 123-45-67</div></a>
-      <a href="mailto:hello@example.com" class="p-6 bg-slate-50 rounded-2xl hover:bg-blue-50 transition block"><div class="text-3xl mb-2">✉️</div><div class="font-semibold">Email</div><div class="text-blue-600 text-sm mt-1">hello@example.com</div></a>
-      <a href="https://t.me/username" class="p-6 bg-slate-50 rounded-2xl hover:bg-blue-50 transition block"><div class="text-3xl mb-2">💬</div><div class="font-semibold">Telegram</div><div class="text-blue-600 text-sm mt-1">@username</div></a>
+      <a href="tel:+375291234567" class="p-6 bg-slate-50 rounded-2xl hover:bg-white hover:shadow-md transition block">
+        <div class="w-11 h-11 mx-auto acc-soft rounded-xl flex items-center justify-center mb-3"><svg class="w-5 h-5 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></div>
+        <div class="font-semibold">Телефон</div><div class="acc-text text-sm mt-1">+375 29 123-45-67</div>
+      </a>
+      <a href="mailto:hello@localgpu.lab" class="p-6 bg-slate-50 rounded-2xl hover:bg-white hover:shadow-md transition block">
+        <div class="w-11 h-11 mx-auto acc-soft rounded-xl flex items-center justify-center mb-3"><svg class="w-5 h-5 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>
+        <div class="font-semibold">Email</div><div class="acc-text text-sm mt-1">hello@localgpu.lab</div>
+      </a>
+      <a href="https://t.me/username" class="p-6 bg-slate-50 rounded-2xl hover:bg-white hover:shadow-md transition block">
+        <div class="w-11 h-11 mx-auto acc-soft rounded-xl flex items-center justify-center mb-3"><svg class="w-5 h-5 acc-text" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 01-9 9 8.96 8.96 0 01-4.15-1.02L3 21l1.02-4.85A8.96 8.96 0 013 12a9 9 0 1118 0z"/></svg></div>
+        <div class="font-semibold">Telegram</div><div class="acc-text text-sm mt-1">@username</div>
+      </a>
     </div>
   </div>
 </section>
 
 <footer class="py-10 px-6 bg-slate-900 text-white text-center">
-  <p class="font-bold text-lg mb-2">🌟 Brand</p>
-  <p class="text-sm text-slate-400">© 2025. Все права защищены.</p>
+  <p class="font-bold text-lg mb-2">Бренд</p>
+  <p class="text-sm text-slate-400">© 2026. Все права защищены.</p>
 </footer>
 
 </body>
