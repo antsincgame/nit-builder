@@ -107,10 +107,12 @@ const TUNNEL_POLISH_ENABLED = process.env.NIT_TUNNEL_POLISH !== "0";
 const TUNNEL_SEO_ENABLED = process.env.NIT_TUNNEL_SEO !== "0";
 
 /**
- * Вау-слой (фирменный характер) для нейтральной ветки. Дефолт OFF —
- * NIT_TUNNEL_WOW="1" включает. Тематические пресеты не трогает.
+ * Вау-слой (фирменный характер) для нейтральной ветки. Дефолт ON —
+ * NIT_TUNNEL_WOW="0" отключает. Тематические пресеты не трогает. Акцент
+ * сид-зависимый от бизнеса (var --wow-a) — у каждого нейтрального сайта свой
+ * оттенок, не общий фиолет (№11 v4).
  */
-const TUNNEL_WOW_ENABLED = process.env.NIT_TUNNEL_WOW === "1";
+const TUNNEL_WOW_ENABLED = process.env.NIT_TUNNEL_WOW !== "0";
 
 /**
  * Детерминированная подстановка картинок шаблона в <img> вывода. Слабая модель
