@@ -148,6 +148,10 @@ export const PlanSchema = z.object({
   hero_headline: z.string().min(3).max(120).optional(),
   hero_subheadline: z.string().max(300).optional(),
   key_benefits: z.array(BenefitSchema).min(3).max(5).optional(),
+
+  /** 3-8 реальных услуг/офферов для секции services/programs/subjects/... Отдельно от key_benefits (это выгоды). Заполняется в офферные секции инжектором. */
+  services: z.array(ServiceSchema).min(3).max(8).optional(),
+
   social_proof_line: z.string().max(150).optional(),
   cta_microcopy: z.string().max(100).optional(),
 
