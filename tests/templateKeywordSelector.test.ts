@@ -52,3 +52,22 @@ describe("inferConfidentTemplateId — нейл-ниши", () => {
     expect(inferConfidentTemplateId("xxxyyyzzz")).toBeNull();
   });
 });
+
+describe("inferConfidentTemplateId — бьюти/велнес каркас (Б)", () => {
+  it("ресницы ведут на service-studio, а не на маникюрный beauty-master", () => {
+    expect(inferConfidentTemplateId("сайт для наращивания ресниц")).toBe("service-studio");
+    expect(inferConfidentTemplateId("ламинирование ресниц")).toBe("service-studio");
+  });
+
+  it("брови, визаж, косметология, массаж — на service-studio", () => {
+    expect(inferConfidentTemplateId("ламинирование бровей")).toBe("service-studio");
+    expect(inferConfidentTemplateId("услуги визажиста")).toBe("service-studio");
+    expect(inferConfidentTemplateId("кабинет косметолога")).toBe("service-studio");
+    expect(inferConfidentTemplateId("массаж и спа")).toBe("service-studio");
+  });
+
+  it("маникюр/ногти остаются на beauty-master (сужение не сломало нейл)", () => {
+    expect(inferConfidentTemplateId("сайт для маникюра")).toBe("beauty-master");
+    expect(inferConfidentTemplateId("наращивание ногтей")).toBe("beauty-master");
+  });
+});
