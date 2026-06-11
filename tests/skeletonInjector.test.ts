@@ -338,3 +338,78 @@ describe("injectPlanIntoTemplate — бренд/команда/контакт", 
     }
   });
 });
+
+const SCAFFOLD_PLAN: Plan = {
+  business_type: "студия наращивания ресниц",
+  target_audience: "девушки 20-40",
+  tone: "тёплый, уютный",
+  style_hints: "",
+  color_mood: "warm-pastel",
+  sections: ["hero", "features", "services", "pricing", "testimonials", "faq", "contact"],
+  keywords: ["ресницы", "наращивание", "ламинирование"],
+  cta_primary: "Записаться",
+  language: "ru",
+  suggested_template_id: "service-studio",
+  hero_headline: "Взгляд, который говорит за вас",
+  hero_subheadline: "Наращивание и ламинирование ресниц в уютной студии в центре Минска.",
+  key_benefits: [
+    { title: "Гипоаллергенные материалы", description: "Премиум-клей и изгибы без вреда." },
+    { title: "Стойкий результат", description: "Носка 4-5 недель при должном уходе." },
+    { title: "Без боли и стресса", description: "Комфортная процедура лёжа, можно поспать." },
+  ],
+  services: [
+    { title: "Наращивание ресниц", description: "Классика, 2D, 3D и голливудский объём." },
+    { title: "Ламинирование", description: "Изгиб, подкручивание и блеск без туши." },
+    { title: "Ботокс и уход", description: "Восстановление и питание ослабленных ресниц." },
+  ],
+  pricing_tiers: [
+    { name: "Классика", price: "от 45 ₽", features: ["Натуральный объём", "Коррекция формы"] },
+    { name: "Объём 2D-3D", price: "от 60 ₽", features: ["Пышный объём", "Подбор изгиба", "Уход в подарок"], highlighted: true },
+    { name: "Ламинирование", price: "от 50 ₽", features: ["Изгиб и блеск", "Питание"] },
+  ],
+  social_proof_line: "Более 1200 довольных клиенток за 3 года",
+  cta_microcopy: "Первая коррекция со скидкой",
+  brand_name: "Lash Bar",
+  contact_phone: "+375 (29) 765-43-21",
+  contact_email: "hello@lashbar.by",
+  contact_address: "Минск, ул. Немига 5",
+  faq: [
+    { question: "Сколько держится наращивание?", answer: "4-5 недель, далее коррекция." },
+    { question: "Это вредно для своих ресниц?", answer: "Нет, при правильной технике и уходе." },
+    { question: "Как записаться?", answer: "Онлайн или по телефону, подберём время." },
+  ],
+};
+
+describe("service-studio: реальный каркас заполняется планом (Б)", () => {
+  it("инжектит все слоты в service-studio.html", () => {
+    const tpl = loadTemplateHtml("service-studio");
+    const r = injectPlanIntoTemplate(tpl, SCAFFOLD_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // hero headline + subheadline
+      expect(r.html).toContain("Взгляд, который говорит за вас");
+      expect(r.html).toContain("Наращивание и ламинирование ресниц");
+      // eyebrow ← business_type, дефолтный кикер заменён
+      expect(r.html).toContain("студия наращивания ресниц");
+      expect(r.html).not.toContain("Студия красоты и ухода");
+      // key_benefits → #features
+      expect(r.html).toContain("Гипоаллергенные материалы");
+      expect(r.html).not.toContain("Опытные мастера");
+      // services → #services
+      expect(r.html).toContain("Наращивание ресниц");
+      expect(r.html).not.toContain("Процедура ухода");
+      // pricing_tiers → #pricing
+      expect(r.html).toContain("Объём 2D-3D");
+      expect(r.html).not.toContain("Оптимальный");
+      // faq → #faq
+      expect(r.html).toContain("Сколько держится наращивание?");
+      // contact
+      expect(r.html).toContain("+375 (29) 765-43-21");
+      expect(r.html).toContain("hello@lashbar.by");
+      // brand → nav + footer
+      expect(r.html).toContain("Lash Bar");
+      // services, pricing, faq, contact, brand, eyebrow
+      expect(r.extendedSlotsFilled).toBeGreaterThanOrEqual(5);
+    }
+  });
+});
