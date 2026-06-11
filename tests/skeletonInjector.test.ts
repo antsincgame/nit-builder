@@ -198,6 +198,36 @@ describe("injectPlanIntoTemplate", () => {
     }
   });
 
+  it("заполняет #services из plan.services (а не из key_benefits)", () => {
+    const tpl = `<html><head><title>x</title></head><body>
+      <section id="hero"><h1>old</h1><p>old sub</p><a href="#">cta</a></section>
+      <section id="services">
+        <h3>Маникюр</h3><p>Классический маникюр.</p>
+        <h3>Дизайн</h3><p>Френч и роспись.</p>
+        <h3>Укрепление</h3><p>Гель и акрил.</p>
+      </section>
+      <section id="testimonials"><p>old</p></section>
+    </body></html>`;
+    const r = injectPlanIntoTemplate(tpl, {
+      ...FULL_PLAN,
+      services: [
+        { title: "Наращивание ресниц", description: "Классика, 2D и 3D объём." },
+        { title: "Ламинирование", description: "Изгиб и блеск без туши на 6 недель." },
+        { title: "Ботокс ресниц", description: "Восстановление и питание." },
+      ],
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.html).toContain("Наращивание ресниц");
+      expect(r.html).toContain("Ламинирование");
+      expect(r.html).toContain("Ботокс ресниц");
+      // дефолтные услуги шаблона заменены
+      expect(r.html).not.toContain("Маникюр");
+      // benefit из FULL_PLAN не должен попасть в секцию услуг
+      expect(r.html).not.toContain("Свежесть");
+    }
+  });
+
   it("не рвёт структуру HTML", () => {
     const r = injectPlanIntoTemplate(BASE_TEMPLATE, FULL_PLAN);
     expect(r.ok).toBe(true);
