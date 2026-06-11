@@ -477,6 +477,6 @@ export function finalizeTunnelHtml(
   if (TUNNEL_POLISH_ENABLED) html = applyPremiumBaseLayer(html);
   // Вау-слой — фирменный характер, только для нейтральной ветки (тематические
   // пресеты имеют свой и вызваны юзером явно).
-  if (TUNNEL_WOW_ENABLED && isNeutralPreset(presetId)) html = applyWowLayer(html);
+  if (TUNNEL_WOW_ENABLED && isNeutralPreset(presetId)) html = applyWowLayer(html, plan);
   return html;
 }
