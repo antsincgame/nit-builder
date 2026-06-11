@@ -75,4 +75,28 @@ describe("restoreTemplateImages", () => {
     expect(res.html).toContain('src="https://cdn/good.jpg"');
     expect(res.html).toContain('alt="empty"');
   });
+
+  it("не трогает логотипы, иконки и аватары — заменяет только контентные фото", () => {
+    const tpl = `<img src="https://cdn/photo1.jpg"><img src="https://cdn/photo2.jpg">`;
+    const gen =
+      `<img src="https://site/logo.svg" alt="Логотип" class="logo">` +
+      `<img src="https://site/ic.png" class="icon w-6 h-6">` +
+      `<img src="https://site/ava.jpg" class="avatar rounded-full">` +
+      `<img src="https://site/tiny.png" width="32" height="32">` +
+      `<img src="https://evil/hero.jpg" class="hero">` +
+      `<img src="https://evil/gallery.jpg">`;
+    const res = restoreTemplateImages(gen, tpl);
+    // заменяются только 2 контентных фото
+    expect(res.restored).toBe(2);
+    // лого/иконка/аватар/мелкая иконка — остаются на месте
+    expect(res.html).toContain("logo.svg");
+    expect(res.html).toContain("ic.png");
+    expect(res.html).toContain("ava.jpg");
+    expect(res.html).toContain("tiny.png");
+    // контентные фото заменены курированными из шаблона
+    expect(res.html).toContain("https://cdn/photo1.jpg");
+    expect(res.html).toContain("https://cdn/photo2.jpg");
+    expect(res.html).not.toContain("hero.jpg");
+    expect(res.html).not.toContain("gallery.jpg");
+  });
 });
