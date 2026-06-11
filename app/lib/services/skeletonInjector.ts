@@ -998,6 +998,33 @@ export function injectPlanIntoTemplate(
     }
   }
 
+  // 4b. Services (реальные услуги) — в офферные секции, ОТДЕЛЬНО от benefits.
+  // Списки секций не пересекаются (benefits → features/benefits/why-us/about;
+  // services → services/programs/...), поэтому шаблон с обеими секциями получает
+  // и выгоды, и услуги из своих полей. replaceBenefitCards переиспользуется:
+  // форма карточек идентична, а looksLikePriceSection внутри защищает прайс-сетки
+  // (барбершоп/ресторан). Opt-in (extendedFilled), без штрафа fillRatio.
+  if (plan.services && plan.services.length >= 3) {
+    const serviceSectionIds = [
+      "services",
+      "programs",
+      "subjects",
+      "practices",
+      "courses",
+      "classes",
+    ];
+    for (const sid of serviceSectionIds) {
+      const range = findSectionRange(html, sid);
+      if (!range) continue;
+      const r = replaceBenefitCards(html, range, plan.services);
+      if (r.replaced >= Math.min(3, plan.services.length)) {
+        html = r.html;
+        extendedFilled++;
+        break;
+      }
+    }
+  }
+
   // 5. Social proof
   if (plan.social_proof_line) {
     const r = replaceSocialProof(html, plan.social_proof_line);
