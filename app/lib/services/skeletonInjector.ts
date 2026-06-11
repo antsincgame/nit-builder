@@ -335,6 +335,51 @@ function replaceHeroPrimaryCta(
   };
 }
 
+/**
+ * Hero eyebrow — кикер-надзаголовок над h1 («Мастер маникюра · Минск»). Это
+ * статика шаблона: при смене ниши он противоречит заголовку (на сайте про
+ * ресницы сверху «Мастер маникюра»). Заменяем на business_type. Берём
+ * ПОСЛЕДНИЙ короткий <p> ПЕРЕД первым <h1> в #hero (подзаголовок идёт ПОСЛЕ
+ * h1 — его не трогаем). Только короткий кикер (не вводный абзац) и только если
+ * business_type умещается в кикер. (Б)
+ */
+function replaceHeroEyebrow(
+  html: string,
+  businessType: string,
+): { html: string; replaced: boolean } {
+  const text = businessType.trim();
+  if (text.length < 2 || text.length > 50) return { html, replaced: false };
+  const heroRange = findSectionRange(html, "hero");
+  if (!heroRange) return { html, replaced: false };
+  const sectionHtml = html.slice(heroRange.start, heroRange.end);
+  const h1Idx = sectionHtml.search(/<h1\b/i);
+  if (h1Idx < 0) return { html, replaced: false };
+  const beforeH1 = sectionHtml.slice(0, h1Idx);
+  // Последний <p>...</p> перед h1 — это и есть кикер.
+  const pRe = /<p\b[^>]*>([\s\S]*?)<\/p>/gi;
+  let last: { idx: number; len: number; openLen: number; innerLen: number } | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = pRe.exec(beforeH1)) !== null) {
+    const inner = (m[1] ?? "").replace(/<[^>]+>/g, "").trim();
+    last = {
+      idx: m.index,
+      len: m[0].length,
+      openLen: m[0].indexOf(">") + 1,
+      innerLen: inner.length,
+    };
+  }
+  // Только короткий кикер (1..50 символов), не вводный абзац.
+  if (!last || last.innerLen < 1 || last.innerLen > 50) {
+    return { html, replaced: false };
+  }
+  const textStart = heroRange.start + last.idx + last.openLen;
+  const textEnd = heroRange.start + last.idx + last.len - "</p>".length;
+  return {
+    html: html.slice(0, textStart) + escapeHtml(text) + html.slice(textEnd),
+    replaced: true,
+  };
+}
+
 // ───────────────────────────────────────────────────────────────────────
 // EXTENDED SLOTS (Tier 4)
 // ───────────────────────────────────────────────────────────────────────
