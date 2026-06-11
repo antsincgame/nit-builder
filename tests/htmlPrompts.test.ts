@@ -46,7 +46,8 @@ describe("buildPlannerPrompt", () => {
     // Потолок — канарейка против бесконтрольного распухания промпта.
     // 14K → 16K (v8 Tier 6): секция КОЛЛЕКЦИИ + collections в JSON-схеме.
     // 16K → 18K+ (Б): v4-правила копирайта + инструкция services. Лимит 19K.
-    expect(prompt.length).toBeLessThan(19_000);
+    // 19K → 20K (Б): правило согласованности локали (страна/валюта/телефон).
+    expect(prompt.length).toBeLessThan(20_000);
     expect(prompt.length).toBeGreaterThan(500);
   });
 });
