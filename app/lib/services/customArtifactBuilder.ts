@@ -43,8 +43,13 @@ function pick(items: string[], fallback: string): string[] {
 }
 
 function benefitItems(plan: Plan): Array<{ title: string; description: string }> {
-  return plan.key_benefits?.length
-    ? plan.key_benefits
+  if (plan.key_benefits?.length) return plan.key_benefits;
+  return plan.language === "ru"
+    ? [
+        { title: "Смысл сразу", description: "Первый экран объясняет суть предложения за 7 секунд." },
+        { title: "Путь к действию", description: "Каждая секция ведёт к одному целевому действию без визуального шума." },
+        { title: "Доказательства в основе", description: "Цифры, процесс и блоки доверия видны до финального CTA." },
+      ]
     : [
         { title: "Signal first", description: "A clear first screen explains the offer in under 7 seconds." },
         { title: "Conversion path", description: "Every section leads toward one primary action without visual noise." },
