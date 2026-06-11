@@ -70,6 +70,20 @@ export const planJsonSchema = {
         required: ["title", "description"],
       },
     },
+    services: {
+      type: "array",
+      minItems: 3,
+      maxItems: 8,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string", minLength: 2, maxLength: 60 },
+          description: { type: "string", minLength: 5, maxLength: 180 },
+        },
+        required: ["title", "description"],
+      },
+    },
     social_proof_line: { type: "string", maxLength: 150 },
     cta_microcopy: { type: "string", maxLength: 100 },
 
