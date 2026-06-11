@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { injectPlanIntoTemplate } from "~/lib/services/skeletonInjector";
+import { loadTemplateHtml } from "~/lib/config/htmlTemplates.server";
 import type { Plan } from "~/lib/utils/planSchema";
 
 const BASE_TEMPLATE = `<!DOCTYPE html>
