@@ -101,10 +101,10 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
   },
   {
     id: "beauty-master",
-    name: "Мастер красоты",
+    name: "Мастер маникюра",
     category: "beauty",
-    description: "Маникюр, брови, ресницы, визаж. Работы, прайс, запись.",
-    bestFor: ["маникюр", "ногт", "ноготочк", "нейл", "nail", "брови", "ресницы", "визажист", "косметолог"],
+    description: "Маникюр, педикюр и дизайн ногтей. Работы, прайс, запись.",
+    bestFor: ["маникюр", "педикюр", "ногт", "ноготочк", "нейл", "nail", "гель-лак"],
     sections: ["hero", "services", "gallery", "pricing", "booking"],
     style: "feminine-soft",
     colorMood: "warm-pastel",
