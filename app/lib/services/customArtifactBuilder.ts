@@ -28,7 +28,13 @@ function hasTechMood(plan: Plan, userMessage: string, presetId?: StylePresetId):
   }
   const text = `${userMessage} ${plan.business_type} ${plan.keywords.join(" ")}`.toLowerCase();
   if (hasAntiCyberIntent(text)) return false;
-  return /cyber|кибер|neon|неон|glitch|глитч|ton|web3|crypto|крипт|game|игр|protocol|developer|terminal|cli|steam|wishlist/.test(text);
+  // Левая юникод-граница: подстрока внутри слова не триггерит tech (ton ⊄ button/
+  // washington, neon ⊄ …). игр(?!ушк) — «игра/игровой/видеоигр» это tech, а
+  // «игрушки» (детский магазин) — нет. ton — отдельным словом (TON-блокчейн).
+  return (
+    /(?<![\p{L}\p{N}])(?:cyber|кибер|neon|неон|glitch|глитч|web3|crypto|крипт|game|игр(?!ушк)|protocol|developer|terminal|cli|steam|wishlist)/u.test(text) ||
+    /(?<![\p{L}\p{N}])ton(?![\p{L}\p{N}])/u.test(text)
+  );
 }
 
 function pick(items: string[], fallback: string): string[] {
