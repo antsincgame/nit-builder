@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Студия — услуги, прайс и запись</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --nit-accent: #c98a5e; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2d2925; background: #faf6f1; }
+  .display { font-family: 'Fraunces', Georgia, serif; }
+  .accent { color: var(--nit-accent); }
+  .bg-accent { background: var(--nit-accent); }
+  .btn-accent { background: var(--nit-accent); color: #fff; transition: filter .2s ease; }
+  .btn-accent:hover { filter: brightness(0.92); }
+  .border-accent { border-color: var(--nit-accent); }
+  .hero-bg { background: linear-gradient(180deg, #fcf9f5 0%, #f1e8dd 100%); }
+  .card { background: #fffdfb; border: 1px solid #ece3d7; }
+  .chip { background: #f3e9dd; }
+  .ring-accent { box-shadow: 0 0 0 1.5px var(--nit-accent); }
+  a { transition: color .15s ease; }
+</style>
+</head>
+<body class="antialiased">
+
+<nav class="sticky top-0 z-30 bg-[#faf6f1]/85 backdrop-blur border-b border-[#ece3d7]">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <a href="#" class="display text-xl font-semibold accent tracking-tight">Студия</a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-[#5b534b]">
+      <a href="#services" class="hover:text-[#2d2925]">Услуги</a>
+      <a href="#pricing" class="hover:text-[#2d2925]">Цены</a>
+      <a href="#faq" class="hover:text-[#2d2925]">Вопросы</a>
+      <a href="#contact" class="hover:text-[#2d2925]">Контакты</a>
+    </div>
+    <a href="#contact" class="btn-accent text-sm font-medium px-5 py-2.5 rounded-full">Записаться</a>
+  </div>
+</nav>
+
+<section id="hero" class="hero-bg">
+  <div class="max-w-4xl mx-auto px-6 pt-24 pb-28 text-center">
+    <p class="chip accent inline-block text-xs font-medium tracking-wide uppercase px-4 py-1.5 rounded-full mb-7">Студия красоты и ухода</p>
+    <h1 class="display text-4xl md:text-6xl font-semibold leading-[1.05] tracking-tight text-[#1f1b18]">Уход, в который влюбляешься</h1>
+    <p class="mt-7 text-lg md:text-xl text-[#5b534b] max-w-2xl mx-auto leading-relaxed">Бережные процедуры, профессиональные материалы и внимательные мастера — для вашего естественного сияния каждый день.</p>
+    <div class="mt-10 flex items-center justify-center gap-4 flex-wrap">
+      <a href="#contact" class="btn-accent font-medium px-8 py-3.5 rounded-full text-base">Записаться онлайн</a>
+      <a href="#services" class="px-8 py-3.5 rounded-full text-base font-medium text-[#2d2925] border border-[#d9cdbd] hover:bg-white">Посмотреть услуги</a>
+    </div>
+  </div>
+</section>
+
+<section id="features" class="max-w-6xl mx-auto px-6 py-24">
+  <div class="text-center mb-14">
+    <h2 class="display text-3xl md:text-4xl font-semibold text-[#1f1b18]">Почему выбирают нас</h2>
+    <p class="mt-4 text-[#6b6259]">Спокойно, профессионально и с заботой о результате.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6">
+    <div class="card rounded-2xl p-8">
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Опытные мастера</h3>
+      <p class="mt-3 text-[#6b6259] leading-relaxed">Сертифицированные специалисты с регулярным повышением квалификации.</p>
+    </div>
+    <div class="card rounded-2xl p-8">
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Безопасные материалы</h3>
+      <p class="mt-3 text-[#6b6259] leading-relaxed">Гипоаллергенные составы и стерильные одноразовые инструменты.</p>
+    </div>
+    <div class="card rounded-2xl p-8">
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Уютная атмосфера</h3>
+      <p class="mt-3 text-[#6b6259] leading-relaxed">Спокойное пространство, где можно отдохнуть и восстановиться.</p>
+    </div>
+  </div>
+</section>
+
+<section id="services" class="bg-[#f5ece1]">
+  <div class="max-w-6xl mx-auto px-6 py-24">
+    <div class="text-center mb-14">
+      <h2 class="display text-3xl md:text-4xl font-semibold text-[#1f1b18]">Услуги</h2>
+      <p class="mt-4 text-[#6b6259]">Подберём программу под вашу задачу.</p>
+    </div>
+    <div class="grid md:grid-cols-3 gap-6">
+      <div class="card rounded-2xl p-8">
+        <h3 class="display text-xl font-semibold text-[#1f1b18]">Процедура ухода</h3>
+        <p class="mt-3 text-[#6b6259] leading-relaxed">Индивидуальная программа под ваш тип и пожелания.</p>
+      </div>
+      <div class="card rounded-2xl p-8">
+        <h3 class="display text-xl font-semibold text-[#1f1b18]">Коррекция и моделирование</h3>
+        <p class="mt-3 text-[#6b6259] leading-relaxed">Аккуратная работа с естественным, ухоженным результатом.</p>
+      </div>
+      <div class="card rounded-2xl p-8">
+        <h3 class="display text-xl font-semibold text-[#1f1b18]">Восстановление и уход</h3>
+        <p class="mt-3 text-[#6b6259] leading-relaxed">Питание и поддержка для здоровья, силы и блеска.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing" class="max-w-6xl mx-auto px-6 py-24">
+  <div class="text-center mb-14">
+    <h2 class="display text-3xl md:text-4xl font-semibold text-[#1f1b18]">Цены</h2>
+    <p class="mt-4 text-[#6b6259]">Прозрачно, без скрытых доплат.</p>
+  </div>
+  <div class="grid md:grid-cols-3 gap-6 items-start">
+    <div class="card rounded-2xl p-8">
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Базовый</h3>
+      <div class="price display accent text-3xl font-semibold mt-4 mb-6">от 30 ₽</div>
+      <ul class="space-y-3 text-[#5b534b] text-sm">
+        <li>Консультация и подбор</li>
+        <li>Базовая процедура</li>
+        <li>Уходовые рекомендации</li>
+      </ul>
+    </div>
+    <div class="card rounded-2xl p-8 ring-accent relative">
+      <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white text-xs font-medium px-3 py-1 rounded-full">Популярный</span>
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Оптимальный</h3>
+      <div class="price display accent text-3xl font-semibold mt-4 mb-6">от 60 ₽</div>
+      <ul class="space-y-3 text-[#5b534b] text-sm">
+        <li>Расширенная процедура</li>
+        <li>Уход и фиксация результата</li>
+        <li>Программа для дома</li>
+      </ul>
+    </div>
+    <div class="card rounded-2xl p-8">
+      <h3 class="display text-xl font-semibold text-[#1f1b18]">Премиум</h3>
+      <div class="price display accent text-3xl font-semibold mt-4 mb-6">от 90 ₽</div>
+      <ul class="space-y-3 text-[#5b534b] text-sm">
+        <li>Комплексная программа</li>
+        <li>Премиум-материалы</li>
+        <li>Персональное сопровождение</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="testimonials" class="bg-[#f5ece1]">
+  <div class="max-w-3xl mx-auto px-6 py-24 text-center">
+    <p class="display text-2xl md:text-3xl font-medium leading-snug text-[#1f1b18]">Нас выбирают за внимательность, чистоту и результат, к которому хочется возвращаться.</p>
+    <p class="mt-6 text-[#6b6259]">Сотни довольных гостей</p>
+  </div>
+</section>
+
+<section id="faq" class="max-w-3xl mx-auto px-6 py-24">
+  <div class="text-center mb-14">
+    <h2 class="display text-3xl md:text-4xl font-semibold text-[#1f1b18]">Частые вопросы</h2>
+  </div>
+  <div class="space-y-6">
+    <div class="card rounded-2xl p-7">
+      <h3 class="font-semibold text-[#1f1b18]">Как записаться?</h3>
+      <p class="mt-2 text-[#6b6259] leading-relaxed">Оставьте заявку онлайн или напишите нам — подберём удобное время.</p>
+    </div>
+    <div class="card rounded-2xl p-7">
+      <h3 class="font-semibold text-[#1f1b18]">Сколько длится процедура?</h3>
+      <p class="mt-2 text-[#6b6259] leading-relaxed">В среднем от 40 минут до 2 часов — зависит от выбранной услуги.</p>
+    </div>
+    <div class="card rounded-2xl p-7">
+      <h3 class="font-semibold text-[#1f1b18]">Нужна ли подготовка заранее?</h3>
+      <p class="mt-2 text-[#6b6259] leading-relaxed">Для большинства процедур подготовка не нужна — всё расскажем на консультации.</p>
+    </div>
+  </div>
+</section>
+
+<section id="contact" class="bg-[#1f1b18] text-[#f3ece3]">
+  <div class="max-w-4xl mx-auto px-6 py-24 text-center">
+    <h2 class="display text-3xl md:text-4xl font-semibold text-white">Запишитесь на визит</h2>
+    <p class="mt-4 text-[#c9bfb3]">Выберите удобный способ — ответим и подберём время.</p>
+    <div class="mt-10 flex flex-col items-center gap-3">
+      <a href="tel:+375000000000" class="display text-2xl md:text-3xl font-semibold accent">+375 (00) 000-00-00</a>
+      <a href="mailto:hello@studio.by" class="text-[#c9bfb3] hover:text-white">hello@studio.by</a>
+      <address class="not-italic text-[#c9bfb3]">Минск, ул. Примерная, 1</address>
+      <p class="text-[#9a9089] text-sm mt-2">Пн–Вс, 10:00–21:00</p>
+    </div>
+    <a href="tel:+375000000000" class="btn-accent inline-block mt-10 font-medium px-8 py-3.5 rounded-full">Позвонить и записаться</a>
+  </div>
+</section>
+
+<footer class="bg-[#1f1b18] border-t border-white/10 text-[#9a9089]">
+  <div class="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-3">
+    <p class="display text-lg font-semibold accent">Студия</p>
+    <p class="text-sm">© 2026 · Минск · Все права защищены</p>
+  </div>
+</footer>
+
+</body>
+</html>
