@@ -151,7 +151,7 @@ export function HistorySidebar({
     "bg-[#0D0D0D] border-r border-white/[0.06]",
     "transition-transform duration-200",
     open ? "translate-x-0" : "-translate-x-full",
-    inlineOnDesktop ? "lg:static lg:translate-x-0 lg:z-auto lg:shrink-0" : "",
+    inlineOnDesktop ? "lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 lg:z-auto lg:shrink-0" : "",
   ].join(" ");
 
   return (
