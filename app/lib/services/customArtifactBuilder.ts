@@ -1,6 +1,7 @@
 // Reduces fallback builder's neon bias and removes boilerplate panel copy.
 import type { StylePresetId } from "~/lib/llm/style-presets";
 import type { Plan } from "~/lib/utils/planSchema";
+import { getPalette, pickFontPair } from "~/lib/config/designTokens";
 
 function esc(value: unknown): string {
   return String(value ?? "")
