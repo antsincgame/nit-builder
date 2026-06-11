@@ -341,7 +341,7 @@ footer{position:relative;z-index:2;border-top:1px solid var(--line);padding:30px
 <div class="orb one"></div><div class="orb two"></div><div class="orb three"></div>
 <nav class="hud">
   <a class="brand" href="#hero"><span class="brand-mark"></span>${esc(plan.business_type)}</a>
-  <div class="hud-mid"><span class="live">${labels.live}</span><span>${labels.mode} <b>${tech ? "cyber" : "editorial"}</b></span><span>id <b>${artifactId}</b></span></div>
+  <div class="hud-mid"><span class="live">${labels.live}</span><span>${esc(keywords.slice(0, 2).join(" · "))}</span></div>
   <a class="cta" href="#contact">${esc(cta)}</a>
 </nav>
 <main class="wrap">
