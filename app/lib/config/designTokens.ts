@@ -88,10 +88,10 @@ export const PALETTES: Record<ColorMood, ColorPalette> = {
   },
   "light-minimal": {
     mood: "light-minimal",
-    description: "чистый белый, один тёмный акцент, много воздуха, тонкие серые границы",
+    description: "чистый белый фон, индиго-акцент, много воздуха, тонкие серые границы",
     background: "#ffffff",
     foreground: "#0a0a0a",
-    primary: "#0a0a0a",
+    primary: "#4f46e5",
     primaryForeground: "#ffffff",
     accent: "#404040",
     muted: "#f4f4f5",
