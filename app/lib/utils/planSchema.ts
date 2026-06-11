@@ -270,6 +270,10 @@ export function buildCopyHint(plan: Plan): string | null {
       .join("\n");
     parts.push(`KEY BENEFITS (для features/benefits-секции):\n${list}`);
   }
+  if (plan.services && plan.services.length > 0) {
+    const items = plan.services.map((s) => `${s.title} — ${s.description}`).join("; ");
+    parts.push(`SERVICES (реальные услуги для services/programs/subjects-секции): ${items}`);
+  }
   if (plan.team && plan.team.length > 0) {
     const list = plan.team
       .map((t, i) => `  ${i + 1}. ${t.name}${t.role ? ` — ${t.role}` : ""}`)
