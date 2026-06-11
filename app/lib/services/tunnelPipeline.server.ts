@@ -296,7 +296,8 @@ export function resolveTunnelPlan(
     inferStylePresetId(sanitizedMessage) === "generic";
   if (
     (presetId === "generic" || preferTemplateSkeleton) &&
-    plan.language === "ru" &&
+    // by: шаблоны lang="ru", но BY-аудитория читает их нормально — допускаем (№14 v4)
+    (plan.language === "ru" || plan.language === "by") &&
     !adminNeedsCoder
   ) {
     const cleanTemplateHtml = loadTemplateHtml(template.id);
