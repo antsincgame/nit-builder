@@ -401,10 +401,10 @@ footer{position:relative;z-index:2;border-top:1px solid var(--line);padding:30px
 <section id="proof" data-nit-section="proof">
   <div class="section-head"><div class="num">03</div><div><h2>${labels.proof}</h2><p>${esc(proof)}</p></div></div>
   <div class="metric-row">
-    <div class="metric"><b>4.9</b><span>trust score</span></div>
-    <div class="metric"><b>12+</b><span>content modules</span></div>
-    <div class="metric"><b>6</b><span>sections</span></div>
-    <div class="metric"><b>1</b><span>primary CTA</span></div>
+    <div class="metric"><b>${esc(String(plan.sections.length))}</b><span>${isRu(plan) ? "секций" : "sections"}</span></div>
+    <div class="metric"><b>${esc(String(keywords.length))}</b><span>${isRu(plan) ? "тем" : "topics"}</span></div>
+    <div class="metric"><b>${esc(String(benefits.length))}</b><span>${isRu(plan) ? "преимуществ" : "benefits"}</span></div>
+    <div class="metric"><b>1</b><span>${isRu(plan) ? "целевое действие" : "primary CTA"}</span></div>
   </div>
 </section>
 <section id="roadmap" data-nit-section="roadmap">
