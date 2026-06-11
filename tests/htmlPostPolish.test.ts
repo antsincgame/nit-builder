@@ -60,6 +60,18 @@ describe("postPolishHtml", () => {
     expect(result.fixes).not.toContain("neon-token-rewrite");
     expect(result.html).not.toContain("nit-post-polish-style");
   });
+
+  it("standalone-слово 'Cyber' в прозе не триггерит neon-override (№10)", () => {
+    const result = postPolishHtml({
+      html: "<html><head></head><body><h1>Cyber Arena</h1><p>Лучшая площадка для турниров.</p></body></html>",
+      presetId: "clean-saas",
+      plan: PLAN,
+    });
+
+    expect(result.fixes).not.toContain("light-style-override");
+    expect(result.fixes).not.toContain("neon-token-rewrite");
+    expect(result.html).not.toContain("nit-post-polish-style");
+  });
 });
 
 const SEO_PLAN: Plan = {
