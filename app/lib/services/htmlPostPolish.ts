@@ -269,9 +269,12 @@ const PREMIUM_BASE_STYLE = `<style id="nit-premium-base">
 // Кап заголовков: модель/шаблоны порой ставят text-8xl/9xl или clamp с большим vw
 // → h1/h2 занимают весь экран. В отличие от премиум-базы (:where, спец. 0) этот
 // слой НАМЕРЕННО перебивает вывод !important. Только h1/h2 — h3+ обычно в норме.
+// Потолок поднят (h1 до 5.5rem, h2 до 3.25rem): выразительная крупная типографика
+// (Bebas/Unbounded-герои barbershop/artifact) сохраняет характер — режется лишь
+// то, что заняло бы весь экран (text-9xl=8rem, clamp с большим vw). (№12 v4)
 const TYPE_GUARD_STYLE = `<style id="nit-type-guard">
-h1{font-size:clamp(2.25rem, 1.6rem + 2.6vw, 4rem)!important}
-h2{font-size:clamp(1.6rem, 1.2rem + 1.7vw, 2.6rem)!important}
+h1{font-size:clamp(2.25rem, 1.5rem + 3.4vw, 5.5rem)!important}
+h2{font-size:clamp(1.6rem, 1.2rem + 2vw, 3.25rem)!important}
 </style>`;
 
 const INTER_FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">`;
