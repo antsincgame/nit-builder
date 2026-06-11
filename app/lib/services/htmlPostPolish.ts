@@ -409,6 +409,7 @@ export function ensureClosedHtml(html: string): string {
 // но повторный прогон стабилен.
 
 export function fixBrokenImages(html: string, knownGood?: Set<string>): string {
+  let idx = 0;
   return html.replace(/https?:\/\/images\.unsplash\.com\/[^"'\s)]+/gi, (url) => {
     // Курированные картинки шаблона (restoreTemplateImages + CSS-фоны) в
     // allowlist — их не трогаем, иначе нишевые фото заменялись бы на случайный
@@ -416,7 +417,11 @@ export function fixBrokenImages(html: string, knownGood?: Set<string>): string {
     if (knownGood?.has(url)) return url;
     const w = url.match(/[?&]w=(\d+)/)?.[1] ?? "800";
     const h = url.match(/[?&]h=(\d+)/)?.[1] ?? "600";
-    const seed = (url.match(/photo-([a-z0-9]+)/i)?.[1] ?? `nit${url.length}`).slice(0, 16);
+    // Сид: photo-id если есть, иначе позиция idx (раньше — длина URL, отчего две
+    // галлюцинации одной длины давали одно фото). idx по DOM-порядку → повторный
+    // прогон стабилен (№13 v4).
+    const seed = (url.match(/photo-([a-z0-9]+)/i)?.[1] ?? `nit${idx}`).slice(0, 16);
+    idx++;
     return `https://picsum.photos/seed/${seed}/${w}/${h}`;
   });
 }
