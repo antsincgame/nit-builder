@@ -72,6 +72,17 @@ export function buildCustomArtifactHtml(params: {
 }): string {
   const { plan, userMessage, presetId } = params;
   const tech = hasTechMood(plan, userMessage, presetId);
+  // Палитра и шрифты из плана (color_mood) — раньше бинарные tech/non-tech, отчего
+  // кофейня/стоматология/йога выглядели одинаково, а body был моноширинным на
+  // «тёплой» нише. Для tech оставляем неоновую надстройку. (№2 v4)
+  const pal = getPalette(plan.color_mood);
+  const fonts = pickFontPair({ colorMood: plan.color_mood, language: plan.language });
+  const fontLink = tech
+    ? `<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">`
+    : `<link href="${fonts.cdnUrl}" rel="stylesheet">`;
+  const fontDisplay = tech ? "Unbounded" : fonts.display;
+  const fontBody = tech ? "JetBrains Mono" : fonts.body;
+  const fontBodyFallback = tech ? "ui-monospace,monospace" : "ui-sans-serif,system-ui,sans-serif";
   const title = cleanTitle(plan.hero_headline || plan.business_type, plan.business_type);
   const subtitle = cleanTitle(
     plan.hero_subheadline || `${plan.business_type}: ${plan.target_audience}`,
