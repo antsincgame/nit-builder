@@ -12,6 +12,17 @@ const BenefitSchema = z.object({
   description: z.string().min(5).max(180),
 });
 
+/**
+ * Услуга/оффер для секции services/programs/subjects/... — РЕАЛЬНОЕ предложение
+ * («Наращивание ресниц», «Чистка лица»), в отличие от key_benefits (выгоды-
+ * «почему мы»). Та же форма, что у BenefitSchema, но смысл иной: это каталог
+ * того, ЧТО делает бизнес. Заполняется инжектором в офферные секции. (Б)
+ */
+const ServiceSchema = z.object({
+  title: z.string().min(2).max(60),
+  description: z.string().min(5).max(180),
+});
+
 /** Тариф для pricing-секции. */
 const PricingTierSchema = z.object({
   name: z.string().min(1).max(40),
