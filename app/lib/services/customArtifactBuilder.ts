@@ -350,7 +350,7 @@ footer{position:relative;z-index:2;border-top:1px solid var(--line);padding:30px
     <div class="hero-kicker"><i></i>${esc(keywords.slice(0, 3).join(" / "))}</div>
     <h1><span>${esc(title.split(" ").slice(0, 3).join(" "))}</span><span class="outline" data-text="${esc(title.split(" ").slice(3).join(" ") || plan.business_type)}">${esc(title.split(" ").slice(3).join(" ") || plan.business_type)}</span></h1>
     <p class="lead">${esc(subtitle)} <b>${esc(proof)}</b></p>
-    <div class="cta-row"><a class="btn btn-primary" href="#contact">${esc(cta)}</a><a class="btn btn-ghost" href="#features">Explore system</a></div>
+    <div class="cta-row"><a class="btn btn-primary" href="#contact">${esc(cta)}</a><a class="btn btn-ghost" href="#features">${labels.explore}</a></div>
     <div class="hero-stats">
       <div class="stat"><div class="n">01</div><div class="l">${labels.single}</div></div>
       <div class="stat"><div class="n">${esc(String(panels.length))}</div><div class="l">${labels.panels}</div></div>
