@@ -466,7 +466,7 @@ export function finalizeTunnelHtml(
 ): string {
   // Сначала лечим оборванный вывод модели — иначе вставки ниже приклеятся в конец
   // сломанного DOM и станут видимым текстом.
-  const cleaned = ensureClosedHtml(stripCodeFences(rawHtml));
+  const cleaned = normalizeFinalHtml(ensureClosedHtml(stripCodeFences(rawHtml)));
   let html = postPolishHtml({ html: cleaned, presetId, plan }).html;
   // Детерминированно возвращаем курированные картинки шаблона: слабая модель
   // переписывает <img src> на нерелевантные/битые ссылки (барбершопу — лес),
