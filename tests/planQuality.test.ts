@@ -96,4 +96,22 @@ describe("normalizePlanForRequest", () => {
     expect(plan.sections).toContain("gallery");
     expect(plan.sections).toContain("booking");
   });
+
+  it("админ-намерение «сам менял меню и цены» включает needs_admin и сеет коллекцию меню", () => {
+    const plan = normalizePlanForRequest(
+      BASE_PLAN,
+      "сайт для кофейни в Гродно, чтобы бариста сам менял меню и цены",
+    );
+
+    expect(plan.needs_admin).toBe(true);
+    expect(plan.collections?.some((c) => c.id === "menu_items")).toBe(true);
+    expect(plan.editable_zones?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it("без админ-намерения needs_admin не включается (статичный лендинг)", () => {
+    const plan = normalizePlanForRequest(BASE_PLAN, "сайт для кофейни в Гродно с меню и фото");
+
+    expect(plan.needs_admin).not.toBe(true);
+    expect(plan.collections ?? []).toHaveLength(0);
+  });
 });
