@@ -48,6 +48,7 @@ import {
   applyWowLayer,
   ensureClosedHtml,
   fixBrokenImages,
+  normalizeFinalHtml,
 } from "~/lib/services/htmlPostPolish";
 import { retrieveTemplates } from "~/lib/services/templateRetriever";
 import { buildFewShotPlansAdaptive } from "~/lib/services/fewShotBuilder";
