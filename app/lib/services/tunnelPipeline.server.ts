@@ -370,14 +370,25 @@ function countMissing(audit: ReturnType<typeof auditAdminMarkup>): number {
 }
 
 /**
+ * LLM-repair админ-разметки на туннеле ВЫКЛЮЧЕН по умолчанию. Это был ВТОРОЙ
+ * полный проход генерации (бюджет 16k токенов) на локальной модели юзера:
+ * после готового сайта пользователь видел долгое «Пишу код» и считал, что
+ * всё зависло (на слабом/среднем железе второй проход — минуты). Разметку
+ * теперь ставит Кодер за один проход по zones/collections-hint coder-промпта.
+ * NIT_TUNNEL_ADMIN_REPAIR="1" — вернуть repair (например, на быстром пути).
+ */
+const TUNNEL_ADMIN_REPAIR_ENABLED = process.env.NIT_TUNNEL_ADMIN_REPAIR === "1";
+
+/**
  * Решает, нужна ли repair-фаза для HTML фазы кодера. null — разметка полная
- * (или план без админки), фаза пропускается. Иначе — готовый туннельный
- * generate-промпт со списком промахов.
+ * (план без админки, либо repair выключен флагом), фаза пропускается. Иначе —
+ * готовый туннельный generate-промпт со списком промахов.
  */
 export function buildTunnelRepairPhase(
   rawHtml: string,
   plan: Plan,
 ): TunnelRepairPhase | null {
+  if (!TUNNEL_ADMIN_REPAIR_ENABLED) return null;
   const { zones, collections } = adminDeclarations(plan);
   if (zones.length === 0 && collections.length === 0) return null;
 
