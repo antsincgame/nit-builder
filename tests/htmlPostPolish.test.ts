@@ -166,6 +166,43 @@ describe("ensureClosedHtml", () => {
   });
 });
 
+describe("normalizeFinalHtml", () => {
+  it("валидный HTML переживает нормализацию: doctype, контент, data-разметка", () => {
+    const html =
+      '<!DOCTYPE html><html lang="ru"><head><title>Кофейня</title></head><body>' +
+      '<h1 data-edit="hero_title" data-edit-type="text" data-edit-label="Заголовок">Свежий кофе</h1>' +
+      "</body></html>";
+    const out = normalizeFinalHtml(html);
+    expect(out.toLowerCase()).toContain("<!doctype html>");
+    expect(out).toContain('data-edit="hero_title"');
+    expect(out).toContain("Свежий кофе");
+    expect(out).toContain("Кофейня");
+    expect(out.toLowerCase()).toContain("</html>");
+  });
+
+  it("закрывает незакрытые теги — контент не теряется, документ закрыт", () => {
+    const broken =
+      '<!DOCTYPE html><html lang="ru"><head><title>T</title></head><body>' +
+      "<main><h1>Заголовок</h1><p>Абзац который не потеряется";
+    const out = normalizeFinalHtml(broken);
+    expect(out).toContain("Заголовок");
+    expect(out).toContain("Абзац который не потеряется");
+    expect(out.toLowerCase()).toMatch(/<\/body>\s*<\/html>/);
+  });
+
+  it("идемпотентен — повторная нормализация ничего не меняет", () => {
+    const html =
+      '<!DOCTYPE html><html><head></head><body><section><h2>Меню</h2></section></body></html>';
+    const once = normalizeFinalHtml(html);
+    expect(normalizeFinalHtml(once)).toBe(once);
+  });
+
+  it("не падает на мусоре и возвращает строку", () => {
+    expect(() => normalizeFinalHtml("<<<>>")).not.toThrow();
+    expect(typeof normalizeFinalHtml("<<<>>")).toBe("string");
+  });
+});
+
 describe("fixBrokenImages", () => {
   it("меняет unsplash на picsum, сохраняя размеры", () => {
     const html =
