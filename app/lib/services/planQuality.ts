@@ -496,6 +496,32 @@ export function normalizePlanForRequest(plan: Plan, query: string): Plan {
     }
   }
 
+  // ─── Детерминированный бэкстоп админ-намерения из текста запроса ───
+  // (до реактивных инвариантов ниже). Если юзер явно просит «сам менять/
+  // редактировать» контент, но слабая модель не выдала зоны/коллекции —
+  // засеиваем их сами: иначе adminNeedsCoder=false и сайт уходит в skeleton
+  // (без data-edit/data-collection), кнопка «Скачать с редактором» не
+  // появляется. Сидируем ТОЛЬКО недостающее — разметка модели приоритетнее.
+  const adminIntent = detectAdminIntent(query);
+  if (adminIntent) {
+    normalized.needs_admin = true;
+    if (normalized.admin_intent_confidence !== "explicit") {
+      normalized.admin_intent_confidence = adminIntent;
+    }
+    if ((normalized.collections?.length ?? 0) === 0) {
+      const seededCols = seedAdminCollection(query, normalized.sections);
+      if (seededCols) {
+        normalized.collections = seededCols;
+        for (const c of seededCols) {
+          if (!normalized.sections.includes(c.section)) normalized.sections.push(c.section);
+        }
+      }
+    }
+    if ((normalized.editable_zones?.length ?? 0) === 0) {
+      normalized.editable_zones = seedAdminZones(normalized.sections);
+    }
+  }
+
   // ─── Tier 5/6: админ-инварианты (planSchema декларирует их именно здесь) ───
   // 7B нередко выдаёт collections, забыв needs_admin=true. Без флага
   // buildCollectionsHint возвращает null → Coder не размечает → repair
