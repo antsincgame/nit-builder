@@ -32,7 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($p1 !== $p2) {
         $err = 'Пароли не совпадают.';
     } else {
-        $hash = password_hash($p1, PASSWORD_ARGON2ID);
+        // Argon2id только если PHP-сборка хостинга его поддерживает: на многих
+        // шаред-хостингах константа не определена → на PHP 8 fatal "undefined
+        // constant" и админ не создаётся (а argon2 ещё и упирается в memory_limit).
+        // Иначе bcrypt — PASSWORD_DEFAULT есть всегда. password_verify понимает
+        // алгоритм по самому хешу, поэтому вход работает в обоих случаях.
+        $algo = defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT;
+        $hash = password_hash($p1, $algo);
         $data = [$u => ['password_hash' => $hash, 'created_at' => date('c')]];
         $dir = nit_root() . '/data';
         if (!is_dir($dir) || !is_writable($dir)) {
