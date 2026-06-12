@@ -5,6 +5,7 @@ import {
   applyWowLayer,
   ensureClosedHtml,
   fixBrokenImages,
+  normalizeFinalHtml,
   postPolishHtml,
 } from "~/lib/services/htmlPostPolish";
 import type { Plan } from "~/lib/utils/planSchema";
