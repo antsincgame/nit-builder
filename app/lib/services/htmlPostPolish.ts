@@ -1,4 +1,5 @@
 // Adds deterministic post-polish guards for style leaks and boilerplate copy.
+import { parse } from "node-html-parser";
 import type { StylePresetId } from "~/lib/llm/style-presets";
 import type { Plan } from "~/lib/utils/planSchema";
 
