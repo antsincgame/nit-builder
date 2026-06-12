@@ -401,6 +401,33 @@ export function ensureClosedHtml(html: string): string {
   return out;
 }
 
+/**
+ * Нормализует структуру HTML парсером: закрывает незакрытые теги в СЕРЕДИНЕ
+ * документа, которые оставляет слабая модель (особенно вокруг вложенной
+ * разметки коллекции data-collection/data-item). ensureClosedHtml лечит только
+ * оборванный хвост — а поломка в середине приводит к тому, что вставленные
+ * следом <script>/<style> (reveal-скрипт, SEO JSON-LD) прилипают к сломанному
+ * узлу и рендерятся ВИДИМЫМ ТЕКСТОМ. parse→toString выдаёт сбалансированный
+ * DOM, куда вставки попадают корректно.
+ *
+ * Безопасно: на валидном HTML parse→toString ≈ вход (идемпотентно). На любой
+ * ошибке ИЛИ подозрительной потере контента (>50%) возвращает вход — не хуже
+ * прежнего. node-html-parser не сохраняет <!DOCTYPE> — возвращаем его сами,
+ * иначе браузер уходит в quirks mode и вёрстка плывёт.
+ */
+export function normalizeFinalHtml(html: string): string {
+  try {
+    const out = parse(html).toString();
+    if (!out || out.length < html.length * 0.5) return html;
+    if (/<html[\s>]/i.test(out) && !/^\s*<!doctype/i.test(out)) {
+      return `<!DOCTYPE html>\n${out}`;
+    }
+    return out;
+  } catch {
+    return html;
+  }
+}
+
 // ─── Починка битых картинок ────────────────────────────────────────
 //
 // Модель галлюцинирует несуществующие Unsplash photo-id → 404 → битые картинки
