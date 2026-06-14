@@ -1020,11 +1020,14 @@ export function useGenerationFlow(
     setChatMessages(restoredChat);
 
     setMode("editing");
-    // entry.id — id из Appwrite (для remote-источника) или uuid (для local).
-    // ShareDialog проверяет на этот id; если это local-id (uuid),
-    // server вернёт 404 на /api/share, что корректно (нельзя расшарить
-    // сайт которого нет в облаке).
-    setCurrentSiteId(entry.id);
+    // currentSiteId должен быть Appwrite doc id — по нему идут share (/api/share)
+    // и polish-PATCH (/api/sites/:id). Локальная история хранит id вида "h-..."
+    // / "ssr" (historyStore) — это НЕ Appwrite-документ: share по нему даёт 404,
+    // а PATCH молча уходит в никуда, и пользователю нечего открыть кроме адреса
+    // кабинета. Для таких id — null, чтобы Share честно показал «ещё не
+    // сохранён», а не выдал битую ссылку. Appwrite-id никогда не начинается с "h-".
+    const isLocalId = /^h-/.test(entry.id) || entry.id === "ssr";
+    setCurrentSiteId(isLocalId ? null : entry.id);
     // Стек версий сбрасываем — открытие сайта из истории это новая
     // «сессия» с точки зрения undo/redo. Версии прошлых полировок не
     // переносятся (сохраняется только final HTML + chat для контекста).

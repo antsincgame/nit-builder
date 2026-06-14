@@ -731,8 +731,32 @@ describe("useGenerationFlow > misc actions", () => {
       role: "assistant",
       text: "Готово ✨",
     });
-    // currentSiteId должен встать в id из entry, чтобы дальше polish PATCH'ил
+    // currentSiteId должен встать в id из entry (remote-формат), чтобы дальше polish PATCH'ил
     expect(result.current.currentSiteId).toBe("site-abc");
+  });
+
+  it("loadFromHistory с локальным id (h-...) НЕ ставит currentSiteId (share по нему = 404)", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({ projectId: "p-1", auth: guestAuth, getSocket: () => socket }),
+    );
+
+    act(() =>
+      result.current.loadFromHistory({
+        id: "h-1700000000000-ab12c",
+        createdAt: 0,
+        prompt: "локальный сайт гостя",
+        templateId: "coffee",
+        templateName: "Coffee",
+        html: "<html>local</html>",
+      }),
+    );
+
+    expect(result.current.mode).toBe("editing");
+    expect(result.current.html).toBe("<html>local</html>");
+    // Локальный id — не Appwrite-документ: currentSiteId null, чтобы Share не дал
+    // битую /api/share 404, а честно показал «ещё не сохранён».
+    expect(result.current.currentSiteId).toBeNull();
   });
 
   it("loadFromHistory с невалидным chatMessages JSON → пустой chat (graceful)", () => {

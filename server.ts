@@ -109,6 +109,9 @@ function shouldPrerender(req: IncomingMessage, pathname: string): boolean {
   if (req.method !== "GET") return false;
   if (pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/assets/")) return false;
+  // /p/:token уже отдаёт статичный snapshot-HTML сайта (resource route) —
+  // прогонять его через headless-Chromium незачем.
+  if (pathname.startsWith("/p/")) return false;
   if (STATIC_EXT_RE.test(pathname)) return false;
 
   const ua = req.headers["user-agent"];
