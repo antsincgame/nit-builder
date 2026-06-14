@@ -413,23 +413,21 @@ function replacePricingTiers(
   type Replacement = { from: number; to: number; text: string };
   const replacements: Replacement[] = [];
 
+  // Считаем РЕАЛЬНО заполненные карточки (с ценой/фичами), а не headings.length.
+  // Раньше функция всегда переписывала каждый <h3> в имя тарифа и возвращала
+  // replaced=cards.length — даже если секция #pricing содержала h3-подзаголовки,
+  // а не тариф-карточки: заголовки молча искажались, а слот считался заполненным.
+  let realFilled = 0;
   for (let i = 0; i < cards.length; i++) {
     const card = cards[i]!;
     const tier = tiers[i]!;
     const nextCard = cards[i + 1];
     const cardEnd = nextCard ? nextCard.openIdx : sectionHtml.length;
-
-    // 1. Заменить h3 текст
-    const h3OpenLen = (sectionHtml.slice(card.openIdx).match(/<h3\b[^>]*>/i)?.[0].length ?? 0);
-    replacements.push({
-      from: card.openIdx + h3OpenLen,
-      to: card.closeEnd - "</h3>".length,
-      text: escapeHtml(tier.name),
-    });
-
     const cardSlice = sectionHtml.slice(card.closeEnd, cardEnd);
 
-    // 2. Заменить цену — ищем .price или первый <span>/<p>/<div> класса с "price"
+    const cardReplacements: Replacement[] = [];
+
+    // Цена — .price или первый <span>/<p>/<div>/<strong> класса с "price"
     const priceMatch = cardSlice.match(
       /<(span|p|div|strong)\b[^>]*class=["'][^"']*price[^"']*["'][^>]*>([\s\S]*?)<\/\1>/i,
     );
@@ -440,14 +438,14 @@ function replacePricingTiers(
         tier.period && !/\b(мес|month|year|год|сеанс|раз)\b/i.test(tier.price)
           ? `${tier.price} ${tier.period}`
           : tier.price;
-      replacements.push({
+      cardReplacements.push({
         from: card.closeEnd + priceMatch.index + tagOpenLen,
         to: card.closeEnd + priceMatch.index + priceMatch[0].length - tagCloseLen,
         text: escapeHtml(priceText),
       });
     }
 
-    // 3. Заменить features — первый <ul> или <ol> в карточке
+    // Features — первый <ul> или <ol> в карточке
     const ulMatch = cardSlice.match(/<(ul|ol)\b[^>]*>([\s\S]*?)<\/\1>/i);
     if (ulMatch && ulMatch.index !== undefined) {
       const ulTag = ulMatch[1]!.toLowerCase();
@@ -456,12 +454,24 @@ function replacePricingTiers(
         .join("\n");
       const ulOpenMatch = ulMatch[0].match(/^<(?:ul|ol)\b[^>]*>/i);
       const ulOpen = ulOpenMatch?.[0] ?? `<${ulTag}>`;
-      replacements.push({
+      cardReplacements.push({
         from: card.closeEnd + ulMatch.index,
         to: card.closeEnd + ulMatch.index + ulMatch[0].length,
         text: `${ulOpen}\n${liItems}\n</${ulTag}>`,
       });
     }
+
+    // Карточка реально тарифная (есть цена/фичи) — только тогда переписываем её
+    // <h3> в имя тарифа и засчитываем заполнение. Иначе h3 — подзаголовок, не трогаем.
+    if (cardReplacements.length === 0) continue;
+    realFilled++;
+    const h3OpenLen = sectionHtml.slice(card.openIdx).match(/<h3\b[^>]*>/i)?.[0].length ?? 0;
+    replacements.push({
+      from: card.openIdx + h3OpenLen,
+      to: card.closeEnd - "</h3>".length,
+      text: escapeHtml(tier.name),
+    });
+    replacements.push(...cardReplacements);
   }
 
   if (replacements.length === 0) return { html, replaced: 0 };
@@ -475,7 +485,7 @@ function replacePricingTiers(
 
   const newHtml =
     html.slice(0, range.start) + updatedSection + html.slice(range.end);
-  return { html: newHtml, replaced: cards.length };
+  return { html: newHtml, replaced: realFilled };
 }
 
 /**

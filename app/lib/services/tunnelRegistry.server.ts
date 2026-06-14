@@ -689,9 +689,15 @@ function countPendingByUser(userId: string): number {
   return n;
 }
 
-export function abortRequest(requestId: string): void {
+/**
+ * Отменяет запрос. Возвращает false, если pending не найден — например, abort
+ * пришёл, пока generate ещё строил planner-промпт и не успел зарегистрировать
+ * запрос (см. abortedEarly в wsHandlers). Тогда вызывающий запоминает отмену и
+ * применяет её сразу после routeRequest, чтобы запрос не осиротел на туннеле.
+ */
+export function abortRequest(requestId: string): boolean {
   const req = pendingRequests.get(requestId);
-  if (!req) return;
+  if (!req) return false;
 
   // Tell the tunnel to abort
   const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
@@ -720,6 +726,7 @@ export function abortRequest(requestId: string): void {
 
   pendingRequests.delete(requestId);
   stats.totalRequestsAborted++;
+  return true;
 }
 
 function findTunnelByConnectionId(connectionId: string): TunnelConnection | null {

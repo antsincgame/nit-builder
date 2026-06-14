@@ -90,10 +90,13 @@ export function joinPartialAndContinuation(
  * для того чтобы continuation мог точно продолжить.
  */
 export function cleanRawForTail(raw: string): string {
+  // ВАЖНО: якоримся к началу/концу ВСЕЙ строки, без флага /m. Раньше /m делал
+  // ^/$ совпадающими на каждой строке → если в сгенерированном сайте есть
+  // строка, начинающаяся/кончающаяся на ``` (например <pre>/<code> с примером
+  // markdown), её фенс срезался из СЕРЕДИНЫ контента, портя страницу.
   return raw
-    .replace(/^\s*```html\s*\n?/i, "")
-    .replace(/^\s*```\s*\n?/m, "")
-    .replace(/\n?```\s*$/m, "")
+    .replace(/^\s*```(?:html)?\s*\n?/i, "") // ведущий ```html или ```
+    .replace(/\n?```\s*$/, "") // хвостовой ``` (конец всего текста)
     .trimEnd();
 }
 

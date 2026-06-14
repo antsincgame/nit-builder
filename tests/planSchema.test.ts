@@ -111,4 +111,11 @@ describe("extractPlanJson", () => {
   it("бросает если нет JSON", () => {
     expect(() => extractPlanJson("no json here")).toThrow();
   });
+
+  it("вырезает <think>...</think> перед JSON (reasoning-модели)", () => {
+    // Скобки из размышлений раньше попадали в slice first-{ … last-} → битый
+    // JSON → тихий synthetic-fallback. Теперь think-блок срезается.
+    const raw = '<think>Hmm, the user wants { a coffee shop }... let me decide</think>\n{"a":1}';
+    expect(extractPlanJson(raw)).toEqual({ a: 1 });
+  });
 });

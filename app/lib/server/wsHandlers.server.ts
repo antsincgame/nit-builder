@@ -39,6 +39,7 @@ import {
 } from "./appwrite.server";
 import { parseSessionCookie, verifySessionToken } from "./sessionCookie.server";
 import { analyzePrompt, buildEnrichedSystemPrompt } from "~/lib/services/promptAnalyzer";
+import { sanitizeUserMessage } from "~/lib/utils/promptSanitizer";
 import {
   buildTunnelPlanPrompt,
   buildTunnelPolishPhase,
@@ -380,6 +381,11 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
   // authed. Sentinel блокирует второй раннер пока первый в pending.
   let authState: "none" | "pending" | "authed" = "none";
 
+  // requestId'ы, на которые abort пришёл ДО того, как generate успел
+  // зарегистрировать pending (маршрутизация идёт async после await). Применяем
+  // отмену сразу после routeRequest — иначе запрос осиротеет на туннеле.
+  const abortedEarly = new Set<string>();
+
   const stopKeepalive = installKeepalive(ws, "control");
 
   const send = (msg: ServerToBrowser): void => {
@@ -543,20 +549,25 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
           return;
         }
 
+        // Санитизация ввода ОДИН раз (паритет с серверным HTTP-путём): раньше на
+        // туннеле msg.prompt уходил в planner/coder сырым — инъекционные паттерны
+        // («ignore previous instructions», поддельные system:-строки) фильтровались
+        // только на сервере, а основной (туннельный) путь их пропускал.
+        const userPrompt = sanitizeUserMessage(msg.prompt);
+
         // Полный анализ промпта: template, tone, colors, business name,
         // sections, language, audience. Раньше передавали только template +
         // generic prompt — Coder выбирал тон/палитру наобум. Теперь всё явно,
         // результат воспроизводим и соответствует запросу.
-        const analysis = analyzePrompt(msg.prompt);
+        const analysis = analyzePrompt(userPrompt);
 
-        if ((msg.artifactMode ?? inferArtifactModeFromPrompt(msg.prompt)) === "php-sqlite") {
+        if ((msg.artifactMode ?? inferArtifactModeFromPrompt(userPrompt)) === "php-sqlite") {
           // Гибрид backend: план наполняет модель юзера (осмысленный каталог,
           // тексты, FAQ по запросу), а детерминированный билдер собирает из
           // плана безопасный PHP+SQLite (plan-done в tunnelRegistry). Туннель
           // обязателен; если его нет / занят / planner-промпт не собрался —
           // мгновенный fallback на эвристический план, чтобы backend работал.
           const reqId = msg.requestId;
-          const userPrompt = msg.prompt;
           const uid = authed.userId;
 
           const sendArtifactFallback = (): void => {
@@ -603,6 +614,13 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
             } catch {
               routed = false;
             }
+            // Отмена пришла, пока строился planner-промпт (abortedEarly): pending
+            // ещё не было, abortRequest был no-op. Применяем сразу после
+            // маршрутизации, иначе запрос осиротеет на туннеле.
+            if (abortedEarly.delete(reqId)) {
+              if (routed) abortRequest(reqId);
+              return; // отменено — ни fallback, ни ошибку не шлём
+            }
             // Туннеля нет / лимит / дубль / promtt не собрался — собираем
             // мгновенно эвристикой (прежнее поведение, backend всё равно есть).
             if (!routed) sendArtifactFallback();
@@ -613,7 +631,6 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
         // Только явный выбор пользователя из UI (может быть undefined).
         const explicitPresetId = msg.stylePresetId;
         const reqId = msg.requestId;
-        const userPrompt = msg.prompt;
         const uid = authed.userId;
 
         // Двухфазный планировщик: planner-промпт строим на сервере (RAG few-shot
@@ -665,6 +682,12 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
             if (routed) setRequestTemplate(reqId, analysis.template.id, analysis.template.name);
           }
 
+          // Отмена во время план-фазы (см. abortedEarly) — применяем после route.
+          if (abortedEarly.delete(reqId)) {
+            if (routed) abortRequest(reqId);
+            return; // отменено пользователем — ни ошибку, ни генерацию не шлём
+          }
+
           if (!routed) {
             const hasTunnel = hasTunnelForUser(uid);
             send({
@@ -682,7 +705,10 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
 
       case "abort": {
         if (!authed) return;
-        abortRequest(msg.requestId);
+        // false → pending ещё не создан (generate маршрутизирует async после
+        // await). Запоминаем, чтобы отменить сразу после routeRequest и не
+        // осиротить запрос на туннеле.
+        if (!abortRequest(msg.requestId)) abortedEarly.add(msg.requestId);
         break;
       }
 

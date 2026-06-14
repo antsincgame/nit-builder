@@ -51,6 +51,19 @@ describe("cleanRawForTail", () => {
     const partial = "<!DOCTYPE html><html><body><div>incomplete";
     expect(cleanRawForTail(partial)).toBe(partial);
   });
+
+  it("НЕ срезает ``` из середины контента (regression: флаг /m)", () => {
+    // Строка с ``` в середине (например <pre> с примером markdown) раньше
+    // теряла фенс из-за флага /m, портя страницу. Теперь трогаем только
+    // ведущий/хвостовой фенс всего текста.
+    const html = "<html><body><pre>```bash\nnpm i\n```</pre><div>tail";
+    expect(cleanRawForTail(html)).toBe(html);
+  });
+
+  it("срезает И ведущий ```html, И хвостовой ```, не трогая середину", () => {
+    const wrapped = "```html\n<html><pre>```js\nx\n```</pre></html>\n```";
+    expect(cleanRawForTail(wrapped)).toBe("<html><pre>```js\nx\n```</pre></html>");
+  });
 });
 
 describe("extractTail", () => {

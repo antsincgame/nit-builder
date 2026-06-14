@@ -239,6 +239,12 @@ export type PlanCollectionField = z.infer<typeof CollectionFieldSchema>;
 
 export function extractPlanJson(raw: string): unknown {
   const cleaned = raw
+    // Reasoning-модели (Qwen3 и т.п.) эмитят <think>...</think> ПЕРЕД JSON.
+    // Без вырезания slice от первой { до последней } захватывает фигурные скобки
+    // из размышлений → невалидный JSON → JSON.parse бросает → тихий synthetic-
+    // fallback (хороший план модели молча подменяется generic-заглушкой).
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, "")
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
