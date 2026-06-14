@@ -54,6 +54,17 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
 - **HTML**: `ensureClosedHtml` срезает хвост только если это реально начало тега
   (`<div`, `</p`, `<!--`) — одиночный `<` в тексте/скрипте (`цена < 1000`) не
   калечит валидный документ (`bc42c74`).
+- **skeleton (DOM-aware)**: `replaceBenefitCards`/`replaceTeamCards` переписаны
+  на `node-html-parser` — описание карточки ищется строго ВНУТРИ её контейнера
+  (предок заголовка, прямой ребёнок сетки), а не «первый `<p>` в хвосте до конца
+  секции». Не перетирает trailing-CTA после сетки, когда у последней карточки
+  нет своего описания, и находит описание даже за иконкой/обёрткой между
+  заголовком и `<p>`. Текст правится точечным splice по `node.range` — формат
+  сохраняется (`1e39199`).
+- **continuation**: `joinPartialAndContinuation` дедупит только содержательное
+  совпадение хвоста; чисто структурное (пробелы/закрывающие теги — частое и
+  случайное у HTML) больше не срезается, чтобы не снести реальный новый префикс
+  continuation (`1e39199`).
 
 ### 🔒 Security
 
@@ -72,9 +83,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
   preview-base, метрика abort-контракта, pricing-gating, fence, `<think>`,
   `ensureClosedHtml`, proto-drop). Полный прогон зелёный: **1199 тестов**,
   lint, typecheck, build.
-- Сознательно отложено (фрагильно без DOM-aware разбора, чтобы не плодить новый
-  «запах»): last-card `<p>`-overrun, `joinPartialAndContinuation` low-entropy
-  dedup, planCache-коллизии.
+- Отложено на refactor-уровень (вне этого набора): контекст исходного документа
+  в polish-continuation, нормализация ключа `planCache` (коллизии похожих
+  промптов).
 
 ## [2.0.0-beta.2] — 2026-05-17 (post-launch audit)
 
