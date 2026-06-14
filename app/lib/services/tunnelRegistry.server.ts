@@ -122,6 +122,8 @@ export type PendingRequest = {
   // feedbackStore (раньше туннельные генерации мимо корпуса не попадали).
   /** Исходный промпт пользователя (для continuation prompt + feedback). */
   userMessage?: string;
+  /** Режим генерации (create/polish) — для честной feedback-записи. Отсутствие = create. */
+  mode?: "create" | "polish";
   maxOutputTokens?: number;
   temperature?: number;
   /** Модель/рантайм туннеля (из capabilities) — для feedback-записи. */
@@ -593,6 +595,12 @@ export type RouteRequestParams = {
   // ─── Двухфазный планировщик ───
   /** "plan" — первый generate это планировщик; "code"/отсутствие — legacy. */
   phase?: "plan" | "code";
+  /**
+   * Режим генерации для телеметрии/feedback. "polish" — правка существующего
+   * сайта (одна code-фаза, без плана). Отсутствие = "create". Раньше туннельный
+   * исход всегда писался как "create", из-за чего feedback-корпус врал по polish.
+   */
+  mode?: "create" | "polish";
   /** Исходное сообщение юзера (в plan-фазе prompt = planner-промпт, не оно). */
   originalPrompt?: string;
   /** Стиль-пресет для резолюции плана + post-polish. */
@@ -634,6 +642,7 @@ export function routeRequest(params: RouteRequestParams): boolean {
     // это planner-промпт, поэтому берём originalPrompt). Нужен для coder-фазы,
     // continuation и feedback.
     userMessage: params.originalPrompt ?? params.prompt,
+    mode: params.mode,
     // maxOutputTokens хранится как бюджет ФАЗЫ КОДЕРА (и continuation). Первый
     // send ниже использует params.maxOutputTokens (в plan-фазе — короткий
     // plan-бюджет), а на фазу code переключаемся уже с code-бюджетом.
@@ -1242,7 +1251,7 @@ function recordTunnelOutcome(
 ): void {
   recordGeneration({
     sessionId: req.browserSessionId,
-    mode: "create",
+    mode: req.mode ?? "create",
     outcome,
     provider: req.provider ?? "tunnel",
     model: req.model ?? "unknown",

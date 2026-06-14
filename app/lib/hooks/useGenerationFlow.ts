@@ -92,7 +92,15 @@ function pluralBlocks(n: number): string {
 export type ViewMode = "welcome" | "generating" | "editing";
 export type PipelineStep = "plan" | "template" | "code" | "done";
 export type ChatMessage = { role: "user" | "assistant"; text: string };
-export type CreateSiteOptions = { stylePresetId?: StylePresetId };
+export type CreateSiteOptions = {
+  stylePresetId?: StylePresetId;
+  /**
+   * Внутреннее: повтор после ошибки/обрыва — всегда fresh create, минуя
+   * polish-guard. Иначе «Повторить» на спасённом партиале ушло бы в polish
+   * вместо честной перегенерации с нуля (что и обещает подсказка о спасении).
+   */
+  forceCreate?: boolean;
+};
 
 /** Минимальный shape того что возвращает useControlSocket — чтобы hook не зависел от полного типа. */
 export type ControlSocketLike = {
@@ -318,6 +326,11 @@ export function useGenerationFlow(
   useEffect(() => {
     getSocketRef.current = getSocket;
   }, [getSocket]);
+
+  // polishSite через ref: createSite (объявлен раньше polishSite) делегирует
+  // ему, если в памяти уже есть готовый сайт. Ref разрывает порядок объявления
+  // и не тянет polishSite в deps createSite.
+  const polishSiteRef = useRef<((request: string) => Promise<void>) | null>(null);
 
   // RAF-throttled iframe updates чтобы не блокировать main thread на
   // больших HTML стримах.
@@ -632,6 +645,16 @@ export function useGenerationFlow(
 
   const createSite = useCallback(
     async (prompt: string, createOptions: CreateSiteOptions = {}) => {
+      // Guard «доделать, а не потерять»: если в памяти уже есть готовый сайт,
+      // запрос из главного поля — это правка, а не новый сайт. Раньше повторный
+      // промпт молча стирал сайт новой генерацией (память терялась). «Новый сайт»
+      // идёт через reset() (html очищен) → сюда попадает с пустым html → create.
+      // forceCreate (повтор после ошибки) минует guard — там нужен fresh create.
+      if (!createOptions.forceCreate && htmlRef.current.trim() && polishSiteRef.current) {
+        await polishSiteRef.current(prompt);
+        return;
+      }
+
       const currentSocket = getSocketRef.current();
       const currentAuth = authRef.current;
 
@@ -884,6 +907,9 @@ export function useGenerationFlow(
           projectId,
           prompt: request,
           sessionId: sessionIdRef.current,
+          // Текущий HTML в теле → сервер регидрирует session memory, даже если
+          // она пуста (редеплой / reload / continue-from-history без sessionId).
+          previousHtml: htmlRef.current,
           signal: ctrl.signal,
           onEvent: (event) => {
             switch (event.type) {
@@ -935,6 +961,11 @@ export function useGenerationFlow(
     },
     [projectId, scheduleIframeUpdate, pushVersion],
   );
+
+  // createSite делегирует сюда, если сайт уже есть (см. guard выше).
+  useEffect(() => {
+    polishSiteRef.current = polishSite;
+  }, [polishSite]);
 
   const cancelGeneration = useCallback(() => {
     abortCtrlRef.current?.abort();
@@ -1050,7 +1081,7 @@ export function useGenerationFlow(
     const prompt = retryablePrompt;
     if (!prompt) return;
     setRetryablePrompt(null);
-    void createSite(prompt, { stylePresetId: lastStyleRef.current });
+    void createSite(prompt, { stylePresetId: lastStyleRef.current, forceCreate: true });
   }, [retryablePrompt, createSite]);
 
   return {

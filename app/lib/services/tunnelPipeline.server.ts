@@ -40,7 +40,10 @@ import {
   buildCoderUserMessage,
   buildCustomArtifactUserMessage,
   buildAdminRepairPrompt,
+  POLISHER_SYSTEM_PROMPT,
+  buildPolisherUserMessage,
 } from "~/lib/config/htmlPrompts";
+import { sanitizeUserMessage } from "~/lib/utils/promptSanitizer";
 import { tierProfile, type ModelTier } from "~/lib/llm/modelTier";
 import {
   applyPremiumBaseLayer,
@@ -81,6 +84,13 @@ const SCOPE = "tunnelPipeline";
 export const TUNNEL_PLAN_MAX_TOKENS = 2500;
 /** Бюджет токенов на фазу кодера (большой HTML). */
 export const TUNNEL_CODE_MAX_TOKENS = 8000;
+/**
+ * Бюджет токенов на polish-фазу. Модель возвращает ВЕСЬ HTML заново, поэтому
+ * бюджет как у кодера; server-driven continuation добивает хвост при обрыве.
+ */
+export const TUNNEL_POLISH_MAX_TOKENS = TUNNEL_CODE_MAX_TOKENS;
+/** Температура polish-фазы — низкая: правка точечная, без переизобретения сайта. */
+export const TUNNEL_POLISH_TEMPERATURE = 0.3;
 /** Лимит на best-effort retrieval, чтобы не подвешивать запрос если
  *  embeddings-провайдер недоступен/медленный. */
 const RETRIEVAL_TIMEOUT_MS = 4000;
@@ -175,6 +185,46 @@ export async function buildTunnelPlanPrompt(
   return {
     system: buildPlannerSystemPrompt(candidateIds, fewShotBlock),
     prompt: sanitizedMessage,
+  };
+}
+
+export type TunnelPolishPhase = {
+  system: string;
+  prompt: string;
+  maxOutputTokens: number;
+  temperature: number;
+};
+
+/**
+ * Строит polish-фазу для туннеля (mode="polish"): правку СУЩЕСТВУЮЩЕГО сайта по
+ * запросу, без планировщика и выбора шаблона. Модель получает текущий HTML
+ * (previousHtml) + правку и возвращает новый полный HTML — это одна code-фаза.
+ *
+ * Раньше WS-обработчик игнорировал mode/previousHtml: любой уточняющий запрос
+ * («сделай шапку синей», «добавь блок цен») молча уходил как ТЗ на НОВЫЙ сайт,
+ * и память о текущем сайте терялась. Теперь правки применяются к нему.
+ *
+ * На финализации план отсутствует → finalizeTunnelDone делает только
+ * stripCodeFences (post-polish не нужен — структура уже готова). Запрос
+ * пользователя санитизируется, как на HTTP-polish-пути.
+ *
+ * Возвращает null если previousHtml пуст — нечего полировать; вызывающий отдаёт
+ * честную ошибку «сначала создай сайт» вместо молчаливой новой генерации.
+ */
+export function buildTunnelPolishPhase(
+  previousHtml: string,
+  userRequest: string,
+): TunnelPolishPhase | null {
+  if (!previousHtml.trim()) return null;
+  const sanitized = sanitizeUserMessage(userRequest);
+  return {
+    system: POLISHER_SYSTEM_PROMPT,
+    prompt: buildPolisherUserMessage({
+      currentHtml: previousHtml,
+      userRequest: sanitized,
+    }),
+    maxOutputTokens: TUNNEL_POLISH_MAX_TOKENS,
+    temperature: TUNNEL_POLISH_TEMPERATURE,
   };
 }
 

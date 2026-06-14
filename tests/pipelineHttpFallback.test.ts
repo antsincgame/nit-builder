@@ -244,6 +244,29 @@ describe("runHttpPipeline", () => {
     expect(body.sessionId).toBe("existing-session-abc");
     expect(body.mode).toBe("polish");
   });
+
+  it("передаёт previousHtml в body для polish (регидрация session memory)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      makeSseResponse([JSON.stringify({ type: "step_complete", html: "<html>patched</html>" })]),
+    );
+    globalThis.fetch = fetchMock;
+
+    await runHttpPipeline({
+      mode: "polish",
+      projectId: "p-1",
+      prompt: "сделай шапку синей",
+      sessionId: undefined,
+      previousHtml: "<html><body>before</body></html>",
+      signal: new AbortController().signal,
+      onEvent: () => {},
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0]![1].body as string);
+    // previousHtml — источник правды для сервера, когда session memory пуста
+    // (редеплой / reload / continue-from-history без sessionId).
+    expect(body.previousHtml).toBe("<html><body>before</body></html>");
+    expect(body.mode).toBe("polish");
+  });
 });
 
 describe("runHttpPipeline — не-SSE ошибки ответа", () => {

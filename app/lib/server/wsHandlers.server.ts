@@ -41,6 +41,7 @@ import { parseSessionCookie, verifySessionToken } from "./sessionCookie.server";
 import { analyzePrompt, buildEnrichedSystemPrompt } from "~/lib/services/promptAnalyzer";
 import {
   buildTunnelPlanPrompt,
+  buildTunnelPolishPhase,
   TUNNEL_PLAN_MAX_TOKENS,
   TUNNEL_CODE_MAX_TOKENS,
 } from "~/lib/services/tunnelPipeline.server";
@@ -495,6 +496,52 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
 
       case "generate": {
         if (!authed) return;
+
+        // ─── Polish: правка существующего сайта (mode==="polish") ───
+        // Раньше этот обработчик игнорировал msg.mode и msg.previousHtml — любой
+        // уточняющий запрос («сделай шапку синей», «добавь блок цен») молча уходил
+        // в planner→create как ТЗ на НОВЫЙ сайт, и память о текущем сайте терялась
+        // («пайплайн делает новый»). Теперь polish — одна code-фаза: модель
+        // получает текущий HTML (previousHtml клиента) + правку и возвращает новый
+        // полный HTML. Без планировщика/шаблона; finalizeTunnelDone без плана =
+        // stripCodeFences. Докрутку при обрыве крутит сервер (как у create).
+        if (msg.mode === "polish") {
+          const reqId = msg.requestId;
+          const polish = buildTunnelPolishPhase(msg.previousHtml ?? "", msg.prompt);
+          if (!polish) {
+            send({
+              type: "generate_error",
+              requestId: reqId,
+              error: "Нет HTML для правки. Сначала создай сайт.",
+              code: "LLM_ERROR",
+            });
+            return;
+          }
+          const routed = routeRequest({
+            requestId: reqId,
+            userId: authed.userId,
+            browserSessionId: sessionId,
+            system: polish.system,
+            prompt: polish.prompt,
+            maxOutputTokens: polish.maxOutputTokens,
+            temperature: polish.temperature,
+            originalPrompt: msg.prompt,
+            mode: "polish",
+            // phase опущена → "code"; плана нет → finalize = stripCodeFences.
+          });
+          if (!routed) {
+            const hasTunnel = hasTunnelForUser(authed.userId);
+            send({
+              type: "generate_error",
+              requestId: reqId,
+              error: hasTunnel
+                ? "Слишком много параллельных генераций. Дождись завершения текущих."
+                : "No tunnel connected. Install NIT Tunnel on a device with a GPU.",
+              code: hasTunnel ? "RATE_LIMITED" : "NO_TUNNEL",
+            });
+          }
+          return;
+        }
 
         // Полный анализ промпта: template, tone, colors, business name,
         // sections, language, audience. Раньше передавали только template +

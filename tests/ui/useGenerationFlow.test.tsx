@@ -1082,3 +1082,113 @@ describe("useGenerationFlow > handleWsEvent ABORTED", () => {
     expect(result.current.chatMessages.some((m) => m.text.startsWith("❌"))).toBe(true);
   });
 });
+
+// ─── Polish memory: previousHtml + create-guard (доделать, не потерять) ──
+
+describe("useGenerationFlow > polish память сайта", () => {
+  /** Создаёт сайт через HTTP (guest), возвращает hook с html в стейте. */
+  async function createdHook(html = "<html>v1</html>") {
+    mockedRunHttp.mockImplementationOnce(async (params: {
+      onEvent: (e: { type: string; templateId?: string; templateName?: string }) => void;
+    }) => {
+      params.onEvent({ type: "template_selected", templateId: "coffee", templateName: "Coffee" });
+      return { finalHtml: html, templateId: "coffee", templateName: "Coffee", newSessionId: "s-1" };
+    });
+    const socket = makeFakeSocket();
+    const hook = renderHook(() =>
+      useGenerationFlow({ projectId: "p-1", auth: guestAuth, getSocket: () => socket }),
+    );
+    await act(async () => {
+      await hook.result.current.createSite("coffee shop");
+    });
+    expect(hook.result.current.html).toBe(html);
+    return hook;
+  }
+
+  it("polishSite (HTTP) шлёт previousHtml = текущий html для регидрации памяти", async () => {
+    const hook = await createdHook("<html>SITE</html>");
+
+    mockedRunHttp.mockImplementationOnce(async () => ({
+      finalHtml: "<html>SITE-patched</html>",
+      templateId: "coffee",
+      templateName: "Coffee",
+      newSessionId: "s-1",
+    }));
+
+    await act(async () => {
+      await hook.result.current.polishSite("сделай шапку синей");
+    });
+
+    const polishCall = mockedRunHttp.mock.calls.at(-1)![0];
+    expect(polishCall).toMatchObject({
+      mode: "polish",
+      prompt: "сделай шапку синей",
+      previousHtml: "<html>SITE</html>",
+    });
+    expect(hook.result.current.html).toBe("<html>SITE-patched</html>");
+  });
+
+  it("createSite при уже существующем сайте делегирует в polish (не теряет сайт)", async () => {
+    const hook = await createdHook("<html>EXISTING</html>");
+    mockedRunHttp.mockClear();
+
+    // Повторный «create» из главного поля при живом сайте — это правка.
+    mockedRunHttp.mockImplementationOnce(async () => ({
+      finalHtml: "<html>EXISTING-edited</html>",
+      templateId: "coffee",
+      templateName: "Coffee",
+      newSessionId: "s-1",
+    }));
+
+    await act(async () => {
+      await hook.result.current.createSite("добавь блок с ценами");
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledTimes(1);
+    const call = mockedRunHttp.mock.calls[0]![0];
+    // Делегировано в polishSite: mode=polish + previousHtml существующего сайта.
+    expect(call.mode).toBe("polish");
+    expect(call.previousHtml).toBe("<html>EXISTING</html>");
+    expect(hook.result.current.html).toBe("<html>EXISTING-edited</html>");
+  });
+
+  it("createSite с forceCreate (повтор) минует guard и делает fresh create при живом сайте", async () => {
+    const hook = await createdHook("<html>EXISTING</html>");
+    mockedRunHttp.mockClear();
+
+    mockedRunHttp.mockImplementationOnce(async () => ({
+      finalHtml: "<html>REGENERATED</html>",
+      templateId: "coffee",
+      templateName: "Coffee",
+      newSessionId: "s-1",
+    }));
+
+    await act(async () => {
+      await hook.result.current.createSite("кофейня заново", { forceCreate: true });
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledTimes(1);
+    // forceCreate → НЕ делегировано в polish: повтор перегенерирует с нуля.
+    expect(mockedRunHttp.mock.calls[0]![0].mode).toBe("create");
+  });
+
+  it("createSite на чистом старте (html пуст) идёт обычным create", async () => {
+    mockedRunHttp.mockImplementationOnce(async () => ({
+      finalHtml: "<html>NEW</html>",
+      templateId: "coffee",
+      templateName: "Coffee",
+      newSessionId: "s-1",
+    }));
+    const socket = makeFakeSocket();
+    const hook = renderHook(() =>
+      useGenerationFlow({ projectId: "p-1", auth: guestAuth, getSocket: () => socket }),
+    );
+
+    await act(async () => {
+      await hook.result.current.createSite("кофейня в минске");
+    });
+
+    expect(mockedRunHttp).toHaveBeenCalledTimes(1);
+    expect(mockedRunHttp.mock.calls[0]![0].mode).toBe("create");
+  });
+});
