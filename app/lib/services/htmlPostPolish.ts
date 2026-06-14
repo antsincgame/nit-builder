@@ -123,8 +123,15 @@ function escAttr(s: string): string {
 }
 
 function escJsonLd(s: string): string {
-  // Безопасная вставка JSON в <script>: гасим угловые скобки и амперсанд.
-  return s.replace(/</g, "\\u003c").replace(/>/g, "\\u003e").replace(/&/g, "\\u0026");
+  // Безопасная вставка JSON в <script>: гасим угловые скобки, амперсанд и
+  // строковые разделители U+2028/U+2029 (легальны в JSON-строке, но как сырые
+  // переводы строк ломают парсинг в части JS-контекстов).
+  return s
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 function ogLocale(lang: Plan["language"]): string {
@@ -388,10 +395,13 @@ export function applyWowLayer(html: string, plan?: { business_type?: string }): 
 
 export function ensureClosedHtml(html: string): string {
   let out = html.trimEnd();
-  // Хвост оборван посреди тега: последний '<' стоит позже последнего '>'.
+  // Хвост оборван посреди тега: последний '<' стоит позже последнего '>'. НО
+  // срезаем только если это действительно НАЧАЛО тега (<div, </p, <!--): иначе
+  // одиночный '<' в тексте/скрипте (`if (a < b)`, `цена < 1000`) ошибочно
+  // отрезал бы валидный хвост документа.
   const lastLt = out.lastIndexOf("<");
   const lastGt = out.lastIndexOf(">");
-  if (lastLt > lastGt) {
+  if (lastLt > lastGt && /^<[a-zA-Z/!]/.test(out.slice(lastLt))) {
     out = out.slice(0, lastLt).trimEnd();
   }
   if (!/<\/html>/i.test(out)) {

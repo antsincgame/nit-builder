@@ -251,7 +251,15 @@ export function extractPlanJson(raw: string): unknown {
   const first = cleaned.indexOf("{");
   const last = cleaned.lastIndexOf("}");
   if (first < 0 || last < 0) throw new Error("Plan JSON not found");
-  return JSON.parse(cleaned.slice(first, last + 1));
+  return JSON.parse(cleaned.slice(first, last + 1), (key, value) => {
+    // Защита от prototype pollution: dangerous-ключи из недоверенного LLM-JSON
+    // не пропускаем. Zod ниже и так срезал бы неизвестные поля, но дропаем
+    // заранее — defense-in-depth для любого кода, читающего объект до Zod.
+    if (key === "__proto__" || key === "constructor" || key === "prototype") {
+      return undefined;
+    }
+    return value;
+  });
 }
 
 /**

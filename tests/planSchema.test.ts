@@ -118,4 +118,15 @@ describe("extractPlanJson", () => {
     const raw = '<think>Hmm, the user wants { a coffee shop }... let me decide</think>\n{"a":1}';
     expect(extractPlanJson(raw)).toEqual({ a: 1 });
   });
+
+  it("дропает dangerous-ключи (__proto__) из недоверенного JSON", () => {
+    const parsed = extractPlanJson('{"a":1,"__proto__":{"polluted":true}}') as Record<
+      string,
+      unknown
+    >;
+    expect(parsed.a).toBe(1);
+    // Прототип не загрязнён и own-ключ __proto__ не пробрасывается.
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(false);
+  });
 });
