@@ -109,6 +109,9 @@ function shouldPrerender(req: IncomingMessage, pathname: string): boolean {
   if (req.method !== "GET") return false;
   if (pathname.startsWith("/api/")) return false;
   if (pathname.startsWith("/assets/")) return false;
+  // /p/:token уже отдаёт статичный snapshot-HTML сайта (resource route) —
+  // прогонять его через headless-Chromium незачем.
+  if (pathname.startsWith("/p/")) return false;
   if (STATIC_EXT_RE.test(pathname)) return false;
 
   const ua = req.headers["user-agent"];
@@ -286,8 +289,13 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
 
 const httpServer = createServer(handleHttp);
 
-const tunnelWss = new WebSocketServer({ noServer: true });
-const controlWss = new WebSocketServer({ noServer: true });
+// maxPayload: и туннель (присылает сгенерированный HTML), и контрол (браузер
+// шлёт previousHtml на polish) несут крупные, но не безразмерные сообщения.
+// Дефолт ws — 100 МБ; режем до 16 МБ — хватает сайтам с инлайн-картинками, но
+// снимает DoS-вектор «безразмерный previousHtml/HTML буферится в память».
+const WS_MAX_PAYLOAD = 16 * 1024 * 1024;
+const tunnelWss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD });
+const controlWss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD });
 
 httpServer.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);

@@ -16,6 +16,9 @@ const Schema = z
     projectId: z.string().min(1),
     sessionId: z.string().optional(),
     message: z.string().max(10_000).optional(),
+    // Текущий HTML для регидрации session memory на polish (см. ниже). Большой
+    // лимит — сайты с инлайн-Tailwind бывают объёмными, но не безразмерными.
+    previousHtml: z.string().max(1_000_000).optional(),
     providerId: z.string().optional(),
     modelName: z.string().optional(),
     polishIntent: z.enum(["css_patch", "full_rewrite"]).optional(),
@@ -89,10 +92,22 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail }, { status: 400 });
   }
 
- const { mode, projectId, message, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId } = parsed.data;
+ const { mode, projectId, message, previousHtml, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
   const memory = getOrCreateSession(sessionId, projectId);
   const providerOverride = providerId ? { providerId, modelName } : undefined;
+
+  // Регидрация session memory для polish. Память эфемерна (Map в процессе):
+  // обнуляется при редеплое, теряется при reload / continue-from-history, когда
+  // клиент не донёс прежний sessionId. Если клиент прислал текущий HTML — он
+  // источник правды (как на WS-пути, где previousHtml идёт в каждом polish).
+  // Без этого executeHtmlPolish падал в «Нет HTML для правки» и юзер был вынужден
+  // начинать сайт заново. Берём previousHtml когда в памяти пусто ИЛИ HTML
+  // отличается (клиентский — самый свежий после undo/redo/правок).
+  if (mode === "polish" && previousHtml && previousHtml !== memory.currentHtml) {
+    memory.currentHtml = previousHtml;
+    memory.updatedAt = Date.now();
+  }
 
   const encoder = new TextEncoder();
 

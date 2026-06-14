@@ -281,8 +281,9 @@ export async function* executeHtmlPolish(
     }
   }
 
-  metrics.generationStarted("polish", provider.id);
-  metrics.generationStarted("polish", provider.id);
+  // generationStarted уже инкрементирован один раз в начале polish (см. выше);
+  // здесь, на full-rewrite ветке каскада, повторять НЕЛЬЗЯ — иначе один запрос
+  // считается 3× при одном completed, завышая in-flight gauge и занижая success-rate.
   yield {
     type: "step_start",
     roleName: "Полировщик",

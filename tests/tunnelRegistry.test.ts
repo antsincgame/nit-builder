@@ -408,6 +408,30 @@ describe("tunnelRegistry", () => {
       expect(ab?.requestId).toBe("req-ab");
     });
 
+    it("abortRequest возвращает false для неизвестного id, true для живого", () => {
+      // false → pending ещё не создан (abort пришёл раньше route): вызывающий
+      // в wsHandlers запомнит отмену и применит её сразу после routeRequest.
+      expect(abortRequest("never-routed")).toBe(false);
+
+      const { conn } = makeTunnel("bob", "t-ret");
+      const { session } = makeBrowser("bob", "s-ret");
+      registerTunnel(conn);
+      registerBrowser(session);
+      routeRequest({
+        requestId: "req-ret",
+        userId: "bob",
+        browserSessionId: "s-ret",
+        system: "",
+        prompt: "",
+        maxOutputTokens: 1000,
+        temperature: 0,
+      });
+
+      expect(abortRequest("req-ret")).toBe(true);
+      // Повторный abort того же id — уже удалён → false.
+      expect(abortRequest("req-ret")).toBe(false);
+    });
+
     it("aborts all pending requests from disconnected browser", () => {
       const { conn, ws: tws } = makeTunnel("alice", "t-b1");
       const { session } = makeBrowser("alice", "s-b1");

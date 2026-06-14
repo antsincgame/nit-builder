@@ -36,6 +36,26 @@ describe("joinPartialAndContinuation", () => {
     expect(joinPartialAndContinuation("abc", "")).toBe("abc");
     expect(joinPartialAndContinuation("", "")).toBe("");
   });
+
+  it("НЕ дедупит чисто структурное совпадение — новый контент не теряется (#6)", () => {
+    const struct = "</div>\n      </div>\n      "; // ≥20, только пробелы + закрывашки
+    const partial = "<main><p>genuine text</p>" + struct;
+    const continuation = struct + "<section>FRESH CONTENT</section>";
+    // Совпадение хвоста чисто структурное (вероятно случайное) → склеиваем без
+    // среза, чтобы не снести реальный новый префикс continuation.
+    const joined = joinPartialAndContinuation(partial, continuation);
+    expect(joined).toBe(partial + continuation);
+    expect(joined).toContain("FRESH CONTENT");
+  });
+
+  it("дедупит СОДЕРЖАТЕЛЬНОЕ совпадение хвоста (с текстом)", () => {
+    const tail = "Best Coffee In The City</h1>";
+    const partial = "<header><h1>" + tail;
+    const continuation = tail + "<nav>menu</nav>";
+    expect(joinPartialAndContinuation(partial, continuation)).toBe(
+      "<header><h1>Best Coffee In The City</h1><nav>menu</nav>",
+    );
+  });
 });
 
 describe("cleanRawForTail", () => {
@@ -50,6 +70,19 @@ describe("cleanRawForTail", () => {
   it("НЕ дописывает </html> если его нет (partial!)", () => {
     const partial = "<!DOCTYPE html><html><body><div>incomplete";
     expect(cleanRawForTail(partial)).toBe(partial);
+  });
+
+  it("НЕ срезает ``` из середины контента (regression: флаг /m)", () => {
+    // Строка с ``` в середине (например <pre> с примером markdown) раньше
+    // теряла фенс из-за флага /m, портя страницу. Теперь трогаем только
+    // ведущий/хвостовой фенс всего текста.
+    const html = "<html><body><pre>```bash\nnpm i\n```</pre><div>tail";
+    expect(cleanRawForTail(html)).toBe(html);
+  });
+
+  it("срезает И ведущий ```html, И хвостовой ```, не трогая середину", () => {
+    const wrapped = "```html\n<html><pre>```js\nx\n```</pre></html>\n```";
+    expect(cleanRawForTail(wrapped)).toBe("<html><pre>```js\nx\n```</pre></html>");
   });
 });
 

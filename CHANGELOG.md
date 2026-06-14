@@ -3,6 +3,90 @@
 All notable changes to NIT Builder are documented here.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 2026-06-14 (generator reliability)
+
+Серия фиксов основного цикла генератора: правка существующего сайта вместо
+генерации нового, кликабельное превью, плюс находки полного код-ревью
+пайплайна. P0 в PHP-бандле не найдено. CI зелёный, +~30 регрессионных тестов.
+
+### 🔴 Fixed — основной цикл продукта
+
+- **Polish правит существующий сайт, а не генерирует новый** (`e4c5f0a`)
+  - WS-туннель (основной путь для залогиненных) игнорировал `mode` и
+    `previousHtml` — любой уточняющий промпт («сделай шапку синей», «добавь
+    блок цен») молча уходил в planner→create как ТЗ на новый сайт, теряя
+    память о текущем. Добавлена polish-ветка (`buildTunnelPolishPhase`): одна
+    code-фаза с `POLISHER_SYSTEM_PROMPT` + текущий HTML, без планировщика;
+    finalize без плана = `stripCodeFences`, докрутку крутит сервер.
+  - HTTP-fallback: эфемерная session memory (Map в процессе) не
+    регидрировалась — polish падал в «Нет HTML для правки» после
+    редеплоя/reload/continue-from-history. Клиент шлёт `previousHtml` в теле,
+    сервер регидрирует `memory.currentHtml`.
+  - Клиент: create при живом сайте трактуется как правка (guard); повтор после
+    ошибки (`forceCreate`) минует guard. Туннельный feedback пишет реальный
+    `mode` (create/polish), а не всегда create.
+
+- **Ссылки внутри сайта не открывают билдер в превью** (`75e8054`)
+  - Превью рендерится через `<iframe srcDoc>`; у srcdoc-документа нет своего
+    URL, поэтому относительные и hash-ссылки резолвились против URL родителя
+    (`/app/u/:publicId`) — клик по меню сгенерированного сайта грузил сам
+    билдер внутрь превью («фрактальное» открытие проекта в проекте).
+  - `withPreviewBase` инжектит `<base href="about:srcdoc">` (только srcdoc);
+    guard формата publicId в loader `/app/u/:publicId`; `currentSiteId` не
+    ставится для локальных id (share по ним давал 404); `/p/` исключён из
+    prerender; удалён мёртвый `LivePreview.tsx`.
+
+### 🟠 Fixed — корректность пайплайна (полный код-ревью генератора)
+
+- **Метрики**: убран тройной `generationStarted` в polish full-rewrite (3× при
+  1× completed — завышал in-flight gauge, занижал success-rate) (`2621739`).
+- **Abort-гонка**: отмена во время план-фазы больше не теряется — запрос не
+  осиротеет на туннеле (раньше GPU жёг генерацию до 5-мин sweeper'а);
+  `abortRequest` → bool + `abortedEarly` в WS-обработчике (`2621739`).
+- **pricing**: `replacePricingTiers` переписывает `<h3>` в имя тарифа и считает
+  слот заполненным только при реальной цене/фичах — не искажает h3-подзаголовки
+  и не завышает счёт (был `replaced=cards.length`) (`2621739`).
+- **continuation**: `cleanRawForTail` без флага `/m` — фенс ``` не срезается из
+  середины контента (например `<pre>` с примером markdown) (`2621739`).
+- **planner**: `extractPlanJson` вырезает `<think>…</think>` до slice —
+  reasoning-модели (Qwen3) больше не роняют план в synthetic-fallback
+  (`2621739`).
+- **HTML**: `ensureClosedHtml` срезает хвост только если это реально начало тега
+  (`<div`, `</p`, `<!--`) — одиночный `<` в тексте/скрипте (`цена < 1000`) не
+  калечит валидный документ (`bc42c74`).
+- **skeleton (DOM-aware)**: `replaceBenefitCards`/`replaceTeamCards` переписаны
+  на `node-html-parser` — описание карточки ищется строго ВНУТРИ её контейнера
+  (предок заголовка, прямой ребёнок сетки), а не «первый `<p>` в хвосте до конца
+  секции». Не перетирает trailing-CTA после сетки, когда у последней карточки
+  нет своего описания, и находит описание даже за иконкой/обёрткой между
+  заголовком и `<p>`. Текст правится точечным splice по `node.range` — формат
+  сохраняется (`1e39199`).
+- **continuation**: `joinPartialAndContinuation` дедупит только содержательное
+  совпадение хвоста; чисто структурное (пробелы/закрывающие теги — частое и
+  случайное у HTML) больше не срезается, чтобы не снести реальный новый префикс
+  continuation (`1e39199`).
+
+### 🔒 Security
+
+- Туннельный `msg.prompt` теперь проходит `sanitizeUserMessage` (паритет с
+  серверным HTTP-путём) — prompt-injection-паттерны фильтруются и на основном
+  (BYO-GPU) пути (`2621739`).
+- `maxPayload=16 МБ` на обоих WebSocket — `previousHtml`/HTML больше не
+  безразмерны (был дефолт `ws` 100 МБ, DoS-вектор) (`2621739`).
+- `extractPlanJson` reviver дропает `__proto__`/`constructor`/`prototype` из
+  недоверенного LLM-JSON (defense-in-depth до Zod-границы) (`bc42c74`).
+- `escJsonLd` экранирует U+2028/U+2029 в JSON-LD (`bc42c74`).
+
+### ✅ Tests / quality
+
+- +~30 регрессионных тестов: каждый фикс закрыт тестом (polish-память,
+  preview-base, метрика abort-контракта, pricing-gating, fence, `<think>`,
+  `ensureClosedHtml`, proto-drop). Полный прогон зелёный: **1199 тестов**,
+  lint, typecheck, build.
+- Отложено на refactor-уровень (вне этого набора): контекст исходного документа
+  в polish-continuation, нормализация ключа `planCache` (коллизии похожих
+  промптов).
+
 ## [2.0.0-beta.2] — 2026-05-17 (post-launch audit)
 
 Полный аудит после выхода 2.0.0-beta.1, фокус на документации, безопасности

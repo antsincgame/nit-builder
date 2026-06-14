@@ -11,10 +11,20 @@ import Home from "./home";
 import { getAuth } from "~/lib/server/requireAuth.server";
 import { ensurePublicId } from "~/lib/server/publicId.server";
 
+// publicId — ровно 10 символов base62 (publicId.server.ts). Share-токен сайта —
+// 12 base62 и живёт на /p/:token. Guard не даёт принять чужой формат (например
+// 12-символьный токен, по ошибке попавший в /app/u/<token>) за publicId: иначе
+// loader молча редиректил бы авторизованного в его кабинет (welcome) — ровно
+// «сайт открылся как проект». Не наш формат → честный 404, а не подмена.
+const PUBLIC_ID_RE = /^[A-Za-z0-9]{10}$/;
+
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = await getAuth(request);
   if (!user) {
     return redirect("/app");
+  }
+  if (!params.publicId || !PUBLIC_ID_RE.test(params.publicId)) {
+    throw new Response("Not found", { status: 404 });
   }
   const pid = await ensurePublicId(user.userId);
   if (pid && pid !== params.publicId) {

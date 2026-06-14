@@ -164,6 +164,22 @@ describe("ensureClosedHtml", () => {
     expect(out).toContain("</body>");
     expect(out).toContain("</html>");
   });
+
+  it("НЕ срезает одиночный '<' из текста (не начало тега)", () => {
+    // Регрессия: последний '<' позже последнего '>', но это контент ("цена <
+    // 1000"), а не оборванный тег. Раньше срезался валидный хвост.
+    const partial = "<html><head></head><body><p>цена < 1000 руб";
+    const out = ensureClosedHtml(partial);
+    expect(out).toContain("цена < 1000 руб");
+    expect(out).toContain("</html>");
+  });
+
+  it("срезает реально оборванный хвостовой тег (<div ...)", () => {
+    const out = ensureClosedHtml("<html><head></head><body><p>ok</p><div class=\"fo");
+    expect(out).not.toContain("class=\"fo");
+    expect(out).toContain("<p>ok</p>");
+    expect(out).toContain("</html>");
+  });
 });
 
 describe("normalizeFinalHtml", () => {

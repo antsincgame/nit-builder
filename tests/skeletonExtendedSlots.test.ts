@@ -86,6 +86,33 @@ describe("skeletonInjector: pricing_tiers replacer", () => {
       expect(r.html).not.toContain("old feature 1");
     }
   });
+
+  it("#pricing с h3-подзаголовками без цены/фич — заголовки целы, слот не заполнен", () => {
+    // Регрессия: раньше replaced=cards.length переписывал ЛЮБЫЕ <h3> в #pricing
+    // (даже подзаголовки) в имена тарифов и завышал счёт. Теперь карточка должна
+    // иметь реальную цену/фичи, чтобы её заголовок переписался и слот засчитался.
+    const html = `<!DOCTYPE html><html><head><title>x</title></head><body>
+<section id="hero"><h1>old</h1><p>old</p><a>cta</a></section>
+<section id="benefits"><h3>b1</h3><p>d1</p><h3>b2</h3><p>d2</p><h3>b3</h3><p>d3</p></section>
+<section id="pricing"><h3>Почему мы</h3><p>текст</p><h3>Как заказать</h3><p>текст</p></section>
+</body></html>`;
+    const plan: Plan = {
+      ...BASE_PLAN,
+      pricing_tiers: [
+        { name: "Старт", price: "₽9 990", features: ["A"] },
+        { name: "Pro", price: "₽29 990", features: ["B"] },
+      ],
+    };
+    const r = injectPlanIntoTemplate(html, plan);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.extendedSlotsFilled).toBe(0);
+      expect(r.html).toContain("Почему мы");
+      expect(r.html).toContain("Как заказать");
+      expect(r.html).not.toContain("Старт");
+      expect(r.html).not.toContain("Pro");
+    }
+  });
 });
 
 describe("skeletonInjector: faq replacer (h3+p strategy)", () => {

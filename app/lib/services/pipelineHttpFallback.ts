@@ -40,6 +40,14 @@ export type HttpFallbackParams = {
   prompt: string;
   /** sessionId возвращается сервером в первом событии и должен быть переиспользован для polish. */
   sessionId?: string;
+  /**
+   * Текущий HTML для polish. На HTTP-пути серверная session memory эфемерна
+   * (Map в процессе, обнуляется при редеплое; теряется при reload/continue from
+   * history, когда sessionId не восстановлен). Передавая previousHtml в теле,
+   * клиент становится источником правды — сервер регидрирует память из него,
+   * как уже делает WS-путь. Только для mode="polish".
+   */
+  previousHtml?: string;
   providerId?: string;
   artifactMode?: ArtifactMode;
   stylePresetId?: StylePresetId;
@@ -83,6 +91,7 @@ export async function runHttpPipeline(
       projectId: params.projectId,
       sessionId: params.sessionId,
       message: params.prompt,
+      previousHtml: params.previousHtml,
       providerId: params.providerId,
       artifactMode: params.artifactMode ?? inferArtifactModeFromPrompt(params.prompt),
       stylePresetId: params.stylePresetId,

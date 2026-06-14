@@ -64,6 +64,18 @@ ${ctx.tail}
  * который совпадает с префиксом continuation. Если overlap есть — срезаем
  * его с continuation. Минимальный overlap 20 символов — ниже риск false positive.
  */
+/**
+ * Низкоэнтропийный хвост: только пробелы и закрывающие теги (отступы, серии
+ * `</div></div>`). Такое совпадение часто СЛУЧАЙНО — у HTML хвосты структурно
+ * повторяются. Срезать его как «дубль» опасно: можно снести реальный новый
+ * префикс continuation. Поэтому дедупим только СОДЕРЖАТЕЛЬНЫЕ совпадения
+ * (с открытыми тегами/текстом); лишний `</div>` браузер простит, потерю
+ * контента — нет.
+ */
+function isLowEntropyOverlap(s: string): boolean {
+  return s.replace(/\s+/g, "").replace(/<\/[a-zA-Z][\w-]*>/g, "") === "";
+}
+
 export function joinPartialAndContinuation(
   partial: string,
   continuation: string,
@@ -74,8 +86,10 @@ export function joinPartialAndContinuation(
   const maxOverlap = Math.min(partial.length, continuation.length, 500);
   for (let overlap = maxOverlap; overlap >= MIN_OVERLAP; overlap--) {
     const partialTail = partial.slice(-overlap);
-    const contHead = continuation.slice(0, overlap);
-    if (partialTail === contHead) {
+    if (partialTail !== continuation.slice(0, overlap)) continue;
+    // Реальный повтор хвоста (есть содержимое) — срезаем дубль. Чисто
+    // структурное совпадение — пропускаем (склеиваем без среза).
+    if (!isLowEntropyOverlap(partialTail)) {
       return partial + continuation.slice(overlap);
     }
   }
@@ -90,10 +104,13 @@ export function joinPartialAndContinuation(
  * для того чтобы continuation мог точно продолжить.
  */
 export function cleanRawForTail(raw: string): string {
+  // ВАЖНО: якоримся к началу/концу ВСЕЙ строки, без флага /m. Раньше /m делал
+  // ^/$ совпадающими на каждой строке → если в сгенерированном сайте есть
+  // строка, начинающаяся/кончающаяся на ``` (например <pre>/<code> с примером
+  // markdown), её фенс срезался из СЕРЕДИНЫ контента, портя страницу.
   return raw
-    .replace(/^\s*```html\s*\n?/i, "")
-    .replace(/^\s*```\s*\n?/m, "")
-    .replace(/\n?```\s*$/m, "")
+    .replace(/^\s*```(?:html)?\s*\n?/i, "") // ведущий ```html или ```
+    .replace(/\n?```\s*$/, "") // хвостовой ``` (конец всего текста)
     .trimEnd();
 }
 

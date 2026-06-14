@@ -92,7 +92,15 @@ function pluralBlocks(n: number): string {
 export type ViewMode = "welcome" | "generating" | "editing";
 export type PipelineStep = "plan" | "template" | "code" | "done";
 export type ChatMessage = { role: "user" | "assistant"; text: string };
-export type CreateSiteOptions = { stylePresetId?: StylePresetId };
+export type CreateSiteOptions = {
+  stylePresetId?: StylePresetId;
+  /**
+   * Внутреннее: повтор после ошибки/обрыва — всегда fresh create, минуя
+   * polish-guard. Иначе «Повторить» на спасённом партиале ушло бы в polish
+   * вместо честной перегенерации с нуля (что и обещает подсказка о спасении).
+   */
+  forceCreate?: boolean;
+};
 
 /** Минимальный shape того что возвращает useControlSocket — чтобы hook не зависел от полного типа. */
 export type ControlSocketLike = {
@@ -318,6 +326,11 @@ export function useGenerationFlow(
   useEffect(() => {
     getSocketRef.current = getSocket;
   }, [getSocket]);
+
+  // polishSite через ref: createSite (объявлен раньше polishSite) делегирует
+  // ему, если в памяти уже есть готовый сайт. Ref разрывает порядок объявления
+  // и не тянет polishSite в deps createSite.
+  const polishSiteRef = useRef<((request: string) => Promise<void>) | null>(null);
 
   // RAF-throttled iframe updates чтобы не блокировать main thread на
   // больших HTML стримах.
@@ -632,6 +645,16 @@ export function useGenerationFlow(
 
   const createSite = useCallback(
     async (prompt: string, createOptions: CreateSiteOptions = {}) => {
+      // Guard «доделать, а не потерять»: если в памяти уже есть готовый сайт,
+      // запрос из главного поля — это правка, а не новый сайт. Раньше повторный
+      // промпт молча стирал сайт новой генерацией (память терялась). «Новый сайт»
+      // идёт через reset() (html очищен) → сюда попадает с пустым html → create.
+      // forceCreate (повтор после ошибки) минует guard — там нужен fresh create.
+      if (!createOptions.forceCreate && htmlRef.current.trim() && polishSiteRef.current) {
+        await polishSiteRef.current(prompt);
+        return;
+      }
+
       const currentSocket = getSocketRef.current();
       const currentAuth = authRef.current;
 
@@ -884,6 +907,9 @@ export function useGenerationFlow(
           projectId,
           prompt: request,
           sessionId: sessionIdRef.current,
+          // Текущий HTML в теле → сервер регидрирует session memory, даже если
+          // она пуста (редеплой / reload / continue-from-history без sessionId).
+          previousHtml: htmlRef.current,
           signal: ctrl.signal,
           onEvent: (event) => {
             switch (event.type) {
@@ -935,6 +961,11 @@ export function useGenerationFlow(
     },
     [projectId, scheduleIframeUpdate, pushVersion],
   );
+
+  // createSite делегирует сюда, если сайт уже есть (см. guard выше).
+  useEffect(() => {
+    polishSiteRef.current = polishSite;
+  }, [polishSite]);
 
   const cancelGeneration = useCallback(() => {
     abortCtrlRef.current?.abort();
@@ -989,11 +1020,14 @@ export function useGenerationFlow(
     setChatMessages(restoredChat);
 
     setMode("editing");
-    // entry.id — id из Appwrite (для remote-источника) или uuid (для local).
-    // ShareDialog проверяет на этот id; если это local-id (uuid),
-    // server вернёт 404 на /api/share, что корректно (нельзя расшарить
-    // сайт которого нет в облаке).
-    setCurrentSiteId(entry.id);
+    // currentSiteId должен быть Appwrite doc id — по нему идут share (/api/share)
+    // и polish-PATCH (/api/sites/:id). Локальная история хранит id вида "h-..."
+    // / "ssr" (historyStore) — это НЕ Appwrite-документ: share по нему даёт 404,
+    // а PATCH молча уходит в никуда, и пользователю нечего открыть кроме адреса
+    // кабинета. Для таких id — null, чтобы Share честно показал «ещё не
+    // сохранён», а не выдал битую ссылку. Appwrite-id никогда не начинается с "h-".
+    const isLocalId = /^h-/.test(entry.id) || entry.id === "ssr";
+    setCurrentSiteId(isLocalId ? null : entry.id);
     // Стек версий сбрасываем — открытие сайта из истории это новая
     // «сессия» с точки зрения undo/redo. Версии прошлых полировок не
     // переносятся (сохраняется только final HTML + chat для контекста).
@@ -1050,7 +1084,7 @@ export function useGenerationFlow(
     const prompt = retryablePrompt;
     if (!prompt) return;
     setRetryablePrompt(null);
-    void createSite(prompt, { stylePresetId: lastStyleRef.current });
+    void createSite(prompt, { stylePresetId: lastStyleRef.current, forceCreate: true });
   }, [retryablePrompt, createSite]);
 
   return {

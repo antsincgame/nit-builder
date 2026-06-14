@@ -3,7 +3,10 @@ import {
   parseTunnelPlan,
   resolveTunnelPlan,
   finalizeTunnelHtml,
+  buildTunnelPolishPhase,
+  TUNNEL_POLISH_MAX_TOKENS,
 } from "~/lib/services/tunnelPipeline.server";
+import { POLISHER_SYSTEM_PROMPT } from "~/lib/config/htmlPrompts";
 
 describe("tunnelPipeline", () => {
   describe("parseTunnelPlan", () => {
@@ -112,6 +115,34 @@ describe("tunnelPipeline", () => {
       );
       expect(out.toLowerCase()).toContain("</html>");
       expect(out).not.toContain("```");
+    });
+  });
+
+  describe("buildTunnelPolishPhase", () => {
+    const PREV = "<!DOCTYPE html><html><body><h1>Кофейня</h1></body></html>";
+
+    it("строит polish-фазу с POLISHER system + текущим HTML и запросом в prompt", () => {
+      const phase = buildTunnelPolishPhase(PREV, "сделай шапку синей");
+      expect(phase).not.toBeNull();
+      expect(phase!.system).toBe(POLISHER_SYSTEM_PROMPT);
+      // previousHtml вложен в user-message, чтобы модель правила его, а не делала новый сайт.
+      expect(phase!.prompt).toContain(PREV);
+      expect(phase!.prompt).toContain("сделай шапку синей");
+      expect(phase!.maxOutputTokens).toBe(TUNNEL_POLISH_MAX_TOKENS);
+      expect(phase!.temperature).toBeLessThanOrEqual(0.4);
+    });
+
+    it("возвращает null если previousHtml пуст или из пробелов (нечего полировать)", () => {
+      expect(buildTunnelPolishPhase("", "сделай синее")).toBeNull();
+      expect(buildTunnelPolishPhase("   \n  ", "сделай синее")).toBeNull();
+    });
+
+    it("санитизирует запрос пользователя (как HTTP-polish-путь)", () => {
+      // sanitizeUserMessage срезает управляющие конструкции; проверяем, что
+      // хотя бы безопасный текст доезжает и фаза строится.
+      const phase = buildTunnelPolishPhase(PREV, "добавь блок с ценами");
+      expect(phase).not.toBeNull();
+      expect(phase!.prompt).toContain("добавь блок с ценами");
     });
   });
 });
