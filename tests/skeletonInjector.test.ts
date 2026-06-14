@@ -101,6 +101,34 @@ describe("injectPlanIntoTemplate", () => {
     }
   });
 
+  it("DOM-aware: не перетирает trailing-CTA и находит описание за иконкой (#7)", () => {
+    const tpl = `<!DOCTYPE html><html><head><title>x</title></head><body>
+<section id="hero"><h1>old</h1><p>old</p><a>cta</a></section>
+<section id="features">
+  <div class="grid">
+    <div class="card"><h3>Default 1</h3><p>Default description 1.</p></div>
+    <div class="card"><h3>Default 2</h3><div class="icon"><svg viewBox="0 0 24 24"><path d="M1 1h22v22H1z"></path></svg></div><p>Default description 2.</p></div>
+    <div class="card"><h3>Default 3 без описания</h3></div>
+  </div>
+  <p class="cta-note">Звоните нам в любое время — ответим быстро.</p>
+</section>
+</body></html>`;
+    const r = injectPlanIntoTemplate(tpl, FULL_PLAN);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      // Заголовки всех 3 карточек подставлены.
+      expect(r.html).toContain("Свежесть");
+      expect(r.html).toContain("Бариста");
+      expect(r.html).toContain("V60");
+      // Описание 2-й карточки найдено ЗА иконкой-svg (регекс-окно бы сломалось).
+      expect(r.html).toContain("3 месяца стажировки.");
+      expect(r.html).not.toContain("Default description 2");
+      // 3-я карточка без своего <p>: trailing-CTA НЕ перетёрт описанием benefit 3.
+      expect(r.html).toContain("Звоните нам в любое время");
+      expect(r.html).not.toContain("Альтернативные методы.");
+    }
+  });
+
   it("экранирует HTML-спецсимволы в копирайте", () => {
     const planWithHtml: Plan = {
       ...FULL_PLAN,

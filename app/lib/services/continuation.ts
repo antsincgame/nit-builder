@@ -64,6 +64,18 @@ ${ctx.tail}
  * который совпадает с префиксом continuation. Если overlap есть — срезаем
  * его с continuation. Минимальный overlap 20 символов — ниже риск false positive.
  */
+/**
+ * Низкоэнтропийный хвост: только пробелы и закрывающие теги (отступы, серии
+ * `</div></div>`). Такое совпадение часто СЛУЧАЙНО — у HTML хвосты структурно
+ * повторяются. Срезать его как «дубль» опасно: можно снести реальный новый
+ * префикс continuation. Поэтому дедупим только СОДЕРЖАТЕЛЬНЫЕ совпадения
+ * (с открытыми тегами/текстом); лишний `</div>` браузер простит, потерю
+ * контента — нет.
+ */
+function isLowEntropyOverlap(s: string): boolean {
+  return s.replace(/\s+/g, "").replace(/<\/[a-zA-Z][\w-]*>/g, "") === "";
+}
+
 export function joinPartialAndContinuation(
   partial: string,
   continuation: string,
@@ -74,8 +86,10 @@ export function joinPartialAndContinuation(
   const maxOverlap = Math.min(partial.length, continuation.length, 500);
   for (let overlap = maxOverlap; overlap >= MIN_OVERLAP; overlap--) {
     const partialTail = partial.slice(-overlap);
-    const contHead = continuation.slice(0, overlap);
-    if (partialTail === contHead) {
+    if (partialTail !== continuation.slice(0, overlap)) continue;
+    // Реальный повтор хвоста (есть содержимое) — срезаем дубль. Чисто
+    // структурное совпадение — пропускаем (склеиваем без среза).
+    if (!isLowEntropyOverlap(partialTail)) {
       return partial + continuation.slice(overlap);
     }
   }

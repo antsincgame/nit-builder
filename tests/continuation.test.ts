@@ -36,6 +36,26 @@ describe("joinPartialAndContinuation", () => {
     expect(joinPartialAndContinuation("abc", "")).toBe("abc");
     expect(joinPartialAndContinuation("", "")).toBe("");
   });
+
+  it("НЕ дедупит чисто структурное совпадение — новый контент не теряется (#6)", () => {
+    const struct = "</div>\n      </div>\n      "; // ≥20, только пробелы + закрывашки
+    const partial = "<main><p>genuine text</p>" + struct;
+    const continuation = struct + "<section>FRESH CONTENT</section>";
+    // Совпадение хвоста чисто структурное (вероятно случайное) → склеиваем без
+    // среза, чтобы не снести реальный новый префикс continuation.
+    const joined = joinPartialAndContinuation(partial, continuation);
+    expect(joined).toBe(partial + continuation);
+    expect(joined).toContain("FRESH CONTENT");
+  });
+
+  it("дедупит СОДЕРЖАТЕЛЬНОЕ совпадение хвоста (с текстом)", () => {
+    const tail = "Best Coffee In The City</h1>";
+    const partial = "<header><h1>" + tail;
+    const continuation = tail + "<nav>menu</nav>";
+    expect(joinPartialAndContinuation(partial, continuation)).toBe(
+      "<header><h1>Best Coffee In The City</h1><nav>menu</nav>",
+    );
+  });
 });
 
 describe("cleanRawForTail", () => {

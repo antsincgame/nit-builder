@@ -37,6 +37,7 @@
  * ENV NIT_SKELETON_INJECT_ENABLED=0 — kill-switch.
  */
 
+import { parse, type HTMLElement } from "node-html-parser";
 import { logger } from "~/lib/utils/logger";
 import type { Plan, PlanFaqItem, PlanPricingTier } from "~/lib/utils/planSchema";
 
@@ -161,6 +162,88 @@ function looksLikePriceSection(sectionHtml: string): boolean {
   return /class=["'][^"']*\bprice\b/i.test(sectionHtml);
 }
 
+// ─── DOM-aware разбор карточек (node-html-parser) ──────────────────
+//
+// Описание карточки ищем строго ВНУТРИ её контейнера, а не «первый <p> в хвосте
+// до конца секции». Иначе у последней карточки без своего описания регекс
+// перетирал trailing-CTA/дисклеймер, стоящий ПОСЛЕ сетки карточек. Контейнер
+// карточки — предок заголовка, являющийся прямым ребёнком сетки (LCA всех
+// card-заголовков); устойчиво к любой вложенности (иконки/обёртки между
+// заголовком и описанием), где регекс-окно ломалось. Все offset'ы — относительно
+// sectionHtml (его и парсим).
+
+function ancestorChain(node: HTMLElement): HTMLElement[] {
+  const chain: HTMLElement[] = [];
+  let cur: HTMLElement | null = node;
+  while (cur) {
+    chain.push(cur);
+    cur = cur.parentNode;
+  }
+  return chain;
+}
+
+/** Сетка карточек = lowest common ancestor всех card-заголовков. */
+function gridOfHeadings(headings: HTMLElement[]): HTMLElement | null {
+  if (headings.length === 0) return null;
+  if (headings.length === 1) return headings[0]!.parentNode;
+  const chains = headings.map((h) => ancestorChain(h).reverse()); // root-first
+  const minLen = Math.min(...chains.map((c) => c.length));
+  let lca: HTMLElement | null = null;
+  for (let d = 0; d < minLen; d++) {
+    const cand = chains[0]![d]!;
+    if (chains.every((c) => c[d] === cand)) lca = cand;
+    else break;
+  }
+  return lca;
+}
+
+/** Контейнер карточки = предок заголовка, являющийся прямым ребёнком сетки. */
+function cardContainerOf(heading: HTMLElement, grid: HTMLElement | null): HTMLElement {
+  let cur = heading;
+  while (cur.parentNode && cur.parentNode !== grid) cur = cur.parentNode;
+  return cur;
+}
+
+/** Диапазон ВНУТРЕННЕГО текста элемента в sectionHtml (по node.range). */
+function elementInnerRange(
+  el: HTMLElement,
+  sectionHtml: string,
+): { from: number; to: number } | null {
+  const r = el.range;
+  const tag = el.rawTagName;
+  if (!r || !tag) return null;
+  const openLen =
+    sectionHtml.slice(r[0]).match(new RegExp(`^<${tag}\\b[^>]*>`, "i"))?.[0].length ?? 0;
+  return { from: r[0] + openLen, to: r[1] - `</${tag}>`.length };
+}
+
+/**
+ * Диапазон описания (<p>) карточки: первый <p> ВНУТРИ контейнера карточки (или —
+ * для плоской структуры без обёрток — между этим и следующим заголовком).
+ * Trailing-CTA снаружи контейнера сюда не попадает.
+ */
+function cardDescriptionRange(
+  heading: HTMLElement,
+  grid: HTMLElement | null,
+  lo: number,
+  hi: number,
+  sectionHtml: string,
+): { from: number; to: number } | null {
+  const container = cardContainerOf(heading, grid);
+  const scope = container === heading ? (grid ?? heading) : container;
+  const desc = scope.querySelectorAll("p").find((p) => {
+    const r = p.range;
+    return !!r && r[0] >= lo && r[0] < hi;
+  });
+  return desc ? elementInnerRange(desc, sectionHtml) : null;
+}
+
+/** Card-level заголовки секции: h3, иначе (если их нет) h2. */
+function cardHeadings(root: HTMLElement): HTMLElement[] {
+  const h3 = root.querySelectorAll("h3");
+  return h3.length > 0 ? h3 : root.querySelectorAll("h2");
+}
+
 function replaceBenefitCards(
   html: string,
   sectionRange: { start: number; end: number },
@@ -171,22 +254,10 @@ function replaceBenefitCards(
   // секция services — это сетка цен, и benefit-инжект превратил бы прайс в
   // «Быстрый ответ». Пропускаем (replaced:0) — цикл попробует следующую секцию.
   if (looksLikePriceSection(sectionHtml)) return { html, replaced: 0 };
-  const headingRe = /<(h[23])\b[^>]*>([\s\S]*?)<\/\1>/gi;
-  type Heading = { tag: string; openIdx: number; closeEnd: number };
-  const headings: Heading[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = headingRe.exec(sectionHtml)) !== null) {
-    headings.push({
-      tag: m[1]!.toLowerCase(),
-      openIdx: m.index,
-      closeEnd: m.index + m[0].length,
-    });
-  }
-  if (headings.length === 0) return { html, replaced: 0 };
 
-  const cardLevel = headings.some((h) => h.tag === "h3") ? "h3" : "h2";
-  const cards = headings.filter((h) => h.tag === cardLevel);
+  const cards = cardHeadings(parse(sectionHtml));
   if (cards.length === 0) return { html, replaced: 0 };
+  const grid = gridOfHeadings(cards);
 
   type Replacement = { from: number; to: number; text: string };
   const replacements: Replacement[] = [];
@@ -194,32 +265,16 @@ function replaceBenefitCards(
   for (let i = 0; i < limit; i++) {
     const card = cards[i]!;
     const benefit = benefits[i]!;
-    const nextCard = cards[i + 1];
-    const cardEnd = nextCard ? nextCard.openIdx : sectionHtml.length;
+    const headingRange = elementInnerRange(card, sectionHtml);
+    if (!headingRange || !card.range) continue;
+    replacements.push({ ...headingRange, text: escapeHtml(benefit.title) });
 
-    const headingOpenRe = new RegExp(`<${card.tag}\\b[^>]*>`, "i");
-    const headingTextStart =
-      card.openIdx +
-      (sectionHtml.slice(card.openIdx).match(headingOpenRe)?.[0].length ?? 0);
-    const headingTextEnd = card.closeEnd - `</${card.tag}>`.length;
-    replacements.push({
-      from: headingTextStart,
-      to: headingTextEnd,
-      text: escapeHtml(benefit.title),
-    });
-
-    const after = sectionHtml.slice(card.closeEnd, cardEnd);
-    const pMatch = after.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
-    if (pMatch && pMatch.index !== undefined) {
-      const pOpenLen = pMatch[0].indexOf(">") + 1;
-      const pTextStart = card.closeEnd + pMatch.index + pOpenLen;
-      const pTextEnd =
-        card.closeEnd + pMatch.index + pMatch[0].length - "</p>".length;
-      replacements.push({
-        from: pTextStart,
-        to: pTextEnd,
-        text: escapeHtml(benefit.description),
-      });
+    const lo = card.range[1];
+    const nextRange = cards[i + 1]?.range;
+    const hi = nextRange ? nextRange[0] : sectionHtml.length;
+    const descRange = cardDescriptionRange(card, grid, lo, hi, sectionHtml);
+    if (descRange) {
+      replacements.push({ ...descRange, text: escapeHtml(benefit.description) });
     }
   }
 
@@ -819,22 +874,10 @@ function replaceTeamCards(
   team: Array<{ name: string; role?: string }>,
 ): { html: string; replaced: number } {
   const sectionHtml = html.slice(sectionRange.start, sectionRange.end);
-  const headingRe = /<(h[23])\b[^>]*>([\s\S]*?)<\/\1>/gi;
-  type Heading = { tag: string; openIdx: number; closeEnd: number };
-  const headings: Heading[] = [];
-  let m: RegExpExecArray | null;
-  while ((m = headingRe.exec(sectionHtml)) !== null) {
-    headings.push({
-      tag: m[1]!.toLowerCase(),
-      openIdx: m.index,
-      closeEnd: m.index + m[0].length,
-    });
-  }
-  if (headings.length === 0) return { html, replaced: 0 };
 
-  const cardLevel = headings.some((h) => h.tag === "h3") ? "h3" : "h2";
-  const cards = headings.filter((h) => h.tag === cardLevel);
+  const cards = cardHeadings(parse(sectionHtml));
   if (cards.length === 0) return { html, replaced: 0 };
+  const grid = gridOfHeadings(cards);
 
   type Replacement = { from: number; to: number; text: string };
   const replacements: Replacement[] = [];
@@ -842,33 +885,17 @@ function replaceTeamCards(
   for (let i = 0; i < limit; i++) {
     const card = cards[i]!;
     const member = team[i]!;
-    const nextCard = cards[i + 1];
-    const cardEnd = nextCard ? nextCard.openIdx : sectionHtml.length;
-
-    const headingOpenRe = new RegExp(`<${card.tag}\\b[^>]*>`, "i");
-    const headingTextStart =
-      card.openIdx +
-      (sectionHtml.slice(card.openIdx).match(headingOpenRe)?.[0].length ?? 0);
-    const headingTextEnd = card.closeEnd - `</${card.tag}>`.length;
-    replacements.push({
-      from: headingTextStart,
-      to: headingTextEnd,
-      text: escapeHtml(member.name),
-    });
+    const headingRange = elementInnerRange(card, sectionHtml);
+    if (!headingRange || !card.range) continue;
+    replacements.push({ ...headingRange, text: escapeHtml(member.name) });
 
     if (member.role) {
-      const after = sectionHtml.slice(card.closeEnd, cardEnd);
-      const pMatch = after.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
-      if (pMatch && pMatch.index !== undefined) {
-        const pOpenLen = pMatch[0].indexOf(">") + 1;
-        const pTextStart = card.closeEnd + pMatch.index + pOpenLen;
-        const pTextEnd =
-          card.closeEnd + pMatch.index + pMatch[0].length - "</p>".length;
-        replacements.push({
-          from: pTextStart,
-          to: pTextEnd,
-          text: escapeHtml(member.role),
-        });
+      const lo = card.range[1];
+      const nextRange = cards[i + 1]?.range;
+      const hi = nextRange ? nextRange[0] : sectionHtml.length;
+      const descRange = cardDescriptionRange(card, grid, lo, hi, sectionHtml);
+      if (descRange) {
+        replacements.push({ ...descRange, text: escapeHtml(member.role) });
       }
     }
   }
