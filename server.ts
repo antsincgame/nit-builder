@@ -27,6 +27,7 @@ import {
   handleTunnelConnection,
   handleControlConnection,
 } from "./app/lib/server/wsHandlers.server.ts";
+import { ensureSeeded } from "./app/lib/services/ragBootstrap.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -329,6 +330,17 @@ httpServer.listen(PORT, HOST, () => {
   console.log(`│  WS control: ws://${HOST}:${PORT}/api/control`);
   console.log(`│  Prerender:  ${PRERENDER_ENABLED ? `${PRERENDER_HOST}:${PRERENDER_PORT}` : "disabled"}`);
   console.log("└─────────────────────────────────────────────────┘");
+
+  // Прогрев RAG-корпуса в фоне: ~130 seed-эмбеддингов раньше синхронно
+  // блокировали ПЕРВУЮ генерацию (ensureSeeded await'ится в planner hot path).
+  // Запускаем на старте — к первому запросу корпус обычно уже тёплый. Best-effort
+  // (ensureSeeded мемоизирован и ловит ошибки); NIT_RAG_WARMUP=0 — отключить.
+  if (process.env.NIT_RAG_WARMUP !== "0") {
+    void ensureSeeded().then(
+      () => console.log("[server] RAG corpus warmed"),
+      () => {}, // ошибки логирует doBootstrap; lazy-retry на первом запросе
+    );
+  }
 });
 
 let shuttingDown = false;

@@ -25,6 +25,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
 - **Кэш allowlist'а картинок шаблона** (`tunnelPipeline.server.ts`):
   `collectImageUrls(templateHtml)` мемоизируется по `tpl.id` — шаблон иммутабелен,
   а `finalizeTunnelHtml` зовётся на каждую финализацию/дозаправку.
+- **RAG warm-up на старте сервера** (`server.ts`): `ensureSeeded()` запускается в
+  фоне при boot'е — раньше ~130 seed-эмбеддингов синхронно блокировали ПЕРВУЮ
+  генерацию (await в planner hot path). Best-effort, мемоизирован; `NIT_RAG_WARMUP=0`
+  — отключить. (Батчинг эмбеддов отложен — warm-up уже снимает hot-path стол.)
+- **`applySeoHead`: детект SEO-тегов по слайсу `<head>`** (`htmlPostPolish.ts`)
+  вместо ~5 полно-документных сканов. Полную консолидацию `finalizeTunnelHtml` в
+  один DOM сознательно НЕ делаем — суб-мс выигрыш при риске для идемпотентных
+  post-polish функций; доминирующая цена — неизбежный `parse` в `normalizeFinalHtml`.
 
 ### 🧠 Memory / limits
 
