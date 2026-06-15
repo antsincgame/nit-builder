@@ -37,6 +37,26 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This p
   добавлен `MAX_TOTAL_BYTES` (6МБ) — без него 25×8МБ×1.33 ≈ 266МБ выходного HTML
   (DoS по размеру бандла). Картинки сверх бюджета остаются ссылками.
 
+### 🔒 Security
+
+- **Magic-link: per-email лимит** (`api.auth.request-magic-link.ts`): в дополнение
+  к per-IP (3/мин) добавлен лимит 3/15мин ПО АДРЕСУ (`useClientKey=false`,
+  зеркало login-email lockout). Без него ротацией IP можно было бомбить
+  magic-link'ами чужой адрес — спам жертве + амплификация SMTP/Appwrite.
+- **Guest-limit: race-tolerant create** (`appwrite.server.ts`): параллельный
+  первый запрос с одного IP больше не падает 500 (Appwrite 409 «документ уже
+  существует») легитимному гостю — 409 ловится и трактуется как инкремент.
+  (Полная atomic-защита квоты ждёт SDK с `incrementDocumentAttribute` —
+  отдельный фронт.)
+
+### Отложено (требует инфра-решения, не код)
+
+- Rate-limit в общем сторе (Redis) для горизонтального масштаба; trust-proxy
+  fail-closed (текущий fail-open spoofable, но fail-closed без `TRUSTED_PROXY_IPS`
+  заблокирует прод за прокси) — оба требуют ops-координации. Серверный перф
+  `finalizeTunnelHtml` (20+ проходов → один DOM), RAG bootstrap warm-up, индексы
+  Appwrite, shared-previews cleanup-джоб.
+
 ## [Unreleased] — 2026-06-14 (generator reliability)
 
 Серия фиксов основного цикла генератора: правка существующего сайта вместо
