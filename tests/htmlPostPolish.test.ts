@@ -122,6 +122,16 @@ describe("applySeoHead", () => {
     expect(out.match(/name="description"/g)?.length).toBe(1);
   });
 
+  it("без <head> детектит по всему документу и добавляет SEO (fallback headSliceOf)", () => {
+    // headSliceOf без <head> возвращает весь html — детект и инъекция как раньше.
+    const html = "<html><body><h1>Привет</h1></body></html>";
+    const out = applySeoHead(html, SEO_PLAN);
+    expect(out).toContain('name="description"');
+    expect(out).toContain("application/ld+json");
+    // Идемпотентность сохраняется и на no-head пути.
+    expect(applySeoHead(out, SEO_PLAN)).toBe(out);
+  });
+
   it("заполняет пустой alt бизнес-контекстом, не трогая непустые", () => {
     const html =
       '<html><head><title>X</title></head><body><img src="a.jpg" alt=""><img src="b.jpg" alt="готовый"></body></html>';

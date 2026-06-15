@@ -93,6 +93,28 @@ export async function action({ request }: ActionFunctionArgs) {
   const { email } = parsed.data;
   const next = safeNext(parsed.data.next);
 
+  // Per-email лимит В ДОПОЛНЕНИЕ к per-IP (3/мин): без него ротацией IP можно
+  // бомбить magic-link'ами ЧУЖОЙ адрес — спам жертве + амплификация SMTP/Appwrite.
+  // useClientKey=false — ключ по email, не email+IP (зеркало login-email lockout).
+  const emailKey = email.trim().toLowerCase();
+  const emailRl = checkRateLimit(request, {
+    scope: `magic-link-email:${emailKey}`,
+    windowMs: 15 * 60_000,
+    maxRequests: 3,
+    useClientKey: false,
+  });
+  if (!emailRl.allowed) {
+    return Response.json(
+      { error: "Слишком много запросов на этот адрес. Попробуйте позже." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil((emailRl.retryAfterMs ?? 900_000) / 1000)),
+        },
+      },
+    );
+  }
+
   if (process.env.NIT_EMAIL_ONLY_LOGIN === "1") {
     if (!isAppwriteConfigured()) {
       return Response.json(

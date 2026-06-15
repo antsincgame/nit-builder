@@ -975,6 +975,18 @@ describe("useGenerationFlow > versions / undo / redo", () => {
     expect(hook.result.current.canRedo).toBe(false);
   });
 
+  it("cap'ит стек версий до MAX (старые вытесняются, индекс на конце)", async () => {
+    // 1 create (v1) + 20 polish (v2..v21) = 21 версия → кап до 20: v1 вытеснена.
+    const polishes = Array.from({ length: 20 }, (_, i) => `<html>v${i + 2}</html>`);
+    const hook = await buildVersions("<html>v1</html>", polishes);
+    expect(hook.result.current.versions).toHaveLength(20);
+    expect(hook.result.current.currentVersionIndex).toBe(19);
+    expect(hook.result.current.versions[19]?.html).toBe("<html>v21</html>");
+    expect(hook.result.current.versions.some((v) => v.html === "<html>v1</html>")).toBe(false);
+    expect(hook.result.current.canRedo).toBe(false);
+    expect(hook.result.current.canUndo).toBe(true);
+  });
+
   it("undo на 1 шаг → html прошлой версии, canRedo=true", async () => {
     const hook = await buildVersions("<html>v1</html>", [
       "<html>v2</html>",

@@ -33,6 +33,11 @@ function htmlDecode(value: string): string {
 }
 
 export function extractPhpSqliteArtifact(html: string): PhpSqliteArtifact | null {
+  // Дешёвый guard: эта функция зовётся на КАЖДОМ кадре стрима в превью. Пока
+  // в HTML нет манифеста (а во время стрима его ещё нет), `String.includes`
+  // O(n) с ранним выходом дешевле, чем lazy-регэкс `[\s\S]*?`, который без
+  // `</script>` сканирует весь растущий документ и падает каждый кадр.
+  if (!html.includes("nit-artifact-manifest")) return null;
   const match = html.match(MANIFEST_RE);
   if (!match?.[1]) return null;
   try {

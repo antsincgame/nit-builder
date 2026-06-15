@@ -87,6 +87,16 @@ function pluralBlocks(n: number): string {
   return "блоков";
 }
 
+// Троттлинг живого превью. iframe ПОЛНОСТЬЮ переразбирает srcDoc на каждое
+// обновление; 60fps репарса растущего HTML — главный источник джанка в конце
+// генерации. ~80мс (~12fps) визуально достаточно; финальный полный HTML всё
+// равно ставится из generate_done / step_complete.
+const STREAM_PREVIEW_MIN_INTERVAL_MS = 80;
+
+// Кольцевой буфер версий: каждый snapshot — полный HTML (50-300КБ); держим
+// последние N, иначе длинная сессия polish удерживает десятки копий резидентно.
+const MAX_VERSIONS = 20;
+
 // ─── Public types ──────────────────────────────────────────────────
 
 export type ViewMode = "welcome" | "generating" | "editing";
@@ -248,22 +258,37 @@ export function useGenerationFlow(
   // указывает на актуальную (отображаемую) версию; undo/redo двигают индекс
   // не трогая массив (то есть undo не теряет «будущее» — пока не сделан
   // новый polish, после которого redo-«хвост» сбрасывается).
-  const [versions, setVersions] = useState<VersionEntry[]>([]);
-  const [currentVersionIndex, setCurrentVersionIndex] = useState(-1);
+  // versions + index в ОДНОМ state: pushVersion обновляет его одним
+  // функциональным апдейтом (батч-безопасно, без устаревания index), а стек
+  // капится кольцевым буфером (MAX_VERSIONS).
+  const [versionStack, setVersionStack] = useState<{
+    entries: VersionEntry[];
+    index: number;
+  }>({ entries: [], index: -1 });
+  const versions = versionStack.entries;
+  const currentVersionIndex = versionStack.index;
+  // Синхронное зеркало для undo/redo — клики не батчатся, ref всегда актуален.
+  const versionStackRef = useRef(versionStack);
+  useEffect(() => {
+    versionStackRef.current = versionStack;
+  }, [versionStack]);
 
   // Helper — атомарно добавить новую версию. Если мы стояли НЕ на конце
   // (после undo пользователь сделал новый polish), отбрасываем «redo-хвост»
   // и кладём новую версию поверх — стандартное undo/redo поведение.
-  const pushVersion = useCallback(
-    (entry: VersionEntry) => {
-      setVersions((prev) => {
-        const head = prev.slice(0, currentVersionIndex + 1);
-        return [...head, entry];
-      });
-      setCurrentVersionIndex((idx) => idx + 1);
-    },
-    [currentVersionIndex],
-  );
+  const pushVersion = useCallback((entry: VersionEntry) => {
+    setVersionStack((prev) => {
+      const head = prev.entries.slice(0, prev.index + 1); // отрезаем redo-хвост
+      let entries = [...head, entry];
+      let index = entries.length - 1;
+      if (entries.length > MAX_VERSIONS) {
+        const drop = entries.length - MAX_VERSIONS;
+        entries = entries.slice(drop);
+        index -= drop;
+      }
+      return { entries, index };
+    });
+  }, []);
 
   // Refs (state мы не кладём сюда — useState даёт реактивность; refs только
   // для значений которые не должны вызывать пересоздание callback'ов)
@@ -277,6 +302,9 @@ export function useGenerationFlow(
   // Стиль последней генерации — для повтора с тем же пресетом.
   const lastStyleRef = useRef<StylePresetId | undefined>(undefined);
   const rafIdRef = useRef<number | null>(null);
+  // Последнее значение chars + время последнего коммита превью — для троттлинга.
+  const pendingCharsRef = useRef<number>(0);
+  const lastPreviewCommitMsRef = useRef<number>(0);
   const abortCtrlRef = useRef<AbortController | null>(null);
 
   // Stale-closure fix: handleWsEvent читает текущий html (для решения
@@ -336,11 +364,20 @@ export function useGenerationFlow(
   // больших HTML стримах.
   const scheduleIframeUpdate = useCallback((htmlStr: string, chars: number) => {
     pendingHtmlRef.current = htmlStr;
+    pendingCharsRef.current = chars;
     if (rafIdRef.current !== null) return;
     rafIdRef.current = requestAnimationFrame(() => {
-      setStreamingHtml(pendingHtmlRef.current);
-      setStreamingChars(chars);
       rafIdRef.current = null;
+      // Троттлинг до ~12fps (см. STREAM_PREVIEW_MIN_INTERVAL_MS): если прошло мало
+      // времени — пропускаем коммит (re-render+репарс iframe не делаем). Дельты
+      // стрима идут часто, следующий кадр после интервала закоммитит свежее
+      // pendingHtmlRef; финал гарантирован generate_done/step_complete.
+      if (Date.now() - lastPreviewCommitMsRef.current < STREAM_PREVIEW_MIN_INTERVAL_MS) {
+        return;
+      }
+      lastPreviewCommitMsRef.current = Date.now();
+      setStreamingHtml(pendingHtmlRef.current);
+      setStreamingChars(pendingCharsRef.current);
     });
   }, []);
 
@@ -1031,10 +1068,12 @@ export function useGenerationFlow(
     // Стек версий сбрасываем — открытие сайта из истории это новая
     // «сессия» с точки зрения undo/redo. Версии прошлых полировок не
     // переносятся (сохраняется только final HTML + chat для контекста).
-    setVersions([
-      { html: entry.html, prompt: entry.prompt, kind: "create", timestamp: Date.now() },
-    ]);
-    setCurrentVersionIndex(0);
+    setVersionStack({
+      entries: [
+        { html: entry.html, prompt: entry.prompt, kind: "create", timestamp: Date.now() },
+      ],
+      index: 0,
+    });
   }, []);
 
   const reset = useCallback(() => {
@@ -1045,8 +1084,7 @@ export function useGenerationFlow(
     setTemplateName("");
     setStreamingChars(0);
     setCurrentStep("plan");
-    setVersions([]);
-    setCurrentVersionIndex(-1);
+    setVersionStack({ entries: [], index: -1 });
     setCurrentSiteId(null);
     sessionIdRef.current = undefined;
   }, []);
@@ -1054,30 +1092,28 @@ export function useGenerationFlow(
   // Undo/redo — двигаем индекс, восстанавливаем html. Не дёргаем сеть,
   // не пишем в history (это та же сессия, не новый сайт).
   const undoVersion = useCallback(() => {
-    setCurrentVersionIndex((idx) => {
-      if (idx <= 0) return idx;
-      const target = idx - 1;
-      const entry = versions[target];
-      if (entry) {
-        setHtml(entry.html);
-        setStreamingHtml("");
-      }
-      return target;
-    });
-  }, [versions]);
+    const { entries, index } = versionStackRef.current;
+    if (index <= 0) return;
+    const entry = entries[index - 1];
+    if (entry) {
+      setHtml(entry.html);
+      setStreamingHtml("");
+    }
+    setVersionStack((prev) => (prev.index > 0 ? { ...prev, index: prev.index - 1 } : prev));
+  }, []);
 
   const redoVersion = useCallback(() => {
-    setCurrentVersionIndex((idx) => {
-      if (idx >= versions.length - 1) return idx;
-      const target = idx + 1;
-      const entry = versions[target];
-      if (entry) {
-        setHtml(entry.html);
-        setStreamingHtml("");
-      }
-      return target;
-    });
-  }, [versions]);
+    const { entries, index } = versionStackRef.current;
+    if (index >= entries.length - 1) return;
+    const entry = entries[index + 1];
+    if (entry) {
+      setHtml(entry.html);
+      setStreamingHtml("");
+    }
+    setVersionStack((prev) =>
+      prev.index < prev.entries.length - 1 ? { ...prev, index: prev.index + 1 } : prev,
+    );
+  }, []);
 
   // Повтор последней генерации после ошибки/обрыва — тот же промпт и стиль.
   const retryGeneration = useCallback(() => {

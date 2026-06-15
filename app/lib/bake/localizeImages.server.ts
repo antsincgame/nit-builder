@@ -29,6 +29,10 @@ import { collectImageUrls, replaceImageUrlsScoped } from "~/lib/utils/imageInlin
 
 const MAX_IMAGES = 25;
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB на картинку — Unsplash ?w=800 куда меньше
+// Суммарный бюджет инлайна. Без него 25×8МБ×1.33 (base64) ≈ 266МБ выходного
+// HTML — DoS по размеру скачиваемого бандла. Картинки сверх бюджета остаются
+// ссылками (best-effort, как и при ошибке скачивания).
+const MAX_TOTAL_BYTES = 6 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
 
 /** Собрать уникальные внешние URL картинок из HTML (<img src>, srcset, url()). */
@@ -180,10 +184,14 @@ export async function inlineImagesAsDataUris(html: string): Promise<InlineImages
   const map = new Map<string, string>();
   let embedded = 0;
   let failed = 0;
+  let totalBytes = 0;
   urls.forEach((url, i) => {
     const dataUri = dataUris[i];
-    if (dataUri) {
+    // Встраиваем, пока не скачалось ИЛИ не превысили суммарный бюджет — иначе
+    // остаётся внешней ссылкой (бандл не раздувается до сотен МБ).
+    if (dataUri && totalBytes + dataUri.length <= MAX_TOTAL_BYTES) {
       map.set(url, dataUri);
+      totalBytes += dataUri.length;
       embedded++;
     } else {
       failed++;

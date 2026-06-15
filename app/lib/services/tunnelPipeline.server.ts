@@ -132,6 +132,11 @@ const TUNNEL_WOW_ENABLED = process.env.NIT_TUNNEL_WOW !== "0";
  */
 const TUNNEL_RESTORE_IMAGES_ENABLED = process.env.NIT_TUNNEL_RESTORE_IMAGES !== "0";
 
+// Allowlist картинок шаблона по tpl.id (read-only). templateHtml иммутабелен в
+// рантайме, а finalizeTunnelHtml зовётся на каждую финализацию (вкл. дозаправку)
+// — без кэша collectImageUrls пере-парсил бы шаблон каждый раз.
+const templateImageUrlCache = new Map<string, Set<string>>();
+
 /** Нейтральные пресеты, к которым применим вау-слой (у остальных свой характер). */
 function isNeutralPreset(id: StylePresetId): boolean {
   return id === "generic" || id === "clean-saas";
@@ -530,7 +535,12 @@ export function finalizeTunnelHtml(
     html = restoreTemplateImages(html, templateHtml).html;
   }
   // Битые Unsplash-картинки (галлюцинации модели, не из шаблона) → picsum.
-  html = fixBrokenImages(html, new Set(collectImageUrls(templateHtml)));
+  let imgAllowlist = templateImageUrlCache.get(tpl.id);
+  if (!imgAllowlist) {
+    imgAllowlist = new Set(collectImageUrls(templateHtml));
+    templateImageUrlCache.set(tpl.id, imgAllowlist);
+  }
+  html = fixBrokenImages(html, imgAllowlist);
   // SEO-голова из плана (детерминированно, идемпотентно) — слабая модель её почти
   // не ставит.
   if (TUNNEL_SEO_ENABLED) html = applySeoHead(html, plan);

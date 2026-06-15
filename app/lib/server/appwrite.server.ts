@@ -672,6 +672,18 @@ export async function listUserSites(userId: string, limit = 20): Promise<NitSite
       Query.equal("userId", userId),
       Query.orderDesc("$createdAt"),
       Query.limit(limit),
+      // Проекция list-view: НЕ тянем html (≤1МБ) и chatMessages (≤100КБ) по сети
+      // ради сводки — раньше Appwrite возвращал их по 50 док. Поля — ровно то,
+      // что эмитит /api/sites. (Требует Appwrite ≥1.4 / node-appwrite ≥14.)
+      Query.select([
+        "$id",
+        "$createdAt",
+        "$updatedAt",
+        "prompt",
+        "templateId",
+        "templateName",
+        "thumbnail",
+      ]),
     ],
   );
   return result.documents;
@@ -844,7 +856,13 @@ export async function listUserSharedPreviews(
   const result = await db.listDocuments<NitSharedPreview>(
     APPWRITE_CONFIG.databaseId,
     APPWRITE_CONFIG.collections.sharedPreviews,
-    [Query.equal("userId", userId), Query.orderDesc("$createdAt"), Query.limit(limit)],
+    [
+      Query.equal("userId", userId),
+      Query.orderDesc("$createdAt"),
+      Query.limit(limit),
+      // Проекция: list не отдаёт html-снапшот (≤1МБ) — он нужен только при /p/:token.
+      Query.select(["$id", "$createdAt", "token", "siteId", "expiresAt", "views"]),
+    ],
   );
   return result.documents;
 }
@@ -935,6 +953,9 @@ export async function listUserTemplates(
       Query.equal("userId", userId),
       Query.orderDesc("$createdAt"),
       Query.limit(limit),
+      // Проекция: НЕ тянем html (≤1МБ). zones (≤100КБ) оставляем — из него
+      // считается hasZones в /api/user-templates.
+      Query.select(["$id", "$createdAt", "name", "prompt", "isPublic", "votes", "zones"]),
     ],
   );
   return result.documents;
@@ -1005,6 +1026,8 @@ export async function listPublicTemplates(limit = 50): Promise<NitUserTemplate[]
       Query.orderDesc("votes"),
       Query.orderDesc("$createdAt"),
       Query.limit(limit),
+      // Проекция: галерея (БЕЗ авторизации) больше не тянет html (≤1МБ) на док.
+      Query.select(["$id", "$createdAt", "name", "prompt", "votes", "zones"]),
     ],
   );
   return result.documents;
@@ -1147,6 +1170,12 @@ export type GuestLimitDecision = {
  * Атомарная проверка-и-инкремент guest квоты по IP. Persistent: переживает
  * рестарт сервера и работает в multi-instance scaleup.
  */
+/** Appwrite 409 (документ уже существует) — для race-tolerant create. */
+function isAppwriteConflict(err: unknown): boolean {
+  const e = err as { code?: number; type?: string } | null;
+  return !!e && (e.code === 409 || e.type === "document_already_exists");
+}
+
 export async function consumeGuestLimit(
   ip: string,
   dailyMax: number,
@@ -1179,12 +1208,39 @@ export async function consumeGuestLimit(
         { count: 1, resetAt: newResetAt },
       );
     } else {
-      await db.createDocument<NitGuestLimit>(
-        APPWRITE_CONFIG.databaseId,
-        APPWRITE_CONFIG.collections.guestLimits,
-        docId,
-        { ipHash, count: 1, resetAt: newResetAt },
-      );
+      try {
+        await db.createDocument<NitGuestLimit>(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.guestLimits,
+          docId,
+          { ipHash, count: 1, resetAt: newResetAt },
+        );
+      } catch (err) {
+        // Гонка: параллельный ПЕРВЫЙ запрос с того же IP уже создал документ
+        // (409). Раньше это падало 500 легитимному гостю. Трактуем как инкремент
+        // поверх свежего значения. (Атомарного increment в node-appwrite 14 нет —
+        // полная atomic-защита квоты вынесена в отдельный фронт аудита.)
+        if (!isAppwriteConflict(err)) throw err;
+        const fresh = await db.getDocument<NitGuestLimit>(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.guestLimits,
+          docId,
+        );
+        if (fresh.count >= dailyMax) {
+          return { allowed: false, remaining: 0, resetAt: new Date(fresh.resetAt).getTime() };
+        }
+        await db.updateDocument(
+          APPWRITE_CONFIG.databaseId,
+          APPWRITE_CONFIG.collections.guestLimits,
+          docId,
+          { count: fresh.count + 1 },
+        );
+        return {
+          allowed: true,
+          remaining: dailyMax - fresh.count - 1,
+          resetAt: new Date(fresh.resetAt).getTime(),
+        };
+      }
     }
     return {
       allowed: true,

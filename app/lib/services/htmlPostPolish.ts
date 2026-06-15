@@ -194,6 +194,12 @@ function buildJsonLd(plan: Plan, desc: string): string {
 
 const SEO_MARKER = "data-nit-seo";
 
+/** Содержимое <head> (для детекта SEO-тегов на коротком слайсе, не всём доке). */
+function headSliceOf(html: string): string {
+  const m = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+  return m ? m[1]! : html; // нет <head> — детектим по всему (прежнее поведение)
+}
+
 /**
  * Внедряет SEO-голову из плана. Идемпотентно. Не перетирает теги, которые
  * модель уже поставила сама (description/og/twitter/json-ld) — только дополняет
@@ -209,16 +215,20 @@ export function applySeoHead(html: string, plan: Plan): string {
     " ",
   );
   const locale = ogLocale(plan.language);
+  // SEO-теги детектим по СЛАЙСУ <head> (а не по всему документу): они там и
+  // живут, а слайс на порядок короче — снимаем ~5 полно-документных сканов.
+  // Нет <head> — headSliceOf вернёт весь html (прежнее поведение).
+  const headScope = headSliceOf(html);
 
   const tags: string[] = [`<meta ${SEO_MARKER}="1" name="robots" content="index, follow">`];
 
-  if (!/<meta\s+name=["']description["']/i.test(html)) {
+  if (!/<meta\s+name=["']description["']/i.test(headScope)) {
     tags.push(`<meta name="description" content="${escAttr(desc)}">`);
   }
-  if (plan.keywords && plan.keywords.length > 0 && !/<meta\s+name=["']keywords["']/i.test(html)) {
+  if (plan.keywords && plan.keywords.length > 0 && !/<meta\s+name=["']keywords["']/i.test(headScope)) {
     tags.push(`<meta name="keywords" content="${escAttr(plan.keywords.slice(0, 12).join(", "))}">`);
   }
-  if (!/property=["']og:title["']/i.test(html)) {
+  if (!/property=["']og:title["']/i.test(headScope)) {
     tags.push(
       `<meta property="og:type" content="website">`,
       `<meta property="og:locale" content="${locale}">`,
@@ -226,14 +236,14 @@ export function applySeoHead(html: string, plan: Plan): string {
       `<meta property="og:description" content="${escAttr(desc)}">`,
     );
   }
-  if (!/name=["']twitter:card["']/i.test(html)) {
+  if (!/name=["']twitter:card["']/i.test(headScope)) {
     tags.push(
       `<meta name="twitter:card" content="summary_large_image">`,
       `<meta name="twitter:title" content="${escAttr(title)}">`,
       `<meta name="twitter:description" content="${escAttr(desc)}">`,
     );
   }
-  if (!/application\/ld\+json/i.test(html)) {
+  if (!/application\/ld\+json/i.test(headScope)) {
     tags.push(buildJsonLd(plan, desc));
   }
 
