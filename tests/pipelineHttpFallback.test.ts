@@ -344,4 +344,30 @@ describe("runHttpPipeline — не-SSE ошибки ответа", () => {
     ).rejects.toThrow();
     expect(onEvent).not.toHaveBeenCalled();
   });
+
+  it("прокидывает explicitApplied/explicitMissed из step_complete", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      makeSseResponse([
+        JSON.stringify({ type: "session_init", sessionId: "s1" }),
+        JSON.stringify({
+          type: "step_complete",
+          html: "<html>done</html>",
+          explicitApplied: ["название → «Brand»"],
+          explicitMissed: ["SEO"],
+        }),
+      ]),
+    );
+
+    const result = await runHttpPipeline({
+      mode: "polish",
+      projectId: "p-1",
+      prompt: "смени бренд",
+      previousHtml: "<html>old</html>",
+      signal: new AbortController().signal,
+      onEvent: () => {},
+    });
+
+    expect(result.explicitApplied).toEqual(["название → «Brand»"]);
+    expect(result.explicitMissed).toEqual(["SEO"]);
+  });
 });

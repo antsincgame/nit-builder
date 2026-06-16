@@ -29,4 +29,17 @@ describe("buildPolishCompletionMessage", () => {
     });
     expect(msg).toContain("HTML не изменился");
   });
+
+  it("includes explicit applied and missed lines", () => {
+    const msg = buildPolishCompletionMessage({
+      html: AFTER,
+      previousHtml: BEFORE,
+      userPrompt: "смени название",
+      durationMs: 1500,
+      explicitApplied: ["название → «NewBrand»"],
+      explicitMissed: ["заголовок «Hero»"],
+    });
+    expect(msg).toContain("✓ название → «NewBrand»");
+    expect(msg).toContain("Не удалось применить: заголовок «Hero»");
+  });
 });

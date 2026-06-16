@@ -19,7 +19,12 @@ export type PipelineEvent =
   | { type: "template_selected"; templateId: string; templateName: string }
   | { type: "template_pruned"; removed: string[]; kept: string[] }
   | { type: "text"; text: string }
-  | { type: "step_complete"; html?: string }
+  | {
+      type: "step_complete";
+      html?: string;
+      explicitApplied?: string[];
+      explicitMissed?: string[];
+    }
   | {
       type: "polish_mode";
       intent: PolishIntent;

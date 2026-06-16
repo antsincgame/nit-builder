@@ -431,6 +431,8 @@ export function useGenerationFlow(
                   durationMs: event.durationMs,
                   agentSummary: event.assistantSummary,
                   telemetry: event.telemetry,
+                  explicitApplied: event.explicitApplied,
+                  explicitMissed: event.explicitMissed,
                 })
               : buildAssistantCompletionMessage({
                   html: event.html,
@@ -989,6 +991,8 @@ export function useGenerationFlow(
           userPrompt: request,
           durationMs: Date.now() - polishStartMs,
           agentSummary: agentSummary ?? result.assistantSummary,
+          explicitApplied: result.explicitApplied,
+          explicitMissed: result.explicitMissed,
         });
         const updatedMessages: ChatMessage[] = [
           ...chatMessagesRef.current,

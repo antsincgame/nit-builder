@@ -64,10 +64,18 @@ import type {
   PipelineEvent,
   OrchestratorOptions,
 } from "~/lib/services/htmlOrchestrator.types";
-import { applyExplicitPolishEdits } from "~/lib/utils/polishExplicitEdits";
+import {
+  applyExplicitPolishEdits,
+  type PolishEditResult,
+} from "~/lib/utils/polishExplicitEdits";
 
-function finalizePolishHtml(html: string, userRequest: string): string {
-  return applyExplicitPolishEdits(html, userRequest).html;
+function polishStepComplete(edits: PolishEditResult): Extract<PipelineEvent, { type: "step_complete" }> {
+  return {
+    type: "step_complete",
+    html: edits.html,
+    ...(edits.applied.length > 0 ? { explicitApplied: edits.applied } : {}),
+    ...(edits.missed.length > 0 ? { explicitMissed: edits.missed } : {}),
+  };
 }
 
 async function* runAgentPolish(
@@ -154,13 +162,13 @@ async function* runAgentPolish(
         attempt: 0,
         providerId: provider.id,
       });
-      const preview = applyExplicitPolishEdits(
+      const previewEdits = applyExplicitPolishEdits(
         parsed.html || stripCodeFences(rawHtml),
         sanitizedRequest,
-      ).html;
-      memory.currentHtml = preview;
+      );
+      memory.currentHtml = previewEdits.html;
       memory.updatedAt = Date.now();
-      updateSessionHtml(memory.sessionId, preview);
+      updateSessionHtml(memory.sessionId, previewEdits.html);
       metrics.generationCompleted("polish", provider.id, totalMs);
       recordGeneration({
         sessionId: memory.sessionId,
@@ -181,18 +189,18 @@ async function* runAgentPolish(
         attemptsLeft: MAX_CONTINUATION_ATTEMPTS,
         partialChars: rawForTail.length,
       };
-      yield { type: "step_complete", html: preview };
+      yield polishStepComplete(previewEdits);
       return;
     }
 
-    const fullHtml = applyExplicitPolishEdits(parsed.html, sanitizedRequest).html;
-    if (!fullHtml.trim()) {
+    const fullEdits = applyExplicitPolishEdits(parsed.html, sanitizedRequest);
+    if (!fullEdits.html.trim()) {
       throw new Error("Agent polish вернул пустой HTML");
     }
 
-    memory.currentHtml = fullHtml;
+    memory.currentHtml = fullEdits.html;
     memory.updatedAt = Date.now();
-    updateSessionHtml(memory.sessionId, fullHtml);
+    updateSessionHtml(memory.sessionId, fullEdits.html);
     metrics.generationCompleted("polish", provider.id, totalMs);
     recordGeneration({
       sessionId: memory.sessionId,
@@ -206,7 +214,7 @@ async function* runAgentPolish(
       polishIntent: "full_rewrite",
       polishScope: "full",
     });
-    yield { type: "step_complete", html: fullHtml };
+    yield polishStepComplete(fullEdits);
   } catch (err) {
     if ((err as Error).name === "AbortError") return;
     metrics.generationFailed("polish", "agent_polisher_error");
@@ -299,7 +307,8 @@ export async function* executeHtmlPolish(
 
       metrics.patchRulesGenerated(result.ruleCount);
 
-      const finalHtml = enrichSectionAnchors(finalizePolishHtml(result.html, sanitizedRequest));
+      const cssEdits = applyExplicitPolishEdits(result.html, sanitizedRequest);
+      const finalHtml = enrichSectionAnchors(cssEdits.html);
       memory.currentHtml = finalHtml;
       memory.updatedAt = Date.now();
       updateSessionHtml(memory.sessionId, finalHtml);
@@ -326,7 +335,7 @@ export async function* executeHtmlPolish(
         css: result.css,
         scoped: result.scoped,
       };
-      yield { type: "step_complete", html: finalHtml };
+      yield polishStepComplete({ ...cssEdits, html: finalHtml });
       return;
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
@@ -423,9 +432,8 @@ export async function* executeHtmlPolish(
           } else {
             const newFullHtml =
               extracted.before + newSection + extracted.after;
-            const finalHtml = enrichSectionAnchors(
-              finalizePolishHtml(newFullHtml, sanitizedRequest),
-            );
+            const sectionEdits = applyExplicitPolishEdits(newFullHtml, sanitizedRequest);
+            const finalHtml = enrichSectionAnchors(sectionEdits.html);
             memory.currentHtml = finalHtml;
             memory.updatedAt = Date.now();
             updateSessionHtml(memory.sessionId, finalHtml);
@@ -451,7 +459,7 @@ export async function* executeHtmlPolish(
               sectionChars,
               fullHtmlChars,
             };
-            yield { type: "step_complete", html: finalHtml };
+            yield polishStepComplete({ ...sectionEdits, html: finalHtml });
             return;
           }
         }
@@ -526,10 +534,10 @@ export async function* executeHtmlPolish(
         attempt: 0,
         providerId: provider.id,
       });
-      const preview = finalizePolishHtml(stripCodeFences(rawHtml), sanitizedRequest);
-      memory.currentHtml = preview;
+      const previewEdits = applyExplicitPolishEdits(stripCodeFences(rawHtml), sanitizedRequest);
+      memory.currentHtml = previewEdits.html;
       memory.updatedAt = Date.now();
-      updateSessionHtml(memory.sessionId, preview);
+      updateSessionHtml(memory.sessionId, previewEdits.html);
       metrics.generationCompleted("polish", provider.id, totalMs);
       recordGeneration({
         sessionId: memory.sessionId,
@@ -551,14 +559,14 @@ export async function* executeHtmlPolish(
         attemptsLeft: MAX_CONTINUATION_ATTEMPTS,
         partialChars: rawForTail.length,
       };
-      yield { type: "step_complete", html: preview };
+      yield polishStepComplete(previewEdits);
       return;
     }
 
-    const fullHtml = finalizePolishHtml(stripCodeFences(rawHtml), sanitizedRequest);
-    memory.currentHtml = fullHtml;
+    const fullEdits = applyExplicitPolishEdits(stripCodeFences(rawHtml), sanitizedRequest);
+    memory.currentHtml = fullEdits.html;
     memory.updatedAt = Date.now();
-    updateSessionHtml(memory.sessionId, fullHtml);
+    updateSessionHtml(memory.sessionId, fullEdits.html);
     metrics.generationCompleted("polish", provider.id, totalMs);
     recordGeneration({
       sessionId: memory.sessionId,
@@ -573,7 +581,7 @@ export async function* executeHtmlPolish(
       polishTargetSection: targetSection,
       polishScope: "full",
     });
-    yield { type: "step_complete", html: fullHtml };
+    yield polishStepComplete(fullEdits);
   } catch (err) {
     if ((err as Error).name === "AbortError") return;
     metrics.generationFailed("polish", "polisher_error");

@@ -182,6 +182,10 @@ export type ServerToBrowser =
        * agentPolish=true и модель написала пояснение до <!DOCTYPE html>.
        */
       assistantSummary?: string;
+      /** Детерминированные правки (бренд/H1/SEO), применённые после модели. */
+      explicitApplied?: string[];
+      /** Явные правки из запроса, которые не удалось применить. */
+      explicitMissed?: string[];
       /**
        * Диагностика прогона для UI (опционально, backward-compatible). Сервер
        * заполняет из capabilities туннеля + хода генерации. Старый фронт поле

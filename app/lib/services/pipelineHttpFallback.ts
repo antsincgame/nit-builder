@@ -32,7 +32,12 @@ export type HttpPipelineEvent =
   | { type: "text_delta"; text: string; accumulated: string }
   | { type: "agent_summary"; summary: string }
   | { type: "truncated"; canContinue: boolean; attemptsLeft: number }
-  | { type: "step_complete"; html?: string }
+  | {
+      type: "step_complete";
+      html?: string;
+      explicitApplied?: string[];
+      explicitMissed?: string[];
+    }
   | { type: "error"; message: string };
 
 export type HttpFallbackParams = {
@@ -76,6 +81,8 @@ export type HttpFallbackResult = {
   attemptsLeft?: number;
   /** Текстовое резюме модели (Agent polish). */
   assistantSummary?: string;
+  explicitApplied?: string[];
+  explicitMissed?: string[];
 };
 
 /**
@@ -135,6 +142,8 @@ export async function runHttpPipeline(
   let truncated = false;
   let attemptsLeft = 0;
   let assistantSummary: string | undefined;
+  let explicitApplied: string[] | undefined;
+  let explicitMissed: string[] | undefined;
 
   await parseSseStream(res, (event) => {
     switch (event.type) {
@@ -190,7 +199,18 @@ export async function runHttpPipeline(
 
       case "step_complete":
         if (event.html) accumulated = event.html as string;
-        params.onEvent({ type: "step_complete", html: event.html as string | undefined });
+        if (Array.isArray(event.explicitApplied) && event.explicitApplied.length > 0) {
+          explicitApplied = event.explicitApplied as string[];
+        }
+        if (Array.isArray(event.explicitMissed) && event.explicitMissed.length > 0) {
+          explicitMissed = event.explicitMissed as string[];
+        }
+        params.onEvent({
+          type: "step_complete",
+          html: event.html as string | undefined,
+          explicitApplied,
+          explicitMissed,
+        });
         break;
 
       case "error": {
@@ -210,5 +230,7 @@ export async function runHttpPipeline(
     truncated,
     attemptsLeft,
     assistantSummary,
+    explicitApplied,
+    explicitMissed,
   };
 }

@@ -1300,10 +1300,11 @@ function finalizeTunnelDone(
         ? agentParsed.html
         : stripCodeFences(rawHtml);
 
-  const finalizedRaw =
+  const explicitEdits =
     req.mode === "polish" && req.userMessage
-      ? applyExplicitPolishEdits(htmlBase, req.userMessage).html
-      : htmlBase;
+      ? applyExplicitPolishEdits(htmlBase, req.userMessage)
+      : null;
+  const finalizedRaw = explicitEdits?.html ?? htmlBase;
   const finalized =
     req.mode === "polish" ? enrichSectionAnchors(finalizedRaw) : finalizedRaw;
 
@@ -1338,6 +1339,10 @@ function finalizeTunnelDone(
       durationMs,
       ...(req.mode === "polish" ? { generationMode: "polish" as const } : {}),
       ...(agentParsed?.summary ? { assistantSummary: agentParsed.summary } : {}),
+      ...(explicitEdits?.applied.length
+        ? { explicitApplied: explicitEdits.applied }
+        : {}),
+      ...(explicitEdits?.missed.length ? { explicitMissed: explicitEdits.missed } : {}),
     telemetry: {
       model: req.model,
       contextWindow: tunnel?.capabilities.contextWindow,

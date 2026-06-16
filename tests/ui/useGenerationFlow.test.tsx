@@ -48,12 +48,13 @@ import {
 } from "~/lib/hooks/useGenerationFlow";
 import { runHttpPipeline } from "~/lib/services/pipelineHttpFallback";
 import { saveToHistory } from "~/lib/stores/historyStore";
-import { saveRemoteSite } from "~/lib/stores/remoteHistoryStore";
+import { saveRemoteSite, updateRemoteSite } from "~/lib/stores/remoteHistoryStore";
 import { toast } from "~/lib/stores/toastStore";
 
 const mockedRunHttp = runHttpPipeline as unknown as ReturnType<typeof vi.fn>;
 const mockedSaveLocal = saveToHistory as unknown as ReturnType<typeof vi.fn>;
 const mockedSaveRemote = saveRemoteSite as unknown as ReturnType<typeof vi.fn>;
+const mockedUpdateRemote = updateRemoteSite as unknown as ReturnType<typeof vi.fn>;
 
 function makeFakeSocket(overrides?: Partial<ControlSocketLike>): ControlSocketLike {
   return {
@@ -82,6 +83,7 @@ beforeEach(() => {
   mockedRunHttp.mockReset();
   mockedSaveLocal.mockReset();
   mockedSaveRemote.mockReset().mockResolvedValue(undefined);
+  mockedUpdateRemote.mockReset().mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -532,6 +534,118 @@ describe("useGenerationFlow > handleWsEvent", () => {
         templateId: "barber",
       }),
     );
+  });
+
+  it("generate_done после salvage + retry — create, не polish (POST, не PATCH)", async () => {
+    mockedSaveRemote.mockResolvedValue("site-salvaged");
+    const sendGenerate = vi.fn(() => true);
+    const socket = makeFakeSocket({
+      status: "authed",
+      tunnelStatus: "online",
+      sendGenerate,
+    });
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: authedAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.createSite("сайт для nail studio");
+    });
+
+    const salvagedChunk =
+      "<!DOCTYPE html><html><head></head><body><header><h1>Partial</h1></header>" +
+      "<section>".repeat(120) +
+      "</section></body></html>";
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_text",
+        requestId: "req-1",
+        text: salvagedChunk,
+      });
+    });
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_error",
+        requestId: "req-1",
+        error: "timeout",
+        code: "TIMEOUT",
+      });
+    });
+
+    expect(result.current.html).toContain("Partial");
+    expect(result.current.retryAvailable).toBe(true);
+
+    mockedSaveRemote.mockClear();
+    mockedUpdateRemote.mockClear();
+
+    await act(async () => {
+      result.current.retryGeneration();
+    });
+
+    expect(sendGenerate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mode: "create" }),
+    );
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_done",
+        requestId: "req-2",
+        html: "<html>FULL CREATE</html>",
+        templateId: "nail",
+        templateName: "Nail",
+        durationMs: 5000,
+      });
+    });
+
+    expect(result.current.chatMessages.at(-1)?.text).toContain("Собрал");
+    expect(mockedUpdateRemote).not.toHaveBeenCalled();
+    expect(mockedSaveRemote).toHaveBeenCalled();
+  });
+
+  it("generate_done polish показывает explicitApplied из сервера", () => {
+    const socket = makeFakeSocket();
+    const { result } = renderHook(() =>
+      useGenerationFlow({
+        projectId: "p-1",
+        auth: guestAuth,
+        getSocket: () => socket,
+      }),
+    );
+
+    act(() => {
+      result.current.loadFromHistory({
+        id: "h-1",
+        createdAt: Date.now(),
+        prompt: "старый",
+        templateId: "nail",
+        templateName: "Nail",
+        html: "<html><body><h1>Old</h1></body></html>",
+      });
+    });
+
+    act(() => {
+      result.current.handleWsEvent({
+        type: "generate_done",
+        requestId: "req-polish",
+        html: "<html><body><h1>NewBrand</h1></body></html>",
+        templateId: "nail",
+        templateName: "Nail",
+        durationMs: 2000,
+        generationMode: "polish",
+        explicitApplied: ["название → «NewBrand»"],
+        explicitMissed: ["заголовок «Hero»"],
+      });
+    });
+
+    const last = result.current.chatMessages.at(-1)?.text ?? "";
+    expect(last).toContain("название → «NewBrand»");
+    expect(last).toContain("Не удалось применить: заголовок «Hero»");
   });
 
   it("generate_step → обновляет currentStep + templateName", () => {
