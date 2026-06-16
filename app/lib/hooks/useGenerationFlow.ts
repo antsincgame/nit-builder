@@ -412,7 +412,7 @@ export function useGenerationFlow(
           agentPolishActiveRef.current = false;
 
           const isPolish =
-            event.generationMode === "polish" || Boolean(previousHtml?.trim());
+            event.generationMode === "polish" || polishInFlightRef.current;
           polishInFlightRef.current = false;
 
           pushVersion({
