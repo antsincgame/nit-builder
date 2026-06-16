@@ -10,6 +10,7 @@ import { DevicesSection } from "~/components/settings/DevicesSection";
 import { TunnelTokenSection } from "~/components/settings/TunnelTokenSection";
 import { ShortcutsSection } from "~/components/settings/ShortcutsSection";
 import { AboutSection } from "~/components/settings/AboutSection";
+import { ExperimentsSection } from "~/components/settings/ExperimentsSection";
 
 type Props = {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export function SettingsDrawer({ isOpen, onClose }: Props) {
           <AccountSection onClose={onClose} />
           <DevicesSection resetSignal={resetSignal} />
           <TunnelTokenSection resetSignal={resetSignal} />
+          <ExperimentsSection />
           <ShortcutsSection />
           <AboutSection />
         </div>

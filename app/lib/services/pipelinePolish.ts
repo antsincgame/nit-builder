@@ -34,7 +34,7 @@ import { logger } from "~/lib/utils/logger";
 import { metrics } from "~/lib/services/metrics";
 import { enrichSectionAnchors } from "~/lib/utils/sectionAnchors";
 import { applyCssPatch } from "~/lib/services/cssPatch";
-import { classifyPolishIntent } from "~/lib/services/intentClassifier";
+import { classifyPolishIntent, requiresFullDocumentPolish } from "~/lib/services/intentClassifier";
 import {
   isSectionPolishEnabled,
   extractSection,
@@ -49,7 +49,10 @@ import {
 import {
   POLISHER_SYSTEM_PROMPT,
   buildPolisherUserMessage,
+  AGENT_POLISHER_SYSTEM_PROMPT,
+  buildAgentPolisherUserMessage,
 } from "~/lib/config/htmlPrompts";
+import { parseAgentPolishOutput } from "~/lib/services/agentPolish";
 import {
   stripCodeFences,
   readUsage,
@@ -61,6 +64,168 @@ import type {
   PipelineEvent,
   OrchestratorOptions,
 } from "~/lib/services/htmlOrchestrator.types";
+import { applyExplicitPolishEdits } from "~/lib/utils/polishExplicitEdits";
+
+function finalizePolishHtml(html: string, userRequest: string): string {
+  return applyExplicitPolishEdits(html, userRequest).html;
+}
+
+async function* runAgentPolish(
+  memory: SessionMemory,
+  sanitizedRequest: string,
+  signal: AbortSignal,
+  provider: NonNullable<ReturnType<typeof getPreferredProvider>>,
+  model: ReturnType<typeof getModel>,
+  startMs: number,
+): AsyncGenerator<PipelineEvent> {
+  yield {
+    type: "polish_mode",
+    intent: "full_rewrite",
+    reason: "agent experimental",
+    targetSection: undefined,
+  };
+  yield {
+    type: "step_start",
+    roleName: "Agent polish",
+    model: provider.defaultModel,
+    provider: provider.id,
+  };
+
+  try {
+    const estimatedInputChars =
+      memory.currentHtml.length + sanitizedRequest.length + AGENT_POLISHER_SYSTEM_PROMPT.length + 400;
+    const maxOutput = calcMaxOutput(provider, estimatedInputChars);
+
+    const result = await streamText({
+      model,
+      system: AGENT_POLISHER_SYSTEM_PROMPT,
+      prompt: buildAgentPolisherUserMessage({
+        currentHtml: memory.currentHtml,
+        userRequest: sanitizedRequest,
+      }),
+      maxOutputTokens: maxOutput,
+      temperature: 0.55,
+      stopSequences: HTML_STOP_SEQUENCES,
+      abortSignal: signal,
+    });
+
+    let rawHtml = "";
+    let summaryEmitted = false;
+    for await (const delta of result.textStream) {
+      rawHtml += delta;
+      if (!summaryEmitted) {
+        const docIdx = rawHtml.search(/<!DOCTYPE html>/i);
+        if (docIdx > 0) {
+          summaryEmitted = true;
+          yield { type: "agent_summary", summary: rawHtml.slice(0, docIdx).trim() };
+        }
+      }
+      yield { type: "text", text: delta };
+    }
+
+    const parsed = parseAgentPolishOutput(rawHtml);
+    if (parsed.summary && !summaryEmitted) {
+      yield { type: "agent_summary", summary: parsed.summary };
+    }
+
+    const finishReason = await readFinishReason(result);
+    const usage = await readUsage(result);
+    if (usage.prompt > 0 || usage.completion > 0) {
+      metrics.tokensUsed("polish", "prompt", usage.prompt);
+      metrics.tokensUsed("polish", "completion", usage.completion);
+      yield {
+        type: "tokens",
+        mode: "polish",
+        prompt: usage.prompt,
+        completion: usage.completion,
+      };
+    }
+
+    const totalMs = Date.now() - startMs;
+
+    if (finishReason === "length") {
+      metrics.generationTruncated("polish");
+      const rawForTail = cleanRawForTail(parsed.html || rawHtml);
+      setTruncation(memory.sessionId, {
+        mode: "polish",
+        userMessage: sanitizedRequest,
+        templateId: memory.templateId,
+        partialHtml: rawForTail,
+        attempt: 0,
+        providerId: provider.id,
+      });
+      const preview = applyExplicitPolishEdits(
+        parsed.html || stripCodeFences(rawHtml),
+        sanitizedRequest,
+      ).html;
+      memory.currentHtml = preview;
+      memory.updatedAt = Date.now();
+      updateSessionHtml(memory.sessionId, preview);
+      metrics.generationCompleted("polish", provider.id, totalMs);
+      recordGeneration({
+        sessionId: memory.sessionId,
+        mode: "polish",
+        outcome: "success",
+        provider: provider.id,
+        model: provider.defaultModel,
+        durationMs: totalMs,
+        userMessage: sanitizedRequest,
+        templateId: memory.templateId,
+        polishIntent: "full_rewrite",
+        polishScope: "full",
+        errorReason: "truncated",
+      });
+      yield {
+        type: "truncated",
+        canContinue: true,
+        attemptsLeft: MAX_CONTINUATION_ATTEMPTS,
+        partialChars: rawForTail.length,
+      };
+      yield { type: "step_complete", html: preview };
+      return;
+    }
+
+    const fullHtml = applyExplicitPolishEdits(parsed.html, sanitizedRequest).html;
+    if (!fullHtml.trim()) {
+      throw new Error("Agent polish вернул пустой HTML");
+    }
+
+    memory.currentHtml = fullHtml;
+    memory.updatedAt = Date.now();
+    updateSessionHtml(memory.sessionId, fullHtml);
+    metrics.generationCompleted("polish", provider.id, totalMs);
+    recordGeneration({
+      sessionId: memory.sessionId,
+      mode: "polish",
+      outcome: "success",
+      provider: provider.id,
+      model: provider.defaultModel,
+      durationMs: totalMs,
+      userMessage: sanitizedRequest,
+      templateId: memory.templateId,
+      polishIntent: "full_rewrite",
+      polishScope: "full",
+    });
+    yield { type: "step_complete", html: fullHtml };
+  } catch (err) {
+    if ((err as Error).name === "AbortError") return;
+    metrics.generationFailed("polish", "agent_polisher_error");
+    recordGeneration({
+      sessionId: memory.sessionId,
+      mode: "polish",
+      outcome: "error",
+      provider: provider.id,
+      model: provider.defaultModel,
+      durationMs: Date.now() - startMs,
+      userMessage: sanitizedRequest,
+      templateId: memory.templateId,
+      polishIntent: "full_rewrite",
+      polishScope: "full",
+      errorReason: (err as Error).message,
+    });
+    yield { type: "error", message: (err as Error).message };
+  }
+}
 
 export async function* executeHtmlPolish(
   memory: SessionMemory,
@@ -89,6 +254,18 @@ export async function* executeHtmlPolish(
   // инкрементировал generationStarted до 3 раз на один запрос, завышая in-flight
   // и искажая success-rate (№10).
   metrics.generationStarted("polish", provider.id);
+
+  if (options.agentPolish) {
+    yield* runAgentPolish(
+      memory,
+      sanitizedRequest,
+      signal,
+      provider,
+      model,
+      startMs,
+    );
+    return;
+  }
 
   const classification = classifyPolishIntent(sanitizedRequest);
   const intent = options.polishIntent ?? classification.intent;
@@ -122,7 +299,7 @@ export async function* executeHtmlPolish(
 
       metrics.patchRulesGenerated(result.ruleCount);
 
-      const finalHtml = enrichSectionAnchors(result.html);
+      const finalHtml = enrichSectionAnchors(finalizePolishHtml(result.html, sanitizedRequest));
       memory.currentHtml = finalHtml;
       memory.updatedAt = Date.now();
       updateSessionHtml(memory.sessionId, finalHtml);
@@ -164,7 +341,13 @@ export async function* executeHtmlPolish(
   }
 
   // === Tier 3.5: section-only polish ===
-  if ((intent === "full_rewrite" || cssPatchFailed) && targetSection && isSectionPolishEnabled()) {
+  // Ребрендинг/SEO/заголовки — только full rewrite: иначе шапка остаётся со старым названием.
+  if (
+    (intent === "full_rewrite" || cssPatchFailed) &&
+    targetSection &&
+    isSectionPolishEnabled() &&
+    !requiresFullDocumentPolish(sanitizedRequest)
+  ) {
     const extracted = extractSection(memory.currentHtml, targetSection);
     if (extracted.found) {
       metrics.sectionPolishAttempted();
@@ -240,7 +423,9 @@ export async function* executeHtmlPolish(
           } else {
             const newFullHtml =
               extracted.before + newSection + extracted.after;
-            const finalHtml = enrichSectionAnchors(newFullHtml);
+            const finalHtml = enrichSectionAnchors(
+              finalizePolishHtml(newFullHtml, sanitizedRequest),
+            );
             memory.currentHtml = finalHtml;
             memory.updatedAt = Date.now();
             updateSessionHtml(memory.sessionId, finalHtml);
@@ -341,7 +526,7 @@ export async function* executeHtmlPolish(
         attempt: 0,
         providerId: provider.id,
       });
-      const preview = stripCodeFences(rawHtml);
+      const preview = finalizePolishHtml(stripCodeFences(rawHtml), sanitizedRequest);
       memory.currentHtml = preview;
       memory.updatedAt = Date.now();
       updateSessionHtml(memory.sessionId, preview);
@@ -370,7 +555,7 @@ export async function* executeHtmlPolish(
       return;
     }
 
-    const fullHtml = stripCodeFences(rawHtml);
+    const fullHtml = finalizePolishHtml(stripCodeFences(rawHtml), sanitizedRequest);
     memory.currentHtml = fullHtml;
     memory.updatedAt = Date.now();
     updateSessionHtml(memory.sessionId, fullHtml);

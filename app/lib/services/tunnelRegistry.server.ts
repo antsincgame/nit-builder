@@ -39,6 +39,9 @@ import {
   TUNNEL_REPAIR_MAX_TOKENS,
   TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
+import { applyExplicitPolishEdits } from "~/lib/utils/polishExplicitEdits";
+import { parseAgentPolishOutput } from "~/lib/services/agentPolish";
+import { enrichSectionAnchors } from "~/lib/utils/sectionAnchors";
 import {
   buildPhpSqliteArtifact,
   renderPhpSqliteArtifactPreview,
@@ -124,6 +127,8 @@ export type PendingRequest = {
   userMessage?: string;
   /** Режим генерации (create/polish) — для честной feedback-записи. Отсутствие = create. */
   mode?: "create" | "polish";
+  /** Эксперимент Agent polish — conversational summary + full rewrite. */
+  agentPolish?: boolean;
   maxOutputTokens?: number;
   temperature?: number;
   /** Модель/рантайм туннеля (из capabilities) — для feedback-записи. */
@@ -609,6 +614,8 @@ export type RouteRequestParams = {
   codeMaxOutputTokens?: number;
   /** "php-sqlite" — после plan-фазы собрать backend-артефакт вместо кодера. */
   artifactMode?: "php-sqlite";
+  /** Эксперимент Agent polish — conversational summary + full rewrite. */
+  agentPolish?: boolean;
 };
 
 /**
@@ -658,6 +665,7 @@ export function routeRequest(params: RouteRequestParams): boolean {
     progressTokens: 0,
     progressStartedAt: now,
     lastProgressSentAt: 0,
+    agentPolish: params.agentPolish,
   };
   pendingRequests.set(params.requestId, pending);
   stats.totalRequestsRouted++;
@@ -1281,14 +1289,25 @@ function finalizeTunnelDone(
   rawHtml: string,
   durationMs: number,
 ): void {
+  const agentParsed = req.agentPolish ? parseAgentPolishOutput(rawHtml) : null;
+
   // Двухфазный путь: есть план+пресет → stripCodeFences + post-polish (как
   // серверный путь). Legacy одношаговый путь → только stripCodeFences.
-  const html =
+  const htmlBase =
     req.plan && req.presetId
       ? finalizeTunnelHtml(rawHtml, req.plan, req.presetId)
-      : stripCodeFences(rawHtml);
+      : agentParsed
+        ? agentParsed.html
+        : stripCodeFences(rawHtml);
 
-  if (!isUsableHtml(html)) {
+  const finalizedRaw =
+    req.mode === "polish" && req.userMessage
+      ? applyExplicitPolishEdits(htmlBase, req.userMessage).html
+      : htmlBase;
+  const finalized =
+    req.mode === "polish" ? enrichSectionAnchors(finalizedRaw) : finalizedRaw;
+
+  if (!isUsableHtml(finalized)) {
     // Локальная модель вернула пустоту/мусор/отказ — раньше это уходило
     // юзеру «как готовый сайт». Теперь — честная ошибка.
     // Метим вывод битым для динамической деградации класса.
@@ -1313,10 +1332,12 @@ function finalizeTunnelDone(
   sendToBrowser(browserWs, {
     type: "generate_done",
     requestId: req.requestId,
-    html,
+    html: finalized,
     templateId: req.templateId ?? "unknown",
     templateName: req.templateName ?? "Unknown",
-    durationMs,
+      durationMs,
+      ...(req.mode === "polish" ? { generationMode: "polish" as const } : {}),
+      ...(agentParsed?.summary ? { assistantSummary: agentParsed.summary } : {}),
     telemetry: {
       model: req.model,
       contextWindow: tunnel?.capabilities.contextWindow,
@@ -1333,7 +1354,7 @@ function finalizeTunnelDone(
     s.lengthTruncations = 0;
     s.lastOutputInvalid = false;
   });
-  if (req.onComplete) req.onComplete(html);
+  if (req.onComplete) req.onComplete(finalized);
   recordTunnelOutcome(
     req,
     "success",

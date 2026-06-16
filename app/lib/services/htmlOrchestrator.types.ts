@@ -58,6 +58,7 @@ export type PipelineEvent =
     }
   | { type: "style_preset_used"; presetId: StylePresetId; promptDelta: number }
   | { type: "post_polish_applied"; fixes: string[] }
+  | { type: "agent_summary"; summary: string }
   | { type: "error"; message: string };
 
 export type OrchestratorOptions = {
@@ -81,4 +82,6 @@ export type OrchestratorOptions = {
    * allowing a backend artifact to travel through the same SSE/storage path.
    */
   artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
+  /** Эксперимент Agent polish — conversational summary + full rewrite. */
+  agentPolish?: boolean;
 };

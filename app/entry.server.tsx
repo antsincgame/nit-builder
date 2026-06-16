@@ -74,13 +74,13 @@ function applySecurityHeaders(headers: Headers): void {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.tailwindcss.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",
-      `connect-src 'self' https://cdn.jsdelivr.net data: blob: ${wsConnectSrc}`,
+      `connect-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://cdn.tailwindcss.com https://images.unsplash.com data: blob: ${wsConnectSrc}`,
       // frame-src 'self' blob: — для preview iframe (srcDoc генерирует blob)
       "frame-src 'self' blob:",
       // worker-src 'self' blob: — запас на случай blob-воркера php-wasm
       "worker-src 'self' blob:",
       "frame-ancestors 'self'",
-      "base-uri 'self'",
+      "base-uri 'self' about:",
       "form-action 'self'",
       "object-src 'none'",
       "upgrade-insecure-requests",

@@ -130,6 +130,11 @@ export type BrowserToServer =
         | "bold-pop";
       /** Previous site HTML if mode === "polish" */
       previousHtml?: string;
+      /**
+       * Эксперимент: Agent polish — conversational summary + full rewrite вместо
+       * css_patch cascade. Optional, backward-compatible.
+       */
+      agentPolish?: boolean;
     }
   | { type: "abort"; requestId: string }
   | { type: "heartbeat" };
@@ -170,6 +175,13 @@ export type ServerToBrowser =
       templateId: string;
       templateName: string;
       durationMs: number;
+      /** create | polish — для корректного UI без эвристики по чату. */
+      generationMode?: GenerationMode;
+      /**
+       * Текстовое резюме модели (Agent polish). Optional — только когда
+       * agentPolish=true и модель написала пояснение до <!DOCTYPE html>.
+       */
+      assistantSummary?: string;
       /**
        * Диагностика прогона для UI (опционально, backward-compatible). Сервер
        * заполняет из capabilities туннеля + хода генерации. Старый фронт поле

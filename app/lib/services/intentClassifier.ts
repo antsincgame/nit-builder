@@ -114,8 +114,17 @@ const STRUCTURAL_PATTERNS: RegExp[] = [
   uw("баннер\\p{L}*"),
   uw("перепиш\\p{L}*"),
   uw("переименуй"),
-  uw("замени\\s+(текст|заголов|слов)"),
-  uw("измени\\s+(текст|заголов|слов)"),
+  uw("поменяй"),
+  uw("смени"),
+  uw("названи\\p{L}*"),
+  uw("бренд\\p{L}*"),
+  uw("логотип\\p{L}*"),
+  uw("seo\\p{L}*"),
+  uw("сео\\p{L}*"),
+  uw("мета\\s*-?\\s*описани\\p{L}*"),
+  uw("заголово?к\\p{L}*"),
+  uw("замени\\s+(текст|заголов|слов|названи\\p{L}*)"),
+  uw("измени\\s+(текст|заголов|слов|названи\\p{L}*)"),
   uw("новый\\s+(текст|заголов)"),
   uw("напиши"),
   uw("придумай\\p{L}*"),
@@ -244,6 +253,23 @@ export function extractTargetSections(text: string): string[] {
     if (re.test(text)) set.add(section);
   }
   return Array.from(set);
+}
+
+/**
+ * Правки бренда/SEO/заголовков затрагивают <head>, nav и несколько секций —
+ * section-only polish оставляет старое название в шапке (типичный баг polish).
+ */
+export function requiresFullDocumentPolish(userRequest: string): boolean {
+  const text = userRequest.trim();
+  if (!text) return false;
+  if (/(seo|сео|названи|бренд|логотип|переименуй|мета\s*-?\s*описани)/iu.test(text)) {
+    return true;
+  }
+  if (/(поменяй|смени|замени|измени)/iu.test(text) && /(названи|заголов|бренд|логотип)/iu.test(text)) {
+    return true;
+  }
+  if (/добав(ь|ить|им).*(seo|сео|блок)/iu.test(text)) return true;
+  return false;
 }
 
 export function classifyPolishIntent(userRequest: string): ClassificationResult {

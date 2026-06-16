@@ -70,7 +70,26 @@ export function extractSection(
     openMatch = html.match(idAttrRe);
     matchedBy = "id";
   }
-  if (!openMatch || openMatch.index === undefined) return { found: false };
+  if (!openMatch || openMatch.index === undefined) {
+    if (safeId === "hero") {
+      const headerOpen = html.match(/<header\b[^>]*>/i);
+      if (headerOpen && headerOpen.index !== undefined) {
+        const start = headerOpen.index;
+        const closeMatch = html.slice(start).match(/<\/header\s*>/i);
+        if (closeMatch && closeMatch.index !== undefined) {
+          const end = start + closeMatch.index + closeMatch[0].length;
+          return {
+            found: true,
+            sectionHtml: html.slice(start, end),
+            before: html.slice(0, start),
+            after: html.slice(end),
+            matchedBy: "id",
+          };
+        }
+      }
+    }
+    return { found: false };
+  }
 
   const start = openMatch.index;
   const closeMatch = html.slice(start).match(/<\/section\s*>/i);

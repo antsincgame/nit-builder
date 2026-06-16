@@ -26,66 +26,13 @@ import { saveToHistory, type HistoryEntry } from "~/lib/stores/historyStore";
 import { saveRemoteSite, updateRemoteSite } from "~/lib/stores/remoteHistoryStore";
 import { toast } from "~/lib/stores/toastStore";
 import { inferArtifactModeFromPrompt, type ArtifactMode } from "~/lib/utils/artifactMode";
+import { buildAssistantCompletionMessage } from "~/lib/utils/completionMessage";
+import { buildPolishCompletionMessage } from "~/lib/utils/polishCompletion";
+import { readAgentPolishEnabled } from "~/lib/utils/agentPolishPreference";
+import { extractHtmlForPreview } from "~/lib/services/agentPolish";
+import { streamingHtmlReady } from "~/lib/utils/previewFrame";
 import { uuid } from "~/lib/utils/uuid";
 import type { StylePresetId } from "~/lib/llm/style-presets";
-
-// ─── Человеческое описание собранного лендинга ─────────────────────
-// Из data-nit-section собираем понятный список блоков для completion-сообщения
-// (вместо внутреннего template_id вроде «Языковая школа», который путает людей).
-const SECTION_LABELS: Record<string, string> = {
-  hero: "первый экран",
-  about: "о нас",
-  story: "история",
-  "how-it-works": "как это работает",
-  "why-us": "почему мы",
-  features: "преимущества",
-  services: "услуги",
-  programs: "программы",
-  program: "программы",
-  classes: "программы",
-  schedule: "расписание",
-  team: "команда",
-  instructors: "преподаватели",
-  masters: "мастера",
-  doctors: "специалисты",
-  testimonials: "отзывы",
-  pricing: "тарифы",
-  menu: "меню",
-  gallery: "галерея",
-  projects: "работы",
-  skills: "навыки",
-  faq: "вопросы",
-  contact: "контакты",
-  location: "как добраться",
-  hours: "часы работы",
-  booking: "форма записи",
-  "order-form": "форма записи",
-  rsvp: "форма записи",
-  cta: "призыв к действию",
-  events: "события",
-  tracks: "треки",
-};
-
-function describeSections(html: string): string[] {
-  const labels: string[] = [];
-  const seen = new Set<string>();
-  for (const m of html.matchAll(/data-nit-section="([^"]+)"/g)) {
-    const label = SECTION_LABELS[m[1]];
-    if (label && !seen.has(label)) {
-      seen.add(label);
-      labels.push(label);
-    }
-  }
-  return labels;
-}
-
-function pluralBlocks(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "блок";
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "блока";
-  return "блоков";
-}
 
 // Троттлинг живого превью. iframe ПОЛНОСТЬЮ переразбирает srcDoc на каждое
 // обновление; 60fps репарса растущего HTML — главный источник джанка в конце
@@ -96,6 +43,10 @@ const STREAM_PREVIEW_MIN_INTERVAL_MS = 80;
 // Кольцевой буфер версий: каждый snapshot — полный HTML (50-300КБ); держим
 // последние N, иначе длинная сессия polish удерживает десятки копий резидентно.
 const MAX_VERSIONS = 20;
+
+function looksLikeSalvageableHtml(raw: string): boolean {
+  return raw.length > 800 && /<(section|div|main|body|header|h1)/i.test(raw);
+}
 
 // ─── Public types ──────────────────────────────────────────────────
 
@@ -123,6 +74,7 @@ export type ControlSocketLike = {
     artifactMode?: ArtifactMode;
     stylePresetId?: StylePresetId;
     previousHtml?: string;
+    agentPolish?: boolean;
   }) => boolean;
   sendAbort: (requestId: string) => void;
 };
@@ -362,24 +314,34 @@ export function useGenerationFlow(
 
   // RAF-throttled iframe updates чтобы не блокировать main thread на
   // больших HTML стримах.
-  const scheduleIframeUpdate = useCallback((htmlStr: string, chars: number) => {
-    pendingHtmlRef.current = htmlStr;
-    pendingCharsRef.current = chars;
-    if (rafIdRef.current !== null) return;
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      // Троттлинг до ~12fps (см. STREAM_PREVIEW_MIN_INTERVAL_MS): если прошло мало
-      // времени — пропускаем коммит (re-render+репарс iframe не делаем). Дельты
-      // стрима идут часто, следующий кадр после интервала закоммитит свежее
-      // pendingHtmlRef; финал гарантирован generate_done/step_complete.
-      if (Date.now() - lastPreviewCommitMsRef.current < STREAM_PREVIEW_MIN_INTERVAL_MS) {
-        return;
-      }
-      lastPreviewCommitMsRef.current = Date.now();
-      setStreamingHtml(pendingHtmlRef.current);
-      setStreamingChars(pendingCharsRef.current);
-    });
-  }, []);
+  const scheduleIframeUpdate = useCallback(
+    (htmlStr: string, chars: number, opts?: { keepPending?: boolean; reschedule?: boolean }) => {
+      if (!opts?.keepPending) pendingHtmlRef.current = htmlStr;
+      pendingCharsRef.current = chars;
+      const commitPreview = () => {
+        if (Date.now() - lastPreviewCommitMsRef.current < STREAM_PREVIEW_MIN_INTERVAL_MS) {
+          if (opts?.reschedule !== false) {
+            window.setTimeout(commitPreview, STREAM_PREVIEW_MIN_INTERVAL_MS);
+          }
+          return;
+        }
+        lastPreviewCommitMsRef.current = Date.now();
+        setStreamingHtml(pendingHtmlRef.current || htmlStr);
+        setStreamingChars(pendingCharsRef.current);
+      };
+      if (rafIdRef.current !== null) return;
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        commitPreview();
+      });
+    },
+    [],
+  );
+
+  /** true пока идёт polish (WS или HTTP). */
+  const polishInFlightRef = useRef(false);
+  /** true пока идёт Agent polish — превью показываем только после <!DOCTYPE html>. */
+  const agentPolishActiveRef = useRef(false);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -416,7 +378,15 @@ export function useGenerationFlow(
         }
         case "generate_text": {
           const next = (pendingHtmlRef.current || "") + event.text;
-          scheduleIframeUpdate(next, next.length);
+          pendingHtmlRef.current = next;
+          if (polishInFlightRef.current || agentPolishActiveRef.current) {
+            const preview = extractHtmlForPreview(next);
+            if (preview && streamingHtmlReady(preview)) {
+              scheduleIframeUpdate(preview, preview.length, { keepPending: true });
+            }
+          } else {
+            scheduleIframeUpdate(next, next.length);
+          }
           break;
         }
         case "generate_progress": {
@@ -430,6 +400,7 @@ export function useGenerationFlow(
           break;
         }
         case "generate_done": {
+          const previousHtml = htmlRef.current || undefined;
           setHtml(event.html);
           setStreamingHtml(event.html);
           setMode("editing");
@@ -438,13 +409,12 @@ export function useGenerationFlow(
           setGenerationProgress(null);
           setRetryablePrompt(null);
           activeRequestIdRef.current = null;
+          agentPolishActiveRef.current = false;
 
-          // Polish undo/redo: новая версия в стек. Различаем create vs
-          // polish по наличию assistant-сообщения в chat (proxy для того
-          // что это уже не первая генерация в сессии).
-          const isPolish = chatMessagesRef.current.some(
-            (m) => m.role === "assistant",
-          );
+          const isPolish =
+            event.generationMode === "polish" || Boolean(previousHtml?.trim());
+          polishInFlightRef.current = false;
+
           pushVersion({
             html: event.html,
             prompt: lastPromptRef.current,
@@ -452,60 +422,24 @@ export function useGenerationFlow(
             timestamp: Date.now(),
           });
 
-          // Собираем актуальные сообщения чата (включая только что
-          // добавленный assistant-ответ) — на момент здесь setChatMessages
-          // ещё не application-state'нулся, поэтому собираем "ручками"
-          // из ref + новый.
-          const blocks = describeSections(event.html);
-          const secs = (event.durationMs / 1000).toFixed(0);
-          const blocksLine = blocks.length
-            ? `Внутри ${blocks.length} ${pluralBlocks(blocks.length)}: ${blocks.join(", ")}.`
-            : "Сайт готов.";
-          // ─── Телеметрия прогона (Слой 1) ───
-          // Сервер кладёт в generate_done.telemetry данные туннеля + хода
-          // генерации. Показываем компактную строку диагностики и явное
-          // предупреждение, если сайт мог обрезаться (докрутка исчерпана).
-          const tel = event.telemetry;
-          const truncatedWarning = tel?.truncated
-            ? `\n\n⚠️ Сайт мог получиться обрезанным: модель упёрлась в лимит токенов даже после докрутки. Нажми «Повторить» или упрости запрос — меньше блоков.`
-            : "";
-          // Загрузка контекста: если клиент туннеля отдал реальные токены
-          // (usage), показываем «занято X из Y» и предупреждаем при высокой
-          // загрузке — иначе запас тает и сложный запрос может не влезть.
-          let contextWarning = "";
-          let diagLine = "";
-          if (tel) {
-            const parts: string[] = [];
-            // Имя модели показываем, только если это не эмбеддер. Туннель
-            // иногда репортит в capabilities эмбеддинг-модель (она нужна для
-            // RAG), хотя генерировала другая модель — тогда имя вводит в
-            // заблуждение (контекст рядом при этом от настоящей модели кодера).
-            // Лучше скрыть имя, чем показать чужое.
-            if (tel.model && !/embed/i.test(tel.model)) parts.push(tel.model);
-            if (tel.promptTokens && tel.contextWindow) {
-              const pct = Math.round((tel.promptTokens / tel.contextWindow) * 100);
-              parts.push(
-                `контекст ${Math.round(tel.promptTokens / 1000)}k/${Math.round(tel.contextWindow / 1000)}k (${pct}%)`,
-              );
-              if (pct >= 80) {
-                contextWarning =
-                  `\n\n⚠️ Контекст занят на ${pct}%. Запас тает — для более сложного сайта ` +
-                  `увеличь context length в LM Studio или упрости запрос.`;
-              }
-            } else if (tel.contextWindow) {
-              parts.push(`контекст ${Math.round(tel.contextWindow / 1000)}k`);
-            }
-            if (tel.completionTokens) {
-              parts.push(`вывод ${tel.completionTokens.toLocaleString("ru")} ток.`);
-            }
-            if ((tel.continuationRounds ?? 0) > 0) parts.push(`докрутка ×${tel.continuationRounds}`);
-            if (parts.length) diagLine = `\n\nДиагностика: ${parts.join(" · ")}`;
-          }
           const assistantText =
-            `Готово ✨ ${blocksLine} Собрал за ${secs}с.` + truncatedWarning + contextWarning + `\n\n` +
-            `Что можно поправить прямо в чате: сменить заголовок или тексты, поменять цвета, ` +
-            `убрать или добавить блок, заменить фото, поправить цены. Опиши, что изменить, — применю к нужному месту.` +
-            diagLine;
+            isPolish && previousHtml
+              ? buildPolishCompletionMessage({
+                  html: event.html,
+                  previousHtml,
+                  userPrompt: lastPromptRef.current,
+                  durationMs: event.durationMs,
+                  agentSummary: event.assistantSummary,
+                  telemetry: event.telemetry,
+                })
+              : buildAssistantCompletionMessage({
+                  html: event.html,
+                  previousHtml: isPolish ? previousHtml : undefined,
+                  userPrompt: lastPromptRef.current,
+                  isPolish,
+                  durationMs: event.durationMs,
+                  telemetry: event.telemetry,
+                });
           const updatedMessages: ChatMessage[] = [
             ...chatMessagesRef.current,
             { role: "assistant", text: assistantText },
@@ -550,12 +484,19 @@ export function useGenerationFlow(
             // ignore storage failures
           }
           toast.success(`Сайт готов за ${(event.durationMs / 1000).toFixed(1)}s`);
+          if (event.telemetry?.truncated) {
+            toast.warning(
+              "Сайт мог получиться обрезанным — модель упёрлась в лимит токенов. Упрости запрос или нажми «Повторить».",
+            );
+          }
           break;
         }
         case "generate_error": {
           setLoading(false);
           setGenerationProgress(null);
           activeRequestIdRef.current = null;
+          agentPolishActiveRef.current = false;
+          polishInFlightRef.current = false;
 
           // ABORTED — эхо нашего abort (юзер нажал «отмена»): cancelGeneration
           // уже показал тост и сбросил вид. Не плодим второй бабл.
@@ -588,8 +529,7 @@ export function useGenerationFlow(
           // чтобы минуты ожидания и труд модели не пропали. Iframe дорисует
           // незакрытые теги сам.
           const salvaged = pendingHtmlRef.current || "";
-          const looksLikeHtml =
-            salvaged.length > 800 && /<(section|div|main|body|header|h1)/i.test(salvaged);
+          const looksLikeHtml = looksLikeSalvageableHtml(salvaged);
 
           if (looksLikeHtml && !htmlRef.current) {
             setHtml(salvaged);
@@ -877,9 +817,27 @@ export function useGenerationFlow(
       } catch (err) {
         const msg = (err as Error).message;
         if ((err as Error).name !== "AbortError") {
-          toast.error(`Ошибка: ${msg}`);
+          setRetryablePrompt(lastPromptRef.current || prompt);
+          const salvaged = pendingHtmlRef.current || "";
+          if (looksLikeSalvageableHtml(salvaged) && !htmlRef.current) {
+            setHtml(salvaged);
+            setStreamingHtml(salvaged);
+            setMode("editing");
+            setCurrentStep("done");
+            pushVersion({
+              html: salvaged,
+              prompt,
+              kind: "create",
+              timestamp: Date.now(),
+            });
+            toast.error("Генерация прервалась — показал, что успел собрать.");
+          } else {
+            toast.error(`Ошибка: ${msg}`);
+            setMode("welcome");
+          }
+        } else {
+          setMode("welcome");
         }
-        setMode("welcome");
       } finally {
         setLoading(false);
         abortCtrlRef.current = null;
@@ -892,6 +850,9 @@ export function useGenerationFlow(
     async (request: string) => {
       setChatMessages((prev) => [...prev, { role: "user", text: request }]);
       setLoading(true);
+      setCurrentStep("code");
+      polishInFlightRef.current = true;
+      lastAliveAtRef.current = Date.now();
 
       const currentSocket = getSocketRef.current();
       const currentAuth = authRef.current;
@@ -899,6 +860,7 @@ export function useGenerationFlow(
         const msg = "NIT Tunnel не подключён. Запустите клиент, чтобы применить правки через ваш GPU.";
         setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
         setLoading(false);
+        polishInFlightRef.current = false;
         toast.error(msg);
         return;
       }
@@ -907,6 +869,7 @@ export function useGenerationFlow(
         const msg = "Соединение с сервером восстанавливается — повтори через пару секунд.";
         setChatMessages((prev) => [...prev, { role: "assistant", text: `❌ ${msg}` }]);
         setLoading(false);
+        polishInFlightRef.current = false;
         toast.error(msg);
         return;
       }
@@ -920,15 +883,21 @@ export function useGenerationFlow(
         activeRequestIdRef.current = requestId;
         pendingHtmlRef.current = "";
         setStreamingHtml("");
+        const agentPolish = readAgentPolishEnabled();
+        agentPolishActiveRef.current = agentPolish;
+        lastPromptRef.current = request;
+        setLastPrompt(request);
         const sent = currentSocket.sendGenerate({
           requestId,
           mode: "polish",
           prompt: request,
           previousHtml: htmlRef.current,
+          agentPolish,
         });
         if (!sent) {
           toast.error("Туннель не готов. Попробуй ещё раз.");
           setLoading(false);
+          polishInFlightRef.current = false;
           return;
         }
         return;
@@ -938,29 +907,73 @@ export function useGenerationFlow(
       const ctrl = new AbortController();
       abortCtrlRef.current = ctrl;
 
+      const beforeHtml = htmlRef.current || "";
+      const polishStartMs = Date.now();
+      const agentPolish = readAgentPolishEnabled();
+      agentPolishActiveRef.current = agentPolish;
+      lastPromptRef.current = request;
+      setLastPrompt(request);
+      let agentSummary: string | undefined;
       try {
-        const result = await runHttpPipeline({
+        let result = await runHttpPipeline({
           mode: "polish",
           projectId,
           prompt: request,
           sessionId: sessionIdRef.current,
-          // Текущий HTML в теле → сервер регидрирует session memory, даже если
-          // она пуста (редеплой / reload / continue-from-history без sessionId).
           previousHtml: htmlRef.current,
+          agentPolish,
           signal: ctrl.signal,
           onEvent: (event) => {
+            lastAliveAtRef.current = Date.now();
             switch (event.type) {
               case "session_init":
                 sessionIdRef.current = event.sessionId;
                 break;
+              case "agent_summary":
+                agentSummary = event.summary;
+                break;
               case "text_delta":
-                scheduleIframeUpdate(event.accumulated, event.accumulated.length);
+                pendingHtmlRef.current = event.accumulated;
+                if (polishInFlightRef.current || agentPolish) {
+                  const preview = extractHtmlForPreview(event.accumulated);
+                  if (preview && streamingHtmlReady(preview)) {
+                    scheduleIframeUpdate(preview, preview.length, { keepPending: true });
+                  }
+                } else {
+                  scheduleIframeUpdate(event.accumulated, event.accumulated.length);
+                }
                 break;
               default:
                 break;
             }
           },
         });
+
+        let continueGuard = 0;
+        while (result.truncated && (result.attemptsLeft ?? 0) > 0 && continueGuard < 6) {
+          continueGuard++;
+          result = await runHttpPipeline({
+            mode: "continue",
+            projectId,
+            prompt: request,
+            sessionId: sessionIdRef.current,
+            signal: ctrl.signal,
+            onEvent: (event) => {
+              lastAliveAtRef.current = Date.now();
+              if (event.type === "text_delta") {
+                pendingHtmlRef.current = event.accumulated;
+              }
+            },
+          });
+        }
+        if (result.truncated) {
+          toast.warning(
+            "Правки могли обрезаться — модель упёрлась в лимит токенов. Упрости запрос или повтори.",
+          );
+        }
+
+        agentPolishActiveRef.current = false;
+        polishInFlightRef.current = false;
 
         setHtml(result.finalHtml);
         setStreamingHtml("");
@@ -970,11 +983,18 @@ export function useGenerationFlow(
           kind: "polish",
           timestamp: Date.now(),
         });
+        const assistantText = buildPolishCompletionMessage({
+          html: result.finalHtml,
+          previousHtml: beforeHtml,
+          userPrompt: request,
+          durationMs: Date.now() - polishStartMs,
+          agentSummary: agentSummary ?? result.assistantSummary,
+        });
         const updatedMessages: ChatMessage[] = [
           ...chatMessagesRef.current,
-          { role: "assistant", text: "Готово ✨" },
+          { role: "assistant", text: assistantText },
         ];
-        setChatMessages((prev) => [...prev, { role: "assistant", text: "Готово ✨" }]);
+        setChatMessages((prev) => [...prev, { role: "assistant", text: assistantText }]);
         // Persist на remote если есть siteId. На HTTP-path polish мог
         // быть и для guest'а (без siteId) — тогда просто пропускаем.
         if (currentSiteIdRef.current) {
@@ -985,8 +1005,11 @@ export function useGenerationFlow(
         }
         toast.success("Правки применены");
       } catch (err) {
+        agentPolishActiveRef.current = false;
+        polishInFlightRef.current = false;
         const msg = (err as Error).message;
         if ((err as Error).name !== "AbortError") {
+          setRetryablePrompt(request);
           setChatMessages((prev) => [...prev, { role: "assistant", text: `Ошибка: ${msg}` }]);
           toast.error(`Ошибка правки: ${msg}`);
         }

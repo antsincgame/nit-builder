@@ -78,6 +78,23 @@ export function rulesToCss(rules: CssRule[]): string {
  * селектор уже содержит этот scope — не трогаем.
  */
 export function scopeSelector(selector: string, sectionId: string): string {
+  if (sectionId === "hero") {
+    return selector
+      .split(",")
+      .map((part) => {
+        const trimmed = part.trim();
+        if (!trimmed) return "";
+        if (/^html(\b|$)/i.test(trimmed)) return trimmed;
+        if (/^body(\b|$)/i.test(trimmed)) {
+          return `[data-nit-section="hero"], header`;
+        }
+        if (trimmed.includes('data-nit-section="hero"')) return trimmed;
+        return `[data-nit-section="hero"] ${trimmed}, header ${trimmed}`;
+      })
+      .filter(Boolean)
+      .join(", ");
+  }
+
   const scope = `[data-nit-section="${sectionId}"]`;
 
   return selector

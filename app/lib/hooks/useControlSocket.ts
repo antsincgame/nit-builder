@@ -206,6 +206,7 @@ export function useControlSocket(options: Options) {
       artifactMode?: "template" | "custom" | "auto" | "php-sqlite";
       stylePresetId?: StylePresetId;
       previousHtml?: string;
+      agentPolish?: boolean;
     }): boolean => {
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN || status !== "authed") {
@@ -220,6 +221,7 @@ export function useControlSocket(options: Options) {
           artifactMode: params.artifactMode,
           stylePresetId: params.stylePresetId,
           previousHtml: params.previousHtml,
+          agentPolish: params.agentPolish,
         } satisfies BrowserToServer),
       );
       return true;

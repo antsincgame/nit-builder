@@ -43,6 +43,7 @@ import { sanitizeUserMessage } from "~/lib/utils/promptSanitizer";
 import {
   buildTunnelPlanPrompt,
   buildTunnelPolishPhase,
+  buildTunnelAgentPolishPhase,
   TUNNEL_PLAN_MAX_TOKENS,
   TUNNEL_CODE_MAX_TOKENS,
 } from "~/lib/services/tunnelPipeline.server";
@@ -513,7 +514,9 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
         // stripCodeFences. Докрутку при обрыве крутит сервер (как у create).
         if (msg.mode === "polish") {
           const reqId = msg.requestId;
-          const polish = buildTunnelPolishPhase(msg.previousHtml ?? "", msg.prompt);
+          const polish = msg.agentPolish
+            ? buildTunnelAgentPolishPhase(msg.previousHtml ?? "", msg.prompt)
+            : buildTunnelPolishPhase(msg.previousHtml ?? "", msg.prompt);
           if (!polish) {
             send({
               type: "generate_error",
@@ -533,6 +536,7 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
             temperature: polish.temperature,
             originalPrompt: msg.prompt,
             mode: "polish",
+            agentPolish: msg.agentPolish,
             // phase опущена → "code"; плана нет → finalize = stripCodeFences.
           });
           if (!routed) {

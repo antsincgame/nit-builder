@@ -30,6 +30,7 @@ export type HttpPipelineEvent =
   | { type: "template_selected"; templateId: string; templateName: string }
   | { type: "step_start"; roleName: string }
   | { type: "text_delta"; text: string; accumulated: string }
+  | { type: "agent_summary"; summary: string }
   | { type: "truncated"; canContinue: boolean; attemptsLeft: number }
   | { type: "step_complete"; html?: string }
   | { type: "error"; message: string };
@@ -51,6 +52,8 @@ export type HttpFallbackParams = {
   providerId?: string;
   artifactMode?: ArtifactMode;
   stylePresetId?: StylePresetId;
+  /** Эксперимент Agent polish — только для mode=polish. */
+  agentPolish?: boolean;
   signal: AbortSignal;
   /** Вызывается на каждое событие. Возврат false — прервать обработку (не используется сейчас, на будущее). */
   onEvent: (event: HttpPipelineEvent) => void;
@@ -71,6 +74,8 @@ export type HttpFallbackResult = {
   truncated?: boolean;
   /** Сколько ещё попыток докрутки разрешает сервер (0 — лимит исчерпан). */
   attemptsLeft?: number;
+  /** Текстовое резюме модели (Agent polish). */
+  assistantSummary?: string;
 };
 
 /**
@@ -95,6 +100,7 @@ export async function runHttpPipeline(
       providerId: params.providerId,
       artifactMode: params.artifactMode ?? inferArtifactModeFromPrompt(params.prompt),
       stylePresetId: params.stylePresetId,
+      agentPolish: params.agentPolish,
     }),
     signal: params.signal,
   });
@@ -128,6 +134,7 @@ export async function runHttpPipeline(
   let newSessionId: string | undefined;
   let truncated = false;
   let attemptsLeft = 0;
+  let assistantSummary: string | undefined;
 
   await parseSseStream(res, (event) => {
     switch (event.type) {
@@ -166,6 +173,11 @@ export async function runHttpPipeline(
         });
         break;
 
+      case "agent_summary":
+        assistantSummary = event.summary as string;
+        params.onEvent({ type: "agent_summary", summary: assistantSummary });
+        break;
+
       case "truncated":
         truncated = true;
         attemptsLeft = (event.attemptsLeft as number) ?? 0;
@@ -197,5 +209,6 @@ export async function runHttpPipeline(
     newSessionId,
     truncated,
     attemptsLeft,
+    assistantSummary,
   };
 }

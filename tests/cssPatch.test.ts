@@ -34,16 +34,18 @@ describe("rulesToCss", () => {
 });
 
 describe("scopeSelector", () => {
-  it("body → сам scope", () => {
-    expect(scopeSelector("body", "hero")).toBe('[data-nit-section="hero"]');
+  it("body → hero scope + header", () => {
+    expect(scopeSelector("body", "hero")).toBe('[data-nit-section="hero"], header');
   });
 
-  it("body.foo → scope.foo", () => {
-    expect(scopeSelector("body.foo", "hero")).toBe('[data-nit-section="hero"].foo');
+  it("body.foo → hero scope + header", () => {
+    expect(scopeSelector("body.foo", "hero")).toBe(
+      '[data-nit-section="hero"], header',
+    );
   });
 
-  it("простой тег → scope + тег", () => {
-    expect(scopeSelector("h1", "hero")).toBe('[data-nit-section="hero"] h1');
+  it("простой тег → scope + тег и header", () => {
+    expect(scopeSelector("h1", "hero")).toBe('[data-nit-section="hero"] h1, header h1');
   });
 
   it("класс → scope + класс", () => {
@@ -53,6 +55,7 @@ describe("scopeSelector", () => {
   it("множественный через запятую — каждый скоупится отдельно", () => {
     const out = scopeSelector("h1, .btn, button", "hero");
     expect(out).toContain('[data-nit-section="hero"] h1');
+    expect(out).toContain('header h1');
     expect(out).toContain('[data-nit-section="hero"] .btn');
     expect(out).toContain('[data-nit-section="hero"] button');
   });
@@ -68,7 +71,7 @@ describe("scopeSelector", () => {
 
   it("пустые части отбрасываются", () => {
     expect(scopeSelector("h1, , button", "hero")).toBe(
-      '[data-nit-section="hero"] h1, [data-nit-section="hero"] button',
+      '[data-nit-section="hero"] h1, header h1, [data-nit-section="hero"] button, header button',
     );
   });
 });

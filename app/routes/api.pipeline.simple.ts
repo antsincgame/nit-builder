@@ -28,6 +28,7 @@ const Schema = z
       .string()
       .refine(isKnownPresetId, "unknown style preset")
       .optional(),
+    agentPolish: z.boolean().optional(),
   })
   .refine(
     (d) => d.mode === "continue" || (typeof d.message === "string" && d.message.length >= 1),
@@ -92,7 +93,7 @@ export async function action({ request }: { request: Request }) {
     return Response.json({ error: detail }, { status: 400 });
   }
 
- const { mode, projectId, message, previousHtml, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId } = parsed.data;
+ const { mode, projectId, message, previousHtml, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId, agentPolish } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
   const memory = getOrCreateSession(sessionId, projectId);
   const providerOverride = providerId ? { providerId, modelName } : undefined;
@@ -123,6 +124,7 @@ export async function action({ request }: { request: Request }) {
                 providerOverride,
                 polishIntent,
                 targetSection,
+                agentPolish,
               })
             : mode === "continue"
             ? executeHtmlContinue(memory, request.signal, { providerOverride })

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   classifyPolishIntent,
   extractTargetSection,
+  requiresFullDocumentPolish,
 } from "~/lib/services/intentClassifier";
 
 describe("extractTargetSection", () => {
@@ -54,5 +55,21 @@ describe("classifyPolishIntent включает targetSection", () => {
     const c = classifyPolishIntent("добавь секцию отзывы");
     expect(c.intent).toBe("full_rewrite");
     expect(c.targetSection).toBe("testimonials");
+  });
+
+  it("ребрендинг → full_rewrite", () => {
+    const c = classifyPolishIntent("поменяй название на ManikBy");
+    expect(c.intent).toBe("full_rewrite");
+  });
+});
+
+describe("requiresFullDocumentPolish", () => {
+  it("true для смены названия и SEO", () => {
+    expect(requiresFullDocumentPolish("поменяй название на ManikBy")).toBe(true);
+    expect(requiresFullDocumentPolish("добавь больше seo блоков")).toBe(true);
+  });
+
+  it("false для точечной стилевой правки секции", () => {
+    expect(requiresFullDocumentPolish("сделай героя синим")).toBe(false);
   });
 });

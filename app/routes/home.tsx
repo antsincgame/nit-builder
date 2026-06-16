@@ -22,7 +22,7 @@ import {
   extractPhpSqliteArtifact,
 } from "~/lib/utils/artifactExport";
 import { inlineExternalImages } from "~/lib/utils/inlineImagesClient";
-import { withPreviewBase } from "~/lib/utils/previewFrame";
+import { withPreviewBase, streamingHtmlReady } from "~/lib/utils/previewFrame";
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
 import { ShareDialog } from "~/components/simple/ShareDialog";
@@ -536,7 +536,10 @@ export default function Home() {
 
   /* ─── Generating / Editing layout ─── */
   if (mode === "generating" || mode === "editing") {
-    const previewHtml = streamingHtml || html;
+    const streamCandidate = streamingHtml || html;
+    const streamReady = streamingHtmlReady(streamCandidate);
+    const previewHtml =
+      loading && html && streamingHtml && !streamReady ? html : streamCandidate;
     const isGenerating = mode === "generating";
     const isBackendArtifact = !!extractPhpSqliteArtifact(previewHtml);
 

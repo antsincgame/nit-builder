@@ -33,3 +33,11 @@ export function withPreviewBase(html: string): string {
   // добавится на следующем кадре, как только <head> появится в потоке.
   return html;
 }
+
+/** Достаточно ли HTML для показа в iframe (есть body + закрытый блок). */
+export function streamingHtmlReady(htmlStr: string): boolean {
+  return (
+    /<body[^>]*>/i.test(htmlStr) &&
+    (/<\/(section|header|main|footer)>/i.test(htmlStr) || htmlStr.length > 2800)
+  );
+}

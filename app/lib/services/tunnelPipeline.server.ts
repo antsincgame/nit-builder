@@ -43,6 +43,7 @@ import {
   POLISHER_SYSTEM_PROMPT,
   buildPolisherUserMessage,
 } from "~/lib/config/htmlPrompts";
+import { buildAgentPolishPhase } from "~/lib/services/agentPolish";
 import { sanitizeUserMessage } from "~/lib/utils/promptSanitizer";
 import { tierProfile, type ModelTier } from "~/lib/llm/modelTier";
 import {
@@ -231,6 +232,19 @@ export function buildTunnelPolishPhase(
     maxOutputTokens: TUNNEL_POLISH_MAX_TOKENS,
     temperature: TUNNEL_POLISH_TEMPERATURE,
   };
+}
+
+/**
+ * Эксперимент Agent polish для туннеля: conversational prompt + выше temperature.
+ * Включается только когда клиент шлёт agentPolish=true.
+ */
+export function buildTunnelAgentPolishPhase(
+  previousHtml: string,
+  userRequest: string,
+): TunnelPolishPhase | null {
+  if (!previousHtml.trim()) return null;
+  const sanitized = sanitizeUserMessage(userRequest);
+  return buildAgentPolishPhase(previousHtml, sanitized, TUNNEL_POLISH_MAX_TOKENS);
 }
 
 /**
