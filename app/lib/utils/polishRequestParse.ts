@@ -7,7 +7,7 @@ export type ExplicitPolishEdits = {
 
 function cleanValue(raw: string): string {
   return raw
-    .replace(/^["«'(\[]+/, "")
+    .replace(/^["«'([[]+/, "")
     .replace(/["»')\].,;]+$/, "")
     .trim();
 }
