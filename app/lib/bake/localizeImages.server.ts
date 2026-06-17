@@ -1,39 +1,23 @@
 /**
- * Локализация внешних картинок в standalone-HTML.
+ * Локализация внешних картинок при экспорте сайта.
  *
- * Проблема: сгенерированный сайт ссылается на внешние картинки (Unsplash и пр.)
- * через URL. Скачанный файл зависит от того, что CDN жив и доступен. Юзер хочет
- * самодостаточный артефакт — картинки внутри файла, а не ссылками.
+ * Сгенерированный HTML ссылается на Unsplash/picsum. При скачивании качаем
+ * картинки в assets/images/ и переписываем URL на относительные пути — архив
+ * работает офлайн без внешних CDN.
  *
- * Решение: находим внешние http(s)-картинки (<img src>, inline style url()),
- * скачиваем и встраиваем как data:-URI прямо в HTML. Один файл — заливай куда
- * угодно, ничего не отвалится.
- *
- * Безопасность (SSRF): HTML генерится LLM, URL могут быть произвольными. Поэтому:
- *   - только http/https-схемы;
- *   - резолвим хост и блокируем приватные/loopback/link-local IP (в т.ч.
- *     metadata-эндпоинт 169.254.169.254, localhost, LAN, CGNAT);
- *   - таймаут на запрос, лимит размера одной картинки и их количества;
- *   - принимаем только content-type image/*.
- * Остаточный риск DNS-rebinding (публичный хост резолвится в приватный IP между
- * проверкой и фетчем) считаем приемлемым: качаем картинки лендингов, не секреты.
- *
- * Поведение best-effort: любая неудача по конкретной картинке — оставляем её
- * исходной ссылкой, генерацию/экспорт не валим. Kill-switch: NIT_BUNDLE_INLINE_IMAGES=0.
- *
- * Модуль .server.ts — только server-side (зависит от node:dns, node:net, fetch).
+ * Безопасность (SSRF): только http/https, блок приватных IP, лимиты размера.
+ * Kill-switch: NIT_BUNDLE_INLINE_IMAGES=0 (историческое имя — отключает всю локализацию).
  */
 import { lookup } from "node:dns/promises";
 import net from "node:net";
 import { collectImageUrls, replaceImageUrlsScoped } from "~/lib/utils/imageInline";
 
 const MAX_IMAGES = 25;
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB на картинку — Unsplash ?w=800 куда меньше
-// Суммарный бюджет инлайна. Без него 25×8МБ×1.33 (base64) ≈ 266МБ выходного
-// HTML — DoS по размеру скачиваемого бандла. Картинки сверх бюджета остаются
-// ссылками (best-effort, как и при ошибке скачивания).
+const MAX_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_BYTES = 6 * 1024 * 1024;
 const FETCH_TIMEOUT_MS = 10_000;
+const MAX_IMAGE_REDIRECTS = 3;
+export const ASSETS_IMAGES_PREFIX = "assets/images/";
 
 /** Собрать уникальные внешние URL картинок из HTML (<img src>, srcset, url()). */
 export function extractExternalImageUrls(html: string): string[] {
@@ -48,22 +32,22 @@ export function isPrivateIp(ip: string): boolean {
     if (p.length !== 4 || p.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return true;
     const [a, b] = p;
     if (a === 0 || a === 10 || a === 127) return true;
-    if (a === 169 && b === 254) return true; // link-local + cloud metadata
+    if (a === 169 && b === 254) return true;
     if (a === 172 && b >= 16 && b <= 31) return true;
     if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+    if (a === 100 && b >= 64 && b <= 127) return true;
     return false;
   }
   if (v === 6) {
     const lower = ip.toLowerCase();
     if (lower === "::1" || lower === "::") return true;
-    if (lower.startsWith("fe80")) return true; // link-local
-    if (lower.startsWith("fc") || lower.startsWith("fd")) return true; // ULA fc00::/7
+    if (lower.startsWith("fe80")) return true;
+    if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
     const mapped = lower.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
     if (mapped) return isPrivateIp(mapped[1]);
     return false;
   }
-  return true; // не IP — резолв сделает вызывающий
+  return true;
 }
 
 async function isSafeHost(hostname: string): Promise<boolean> {
@@ -78,7 +62,6 @@ async function isSafeHost(hostname: string): Promise<boolean> {
   }
 }
 
-/** content-type image/* → расширение (для отладки/имён); null если не картинка. */
 function extFromContentType(ct: string): string | null {
   switch (ct) {
     case "image/jpeg":
@@ -99,10 +82,6 @@ function extFromContentType(ct: string): string | null {
   }
 }
 
-/** Максимум хопов редиректа при скачивании картинки. */
-const MAX_IMAGE_REDIRECTS = 3;
-
-/** http(s)-схема + не приватный хост. Проверяется на КАЖДОМ хопе редиректа. */
 async function isFetchableImageUrl(rawUrl: string): Promise<boolean> {
   let u: URL;
   try {
@@ -114,13 +93,14 @@ async function isFetchableImageUrl(rawUrl: string): Promise<boolean> {
   return isSafeHost(u.hostname);
 }
 
-/** Скачать одну картинку → data:-URI. null при любой проблеме (best-effort). */
-async function fetchAsDataUri(url: string): Promise<string | null> {
-  // Редиректы обрабатываем ВРУЧНУЮ с повторной проверкой хоста на каждом хопе.
-  // С redirect:"follow" исходный публичный URL мог ответить 302 на
-  // http://169.254.169.254/ (cloud metadata) или на внутренний IP, и проверка
-  // хоста (сделанная только для исходного URL) это не ловила — прямой
-  // redirect-SSRF. Теперь каждый Location валидируется как новый URL.
+export type FetchedImage = {
+  buffer: Buffer;
+  contentType: string;
+  ext: string;
+};
+
+/** Скачать одну картинку. null при любой проблеме (best-effort). */
+export async function fetchExternalImage(url: string): Promise<FetchedImage | null> {
   let currentUrl = url;
 
   for (let hop = 0; hop <= MAX_IMAGE_REDIRECTS; hop++) {
@@ -131,7 +111,6 @@ async function fetchAsDataUri(url: string): Promise<string | null> {
     try {
       const res = await fetch(currentUrl, { signal: ctrl.signal, redirect: "manual" });
 
-      // 3xx + Location → валидируем новый хост и идём дальше (до лимита хопов).
       if (res.status >= 300 && res.status < 400) {
         const location = res.headers.get("location");
         if (!location) return null;
@@ -141,10 +120,11 @@ async function fetchAsDataUri(url: string): Promise<string | null> {
 
       if (!res.ok) return null;
       const ct = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-      if (!extFromContentType(ct)) return null;
-      const buf = new Uint8Array(await res.arrayBuffer());
+      const ext = extFromContentType(ct);
+      if (!ext) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
       if (buf.byteLength === 0 || buf.byteLength > MAX_BYTES) return null;
-      return `data:${ct};base64,${Buffer.from(buf).toString("base64")}`;
+      return { buffer: buf, contentType: ct, ext };
     } catch {
       return null;
     } finally {
@@ -152,44 +132,94 @@ async function fetchAsDataUri(url: string): Promise<string | null> {
     }
   }
 
-  // Превышен лимит редиректов — не скачиваем.
   return null;
 }
 
-export type InlineImagesResult = {
-  /** HTML с встроенными data:-URI вместо доживших до встраивания ссылок. */
+function localizationDisabled(): boolean {
+  return process.env.NIT_BUNDLE_INLINE_IMAGES === "0";
+}
+
+export type AssetImageFile = {
+  path: string;
+  content: Buffer;
+};
+
+export type LocalizeImagesToAssetsResult = {
   html: string;
-  /** Сколько картинок успешно встроено. */
+  files: AssetImageFile[];
   embedded: number;
-  /** Сколько не удалось (остались ссылками). */
   failed: number;
 };
 
 /**
- * Встроить внешние картинки HTML как data:-URI. Best-effort, gated NIT_BUNDLE_INLINE_IMAGES.
- * Дубли одного URL заменяются все разом. Порядок и разметка не меняются.
+ * Скачать внешние картинки в assets/images/* и переписать URL в HTML.
+ * Best-effort: неудачные URL остаются внешними ссылками.
  */
+export async function localizeImagesToAssets(html: string): Promise<LocalizeImagesToAssetsResult> {
+  if (localizationDisabled()) {
+    return { html, files: [], embedded: 0, failed: 0 };
+  }
+
+  const urls = extractExternalImageUrls(html).slice(0, MAX_IMAGES);
+  if (urls.length === 0) return { html, files: [], embedded: 0, failed: 0 };
+
+  const fetched = await Promise.all(urls.map((u) => fetchExternalImage(u)));
+  const map = new Map<string, string>();
+  const files: AssetImageFile[] = [];
+  let embedded = 0;
+  let failed = 0;
+  let totalBytes = 0;
+
+  urls.forEach((url, i) => {
+    const img = fetched[i];
+    if (!img || totalBytes + img.buffer.length > MAX_TOTAL_BYTES) {
+      failed++;
+      return;
+    }
+    const name = `image-${String(i + 1).padStart(3, "0")}.${img.ext}`;
+    const relPath = `${ASSETS_IMAGES_PREFIX}${name}`;
+    files.push({ path: relPath, content: img.buffer });
+    map.set(url, relPath);
+    totalBytes += img.buffer.length;
+    embedded++;
+  });
+
+  return {
+    html: replaceImageUrlsScoped(html, map),
+    files,
+    embedded,
+    failed,
+  };
+}
+
+export type InlineImagesResult = {
+  html: string;
+  embedded: number;
+  failed: number;
+};
+
+/** @deprecated Используй localizeImagesToAssets — экспорт теперь кладёт файлы в assets/. */
 export async function inlineImagesAsDataUris(html: string): Promise<InlineImagesResult> {
-  if (process.env.NIT_BUNDLE_INLINE_IMAGES === "0") {
+  if (localizationDisabled()) {
     return { html, embedded: 0, failed: 0 };
   }
   const urls = extractExternalImageUrls(html).slice(0, MAX_IMAGES);
   if (urls.length === 0) return { html, embedded: 0, failed: 0 };
 
-  const dataUris = await Promise.all(urls.map((u) => fetchAsDataUri(u)));
-
-  // Подменяем только в безопасных зонах (src/srcset/<style>/inline-style), не
-  // трогая class-атрибуты Tailwind bg-[url(...)] — иначе ломается CSS-селектор
-  // и фон исчезает (см. imageInline). Длинные URL заменяются раньше коротких.
+  const fetched = await Promise.all(urls.map((u) => fetchExternalImage(u)));
   const map = new Map<string, string>();
   let embedded = 0;
   let failed = 0;
   let totalBytes = 0;
+
   urls.forEach((url, i) => {
-    const dataUri = dataUris[i];
-    // Встраиваем, пока не скачалось ИЛИ не превысили суммарный бюджет — иначе
-    // остаётся внешней ссылкой (бандл не раздувается до сотен МБ).
-    if (dataUri && totalBytes + dataUri.length <= MAX_TOTAL_BYTES) {
+    const img = fetched[i];
+    if (!img) {
+      failed++;
+      return;
+    }
+    const dataUri = `data:${img.contentType};base64,${img.buffer.toString("base64")}`;
+    if (totalBytes + dataUri.length <= MAX_TOTAL_BYTES) {
       map.set(url, dataUri);
       totalBytes += dataUri.length;
       embedded++;
@@ -197,6 +227,6 @@ export async function inlineImagesAsDataUris(html: string): Promise<InlineImages
       failed++;
     }
   });
-  const out = replaceImageUrlsScoped(html, map);
-  return { html: out, embedded, failed };
+
+  return { html: replaceImageUrlsScoped(html, map), embedded, failed };
 }

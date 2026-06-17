@@ -170,6 +170,7 @@ export async function action({ request }: ActionFunctionArgs) {
         "X-Bundle-Collections-Source": collectionsSource,
         "X-Bundle-Size": String(result.sizeBytes),
         "X-Bundle-Zones-Source": zonesSource,
+        "X-Bundle-Images": `${result.imagesEmbedded}/${result.imagesEmbedded + result.imagesFailed}`,
         // setup-файл переименован в setup-<8hex>.php (см. bundle.server.ts).
         // Клиент использует этот header чтобы показать юзеру правильную ссылку
         // в toast после download — иначе юзер пойдёт на /setup.php и получит 404.

@@ -35,7 +35,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeHtmlToPhp } from "./htmlToPhp.server";
 import { bakeCollections, applyCollectionMarkers } from "./bakeCollections.server";
-import { compileTailwindForHtml, inlineCompiledCss } from "./compileTailwind.server";
+import {
+  bakeStandaloneHtml,
+  compileTailwindForHtml,
+  inlineCompiledCss,
+} from "./compileTailwind.server";
+import { localizeImagesToAssets } from "./localizeImages.server";
 import type { PlanCollection, PlanEditableZone } from "~/lib/utils/planSchema";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -85,6 +90,17 @@ export type BundlePhpResult = {
   sizeBytes: number;
   /** Имя setup-файла в архиве (рандомизировано, см. doc сверху модуля). */
   setupFilename: string;
+  /** Сколько внешних картинок скачано в assets/images/. */
+  imagesEmbedded: number;
+  /** Сколько картинок остались внешними ссылками. */
+  imagesFailed: number;
+};
+
+export type BundleStaticSiteResult = {
+  zip: Uint8Array;
+  sizeBytes: number;
+  imagesEmbedded: number;
+  imagesFailed: number;
 };
 
 /**
@@ -117,6 +133,30 @@ async function readDirRecursive(
  * Главная функция: собрать ZIP с PHP-админкой по сгенерированному HTML,
  * зонам и коллекциям из плана.
  */
+export async function bundleStaticSiteZip(html: string): Promise<BundleStaticSiteResult> {
+  const baked = await bakeStandaloneHtml(html);
+  const localized = await localizeImagesToAssets(baked);
+
+  const zip = new JSZip();
+  zip.file("index.html", localized.html);
+  for (const file of localized.files) {
+    zip.file(file.path, file.content);
+  }
+
+  const buffer = await zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 6 },
+  });
+
+  return {
+    zip: buffer,
+    sizeBytes: buffer.length,
+    imagesEmbedded: localized.embedded,
+    imagesFailed: localized.failed,
+  };
+}
+
 export async function bundlePhp(
   input: BundlePhpInput,
 ): Promise<BundlePhpResult> {
@@ -125,9 +165,14 @@ export async function bundlePhp(
   const css = await compileTailwindForHtml(input.html);
   const htmlWithCss = inlineCompiledCss(input.html, css);
 
+  // 2b. Внешние картинки → assets/images/* до PHP-bake, чтобы defaults/content.json
+  //     и src в index.php ссылались на локальные файлы, а не Unsplash.
+  const localized = await localizeImagesToAssets(htmlWithCss);
+  const htmlForBake = localized.html;
+
   // 3. Коллекции → маркеры цикла/полей + стартовые данные. Идёт ДО зон:
   // выход снова парсится в bakeHtmlToPhp, текстовые маркеры это переживают.
-  const colBake = bakeCollections(htmlWithCss, input.collections ?? []);
+  const colBake = bakeCollections(htmlForBake, input.collections ?? []);
 
   // 4. PHP baker зон (понимает уже встроенный CSS, не трогает <style>).
   const baked = bakeHtmlToPhp(colBake.html, input.zones);
@@ -182,8 +227,9 @@ export async function bundlePhp(
     "data/collections.json",
     JSON.stringify(colBake.collectionsData, null, 2),
   );
-  // Пустой assets/uploads/ создаём с .htaccess (уже есть в template) + .gitkeep
-  // на случай если в шаблоне путь без файлов — JSZip не создаёт пустые папки.
+  for (const file of localized.files) {
+    zip.file(file.path, file.content);
+  }
 
   const buffer = await zip.generateAsync({
     type: "uint8array",
@@ -200,5 +246,7 @@ export async function bundlePhp(
     missingCollectionFields: colBake.missingFields,
     sizeBytes: buffer.length,
     setupFilename,
+    imagesEmbedded: localized.embedded,
+    imagesFailed: localized.failed,
   };
 }

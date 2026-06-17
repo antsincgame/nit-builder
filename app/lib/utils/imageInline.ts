@@ -20,22 +20,28 @@ const STYLE_ATTR_RE = /style\s*=\s*("[^"]*"|'[^']*')/gi;
 const SRC_URL_RE = /\bsrc\s*=\s*["'](https?:\/\/[^"'\s]+)["']/gi;
 const SRCSET_ATTR_RE = /\bsrcset\s*=\s*("[^"]*"|'[^']*')/gi;
 const CSS_URL_RE = /url\(\s*["']?(https?:\/\/[^"')\s]+)["']?\s*\)/gi;
+const CLASS_BG_URL_RE = /bg-\[url\(['"](https?:\/\/[^'"]+)['"]\)\]/gi;
 
 function stripQuotes(s: string): string {
   return s.replace(/^["']|["']$/g, "");
 }
 
-/** Уникальные внешние http(s)-URL картинок: <img src>, srcset, CSS url(). */
-export function collectImageUrls(html: string): string[] {
-  const urls = new Set<string>();
-  for (const m of html.matchAll(SRC_URL_RE)) urls.add(m[1]!);
-  for (const m of html.matchAll(SRCSET_ATTR_RE)) {
+function collectSrcFromImgTag(tag: string, urls: Set<string>): void {
+  for (const m of tag.matchAll(SRC_URL_RE)) urls.add(m[1]!);
+  for (const m of tag.matchAll(SRCSET_ATTR_RE)) {
     for (const part of stripQuotes(m[1]!).split(",")) {
       const u = part.trim().split(/\s+/)[0];
       if (u && /^https?:\/\//i.test(u)) urls.add(u);
     }
   }
+}
+
+/** Уникальные внешние http(s)-URL картинок: <img src>, srcset, CSS url(), Tailwind bg-[url]. */
+export function collectImageUrls(html: string): string[] {
+  const urls = new Set<string>();
+  for (const m of html.matchAll(IMG_TAG_RE)) collectSrcFromImgTag(m[0], urls);
   for (const m of html.matchAll(CSS_URL_RE)) urls.add(m[1]!);
+  for (const m of html.matchAll(CLASS_BG_URL_RE)) urls.add(m[1]!);
   return [...urls];
 }
 
@@ -65,5 +71,9 @@ export function replaceImageUrlsScoped(
   let out = html.replace(IMG_TAG_RE, (tag) => replaceLongestFirst(tag, map));
   out = out.replace(STYLE_BLOCK_RE, (block) => replaceLongestFirst(block, map));
   out = out.replace(STYLE_ATTR_RE, (attr) => replaceLongestFirst(attr, map));
+  out = out.replace(CLASS_BG_URL_RE, (match, url: string) => {
+    const local = map.get(url);
+    return local ? `bg-[url('${local}')]` : match;
+  });
   return out;
 }

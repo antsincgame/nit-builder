@@ -1,7 +1,19 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import JSZip from "jszip";
 import { bundlePhp, generateSetupFilename } from "~/lib/bake/bundle.server";
 import type { PlanEditableZone } from "~/lib/utils/planSchema";
+
+vi.mock("node:dns/promises", () => ({
+  lookup: vi.fn(async () => ({ address: "93.184.216.34", family: 4 })),
+}));
+
+const PNG_1x1 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete process.env.NIT_BUNDLE_INLINE_IMAGES;
+});
 
 // Минимальный HTML с одной размеченной зоной — достаточно для bundlePhp
 // (baker найдёт зону, Tailwind compile прогонит, JSZip соберёт архив).
@@ -74,5 +86,43 @@ describe("bundlePhp setup-file rename (race-window mitigation)", () => {
     expect(zip.files["admin/lib/auth.php"]).toBeDefined();
     expect(zip.files["admin/lib/store.php"]).toBeDefined();
     expect(zip.files["index.php"]).toBeDefined();
+  });
+
+  it("кладёт внешние картинки в assets/images/ и переписывает index.php", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(Buffer.from(PNG_1x1, "base64"), {
+            status: 200,
+            headers: { "content-type": "image/png" },
+          }),
+      ),
+    );
+
+    const html = `<!DOCTYPE html>
+<html><head><title>t</title></head><body>
+  <img data-edit="hero_image" data-edit-type="image" data-edit-label="Hero"
+       src="https://images.unsplash.com/photo-1?w=800" alt="Hero">
+</body></html>`;
+    const zones: PlanEditableZone[] = [
+      { id: "hero_image", type: "image", label: "Hero", section: "hero" },
+    ];
+
+    const result = await bundlePhp({ html, zones });
+    expect(result.imagesEmbedded).toBe(1);
+
+    const zip = await JSZip.loadAsync(result.zip);
+    expect(Object.keys(zip.files).some((p) => p.startsWith("assets/images/image-"))).toBe(true);
+
+    const indexPhp = await zip.file("index.php")!.async("string");
+    expect(indexPhp).toContain("assets/images/image-001.png");
+    expect(indexPhp).not.toContain("images.unsplash.com");
+
+    const defaults = JSON.parse(await zip.file("data/defaults.json")!.async("string")) as Record<
+      string,
+      string
+    >;
+    expect(defaults.hero_image).toBe("assets/images/image-001.png");
   });
 });

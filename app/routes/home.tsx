@@ -21,7 +21,6 @@ import {
   buildStoredZipBlob,
   extractPhpSqliteArtifact,
 } from "~/lib/utils/artifactExport";
-import { inlineExternalImages } from "~/lib/utils/inlineImagesClient";
 import { withPreviewBase, streamingHtmlReady } from "~/lib/utils/previewFrame";
 import { SettingsDrawer } from "~/components/simple/SettingsDrawer";
 import { AuthBadge } from "~/components/simple/AuthBadge";
@@ -239,40 +238,41 @@ export default function Home() {
       return;
     }
 
-    const filename = `nit-${lastTemplateId || "site"}-${Date.now()}.html`;
+    const filename = `nit-${lastTemplateId || "site"}-${Date.now()}.zip`;
 
-    // 1. Берём «запечённый» HTML с бандл-роута (инлайн CSS из Tailwind CDN).
-    //    Роут недоступен — продолжаем с исходным HTML как есть.
-    let finalHtml = content;
     try {
       const resp = await fetch("/api/bundle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ html: content, filename }),
       });
-      if (resp.ok) {
-        finalHtml = await resp.text();
-      } else {
-        console.error(`[downloadHtml] bundle ${resp.status}, отдаём исходный HTML`);
+      if (!resp.ok) {
+        let detail = `${resp.status}`;
+        try {
+          const j = (await resp.json()) as { message?: string; error?: string };
+          detail = j.message ?? j.error ?? detail;
+        } catch {
+          /* not JSON */
+        }
+        throw new Error(detail);
       }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      const imagesHeader = resp.headers.get("X-Bundle-Images");
+      toast.success(
+        imagesHeader
+          ? `Сайт скачан (ZIP + assets/images, картинки ${imagesHeader})`
+          : "Сайт скачан (ZIP + assets/images)",
+      );
     } catch (err) {
-      console.error("[downloadHtml] bundle недоступен, отдаём исходный HTML:", err);
+      console.error("[downloadHtml] bundle failed:", err);
+      toast.error(`Не удалось собрать архив: ${(err as Error).message}`);
     }
-
-    // 2. Встраиваем внешние картинки в браузере (data:-URI). На сервере инлайн
-    //    мог не сработать (закрыт egress к CDN) — у клиента картинки точно
-    //    грузятся, поэтому файл становится автономным. Best-effort, не бросает.
-    finalHtml = await inlineExternalImages(finalHtml);
-
-    // 3. Сохраняем готовый файл.
-    const blob = new Blob([finalHtml], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Сайт скачан");
   }, [html, streamingHtml, lastTemplateId]);
 
   const downloadPhp = useCallback(async () => {
@@ -304,7 +304,7 @@ export default function Home() {
       a.click();
       URL.revokeObjectURL(url);
       toast.success(
-        `Сайт с редактором скачан. Распакуйте архив, выложите файлы на хостинг и откройте файл /${setupFile} один раз для первого входа.`,
+        `Сайт с редактором скачан (ZIP + assets/images). Распакуйте архив, выложите файлы на хостинг и откройте файл /${setupFile} один раз для первого входа.`,
       );
     } catch (err) {
       const msg = err instanceof Error ? err.message : "неизвестная ошибка";

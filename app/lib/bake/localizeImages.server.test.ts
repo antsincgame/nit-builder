@@ -9,6 +9,8 @@ import {
   extractExternalImageUrls,
   isPrivateIp,
   inlineImagesAsDataUris,
+  localizeImagesToAssets,
+  ASSETS_IMAGES_PREFIX,
 } from "./localizeImages.server";
 
 // 1x1 прозрачный PNG.
@@ -136,5 +138,29 @@ describe("inlineImagesAsDataUris", () => {
     expect(res.html).not.toContain(long);
     expect(res.html).not.toContain("fit=crop"); // нет осколка от побитого длинного URL
     expect(res.html).toContain("data:image/png;base64,");
+  });
+});
+
+describe("localizeImagesToAssets", () => {
+  it("скачивает картинки в assets/images/ и переписывает src", async () => {
+    vi.stubGlobal("fetch", okImageFetch());
+    const html = `<img src="https://images.unsplash.com/a.jpg?w=800" alt="x">`;
+    const res = await localizeImagesToAssets(html);
+    expect(res.embedded).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(res.files).toHaveLength(1);
+    expect(res.files[0]?.path).toMatch(new RegExp(`^${ASSETS_IMAGES_PREFIX}image-001\\.png$`));
+    expect(res.html).toContain(`${ASSETS_IMAGES_PREFIX}image-001.png`);
+    expect(res.html).not.toContain("https://images.unsplash.com/a.jpg");
+  });
+
+  it("kill-switch NIT_BUNDLE_INLINE_IMAGES=0 → no-op", async () => {
+    process.env.NIT_BUNDLE_INLINE_IMAGES = "0";
+    const spy = vi.fn();
+    vi.stubGlobal("fetch", spy);
+    const html = `<img src="https://images.unsplash.com/a.jpg">`;
+    const res = await localizeImagesToAssets(html);
+    expect(spy).not.toHaveBeenCalled();
+    expect(res.files).toHaveLength(0);
   });
 });
