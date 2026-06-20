@@ -44,9 +44,11 @@ import {
   buildTunnelPlanPrompt,
   buildTunnelPolishPhase,
   buildTunnelAgentPolishPhase,
+  buildTunnelCssPatchPhase,
   TUNNEL_PLAN_MAX_TOKENS,
   TUNNEL_CODE_MAX_TOKENS,
 } from "~/lib/services/tunnelPipeline.server";
+import { classifyPolishIntent } from "~/lib/services/intentClassifier";
 import { inferStylePresetId, injectStylePreset } from "~/lib/llm/style-presets";
 import { checkRateLimit, checkRateLimitKey } from "~/lib/utils/rateLimit";
 import {
@@ -57,6 +59,11 @@ import { PlanSchema, type Plan } from "~/lib/utils/planSchema";
 import { inferArtifactModeFromPrompt } from "~/lib/utils/artifactMode";
 
 const SERVER_VERSION = NIT_SERVER_VERSION;
+
+// CSS-patch fast-path для туннельного polish: чисто-визуальные правки шлют в
+// туннель компактный JSON-промпт вместо ВСЕГО HTML. По умолчанию ВКЛ (на сбое
+// парсинга безопасный fallback на full-rewrite); NIT_TUNNEL_CSS_PATCH=0 — выкл.
+const TUNNEL_CSS_PATCH_ENABLED = process.env.NIT_TUNNEL_CSS_PATCH !== "0";
 
 function planFromPromptAnalysis(prompt: string, analysis: ReturnType<typeof analyzePrompt>): Plan {
   const text = prompt.toLowerCase();
@@ -545,6 +552,46 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
         // stripCodeFences. Докрутку при обрыве крутит сервер (как у create).
         if (msg.mode === "polish") {
           const reqId = msg.requestId;
+
+          // CSS-patch fast-path: для чисто-визуальной правки («сделай фон синим»)
+          // шлём компактный css-patch промпт (~800 токенов) вместо ВСЕГО HTML.
+          // Модель отдаёт JSON-правила, сервер инжектит их в previousHtml (см.
+          // tunnelRegistry, фаза "csspatch"); на сбое — fallback на full-rewrite.
+          // Не для agentPolish (там свой conversational режим).
+          const cssCls =
+            TUNNEL_CSS_PATCH_ENABLED && !msg.agentPolish && (msg.previousHtml ?? "").trim()
+              ? classifyPolishIntent(msg.prompt)
+              : null;
+          if (cssCls?.intent === "css_patch") {
+            const phase = buildTunnelCssPatchPhase(msg.prompt, cssCls.targetSection);
+            const routedCss = routeRequest({
+              requestId: reqId,
+              userId: authed.userId,
+              browserSessionId: sessionId,
+              system: phase.system,
+              prompt: phase.prompt,
+              maxOutputTokens: phase.maxOutputTokens,
+              temperature: phase.temperature,
+              originalPrompt: msg.prompt,
+              mode: "polish",
+              phase: "csspatch",
+              previousHtml: msg.previousHtml,
+              targetSection: cssCls.targetSection,
+            });
+            if (!routedCss) {
+              const hasTunnel = hasTunnelForUser(authed.userId);
+              send({
+                type: "generate_error",
+                requestId: reqId,
+                error: hasTunnel
+                  ? "Слишком много параллельных генераций. Дождись завершения текущих."
+                  : "No tunnel connected. Install NIT Tunnel on a device with a GPU.",
+                code: hasTunnel ? "RATE_LIMITED" : "NO_TUNNEL",
+              });
+            }
+            return;
+          }
+
           const polish = msg.agentPolish
             ? buildTunnelAgentPolishPhase(msg.previousHtml ?? "", msg.prompt)
             : buildTunnelPolishPhase(msg.previousHtml ?? "", msg.prompt);

@@ -44,6 +44,7 @@ import {
   buildPolisherUserMessage,
 } from "~/lib/config/htmlPrompts";
 import { buildAgentPolishPhase } from "~/lib/services/agentPolish";
+import { buildCssPatchPrompt } from "~/lib/services/cssPatch";
 import { sanitizeUserMessage } from "~/lib/utils/promptSanitizer";
 import { tierProfile, type ModelTier } from "~/lib/llm/modelTier";
 import {
@@ -266,6 +267,29 @@ export function buildTunnelPolishPhase(
       userRequest: sanitized,
     }),
     maxOutputTokens: TUNNEL_POLISH_MAX_TOKENS,
+    temperature: TUNNEL_POLISH_TEMPERATURE,
+  };
+}
+
+/** Бюджет фазы css-patch: модель отдаёт компактный JSON-список правил. */
+export const TUNNEL_CSS_PATCH_MAX_TOKENS = 900;
+
+/**
+ * Строит css-patch фазу для туннеля: вместо пересыла ВСЕГО HTML просим модель
+ * вернуть минимальный JSON CSS-правил (~800 токенов промпта). Сервер инжектит их
+ * в previousHtml (см. tunnelRegistry done-handler, фаза "csspatch"). Применяется
+ * только когда intentClassifier признал правку чисто-визуальной (css_patch).
+ */
+export function buildTunnelCssPatchPhase(
+  userRequest: string,
+  targetSection?: string,
+): TunnelPolishPhase {
+  const sanitized = sanitizeUserMessage(userRequest);
+  const { system, prompt } = buildCssPatchPrompt(sanitized, targetSection);
+  return {
+    system,
+    prompt,
+    maxOutputTokens: TUNNEL_CSS_PATCH_MAX_TOKENS,
     temperature: TUNNEL_POLISH_TEMPERATURE,
   };
 }

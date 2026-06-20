@@ -35,11 +35,13 @@ import {
   resolveTunnelPlan,
   finalizeTunnelHtml,
   buildTunnelRepairPhase,
+  buildTunnelPolishPhase,
   acceptTunnelRepair,
   clampOutputToContext,
   TUNNEL_REPAIR_MAX_TOKENS,
   TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
+import { applyCssPatchText } from "~/lib/services/cssPatch";
 import { applyExplicitPolishEdits } from "~/lib/utils/polishExplicitEdits";
 import { parseAgentPolishOutput } from "~/lib/services/agentPolish";
 import { enrichSectionAnchors } from "~/lib/utils/sectionAnchors";
@@ -163,7 +165,15 @@ export type PendingRequest = {
    * глотается (это НОВЫЙ полный HTML, дописывание к превью фазы code дало бы
    * кашу), результат принимается через acceptTunnelRepair. Отсутствие = "code".
    */
-  phase?: "plan" | "code" | "repair" | "sections";
+  phase?: "plan" | "code" | "repair" | "sections" | "csspatch";
+  /**
+   * Для polish: текущий HTML, в который инжектится css-patch (фаза "csspatch")
+   * либо который пере-рендерится при fallback на full-rewrite. Хранится только
+   * на css-patch пути (обычный polish previousHtml не удерживает).
+   */
+  previousHtml?: string;
+  /** Целевая секция css-patch (scopeSelector) — из classifyPolishIntent. */
+  targetSection?: string;
   /**
    * Backend-режим. Если "php-sqlite" — после plan-фазы (план наполнила модель
    * юзера) сервер собирает PHP+SQLite артефакт детерминированным билдером:
@@ -617,8 +627,12 @@ export type RouteRequestParams = {
   maxOutputTokens: number;
   temperature: number;
   // ─── Двухфазный планировщик ───
-  /** "plan" — первый generate это планировщик; "code"/отсутствие — legacy. */
-  phase?: "plan" | "code";
+  /** "plan" — первый generate это планировщик; "code"/отсутствие — legacy.
+   *  "csspatch" — компактный css-patch polish (модель отдаёт JSON-правила). */
+  phase?: "plan" | "code" | "csspatch";
+  /** Для css-patch polish: текущий HTML (инжект правил) + целевая секция. */
+  previousHtml?: string;
+  targetSection?: string;
   /**
    * Режим генерации для телеметрии/feedback. "polish" — правка существующего
    * сайта (одна code-фаза, без плана). Отсутствие = "create". Раньше туннельный
@@ -694,6 +708,8 @@ export function routeRequest(params: RouteRequestParams): boolean {
     accumulatedHtml: "",
     continuationAttempts: 0,
     phase: params.phase ?? "code",
+    previousHtml: params.previousHtml,
+    targetSection: params.targetSection,
     artifactMode: params.artifactMode,
     stylePresetId: params.stylePresetId,
     progressTokens: 0,
@@ -901,6 +917,59 @@ export function handleTunnelResponse(
       // или оказаться эмбеддером при мульти-модельном LM Studio. Последний done
       // (финальная фаза) — самый репрезентативный, как и с токенами выше.
       if (typeof event.model === "string" && event.model) req.model = event.model;
+
+      // ─── Фаза css-patch (компактный polish) ───
+      // Модель вернула JSON CSS-правил вместо ВСЕГО HTML. Инжектим их в
+      // previousHtml. На сбое парсинга/пустом результате — fallback на
+      // full-rewrite тем же requestId (фаза code), чтобы юзер всё равно получил
+      // правку.
+      if (req.phase === "csspatch") {
+        const patched = applyCssPatchText(piece, req.previousHtml ?? "", req.targetSection);
+        if (patched && isUsableHtml(patched.html)) {
+          sendToBrowser(browser.ws, {
+            type: "generate_done",
+            requestId,
+            html: patched.html,
+            templateId: req.templateId ?? "polish",
+            templateName: req.templateName ?? "Polish",
+            durationMs: event.durationMs,
+            generationMode: "polish",
+          });
+          if (req.onComplete) req.onComplete(patched.html);
+          recordTunnelOutcome(req, "success", "tunnel-csspatch");
+          pendingRequests.delete(requestId);
+          stats.totalRequestsCompleted++;
+          break;
+        }
+        // Fallback → full-rewrite: перестраиваем polish-фазу и шлём заново.
+        const tunnelFb = findTunnelByConnectionId(req.tunnelConnectionId);
+        const polish = buildTunnelPolishPhase(req.previousHtml ?? "", req.userMessage ?? "");
+        if (tunnelFb && polish) {
+          req.phase = "code";
+          req.accumulatedHtml = "";
+          req.continuationAttempts = 0;
+          req.lastContentAt = Date.now();
+          req.maxOutputTokens = clampOutputToContext(
+            tunnelFb.capabilities.contextWindow,
+            polish.system.length + polish.prompt.length,
+            polish.maxOutputTokens,
+          );
+          tunnelFb.ws.send(
+            JSON.stringify({
+              type: "generate",
+              requestId,
+              system: polish.system,
+              prompt: polish.prompt,
+              maxOutputTokens: req.maxOutputTokens,
+              temperature: polish.temperature,
+            } satisfies ServerToTunnel),
+          );
+          break; // ждём done фазы code
+        }
+        // Туннель отвалился до fallback — отдаём текущий сайт (мягкий провал).
+        finalizeTunnelDone(req, browser.ws, req.previousHtml ?? "", event.durationMs);
+        break;
+      }
 
       // ─── Фаза 1 (planner) ───
       // Туннель вернул JSON-план. Парсим, выбираем шаблон. Если skeleton-

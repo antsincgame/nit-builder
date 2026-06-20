@@ -3,6 +3,8 @@ import {
   rulesToCss,
   injectCssOverrides,
   scopeSelector,
+  parseCssPatchJson,
+  applyCssPatchText,
   CssPatchSchema,
 } from "~/lib/services/cssPatch";
 
@@ -114,5 +116,52 @@ describe("CssPatchSchema", () => {
 
   it("пустой rules отклоняется", () => {
     expect(CssPatchSchema.safeParse({ rules: [] }).success).toBe(false);
+  });
+});
+
+describe("parseCssPatchJson (туннельный сырой вывод модели)", () => {
+  it("парсит чистый JSON", () => {
+    const patch = parseCssPatchJson('{"rules":[{"selector":"body","properties":{"background":"#111"}}]}');
+    expect(patch?.rules).toHaveLength(1);
+    expect(patch?.rules[0]?.selector).toBe("body");
+  });
+
+  it("терпим к markdown-фенсам ```json и прозе вокруг", () => {
+    const raw = 'Вот правки:\n```json\n{"rules":[{"selector":"h1","properties":{"color":"#fff"}}]}\n```\nГотово!';
+    expect(parseCssPatchJson(raw)?.rules[0]?.selector).toBe("h1");
+  });
+
+  it("null при отсутствии JSON / битом / нарушении схемы", () => {
+    expect(parseCssPatchJson("Извините, не могу")).toBeNull();
+    expect(parseCssPatchJson("{ это не json")).toBeNull();
+    expect(parseCssPatchJson('{"rules":[]}')).toBeNull(); // пустой массив — схема min(1)
+  });
+});
+
+describe("applyCssPatchText (parse + inject из сырого текста)", () => {
+  const html = "<html><head><title>t</title></head><body><h1>Hi</h1></body></html>";
+
+  it("инжектит правила в <style id=nit-overrides>", () => {
+    const out = applyCssPatchText(
+      '{"rules":[{"selector":"body","properties":{"background":"#1e3a8a"}}]}',
+      html,
+    );
+    expect(out).not.toBeNull();
+    expect(out!.ruleCount).toBe(1);
+    expect(out!.html).toContain('<style id="nit-overrides">');
+    expect(out!.html).toContain("background: #1e3a8a !important;");
+  });
+
+  it("скоупит селекторы под targetSection", () => {
+    const out = applyCssPatchText(
+      '{"rules":[{"selector":"h2","properties":{"color":"#f00"}}]}',
+      html,
+      "pricing",
+    );
+    expect(out!.html).toContain('[data-nit-section="pricing"] h2');
+  });
+
+  it("null при непарсимом тексте → вызывающий уйдёт в fallback", () => {
+    expect(applyCssPatchText("не json", html)).toBeNull();
   });
 });

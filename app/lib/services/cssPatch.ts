@@ -171,6 +171,59 @@ export async function generateCssPatch(params: {
   return object;
 }
 
+/**
+ * Промпт CSS-патчера (system + user) для путей, где LLM-вызов идёт НЕ через
+ * generateObject (туннель: модель на стороне desktop-клиента). Переиспользует
+ * тот же CSS_PATCHER_SYSTEM и section-подсказку, что и generateCssPatch.
+ */
+export function buildCssPatchPrompt(
+  userRequest: string,
+  targetSection?: string,
+): { system: string; prompt: string } {
+  const promptSuffix = targetSection
+    ? `\n\n(Кстати: правка адресована только секции "${targetSection}" — не пиши body, пиши просто h1/h2/button/p/section/etc.)`
+    : "";
+  return { system: CSS_PATCHER_SYSTEM, prompt: `${userRequest}${promptSuffix}` };
+}
+
+/**
+ * Парсит CSS-патч из СЫРОГО текста модели (туннель отдаёт текст, а не object).
+ * Терпим к markdown-фенсам и прозе вокруг JSON: берём первый {...} блок и
+ * валидируем CssPatchSchema. null при любой неудаче — вызывающий уйдёт в fallback.
+ */
+export function parseCssPatchJson(rawText: string): CssPatch | null {
+  const text = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(text.slice(start, end + 1));
+    const result = CssPatchSchema.safeParse(parsed);
+    return result.success ? result.data : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Применяет CSS-патч из сырого текста модели к HTML: parse → (scope) → rulesToCss
+ * → injectCssOverrides. Возвращает null если патч не распарсился — вызывающий
+ * откатывается на full-rewrite.
+ */
+export function applyCssPatchText(
+  rawText: string,
+  currentHtml: string,
+  targetSection?: string,
+): { html: string; ruleCount: number } | null {
+  const patch = parseCssPatchJson(rawText);
+  if (!patch) return null;
+  const scopedRules = targetSection
+    ? patch.rules.map((r) => ({ ...r, selector: scopeSelector(r.selector, targetSection) }))
+    : patch.rules;
+  const css = rulesToCss(scopedRules);
+  return { html: injectCssOverrides(currentHtml, css), ruleCount: scopedRules.length };
+}
+
 export async function applyCssPatch(params: {
   model: LanguageModel;
   userRequest: string;
