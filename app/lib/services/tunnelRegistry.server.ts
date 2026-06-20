@@ -1283,7 +1283,11 @@ function sendToBrowser(ws: WebSocket, msg: ServerToBrowser): void {
 function isUsableHtml(html: string): boolean {
   const t = html.trim();
   if (t.length === 0) return false;
-  return t.includes("<"); // есть хоть какая-то разметка
+  // Раньше пропускали любой текст с одним "<" — отказ модели или мусор с единой
+  // угловой скобкой уходил юзеру «как готовый сайт». Теперь требуем минимальную
+  // структуру: закрывающий тег ЛИБО узнаваемый структурный/контентный элемент.
+  const lower = t.toLowerCase();
+  return /<\//.test(t) || /<(html|body|div|section|main|header|h1|h2|p|ul|article|nav)\b/.test(lower);
 }
 
 /**

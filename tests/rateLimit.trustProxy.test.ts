@@ -113,4 +113,19 @@ describe("rateLimit trust-proxy", () => {
     const res2 = checkRateLimit(r2, { maxRequests: 1, scope });
     expect(res2.allowed).toBe(false); // тот же fwd, trusted proxy → bucket по fwd=8.8.8.8
   });
+
+  it("checkRateLimitKey: лимит по готовому ключу (WS generate per-user)", async () => {
+    const { checkRateLimitKey } = await import("~/lib/utils/rateLimit");
+    const key = `control-generate:user-${Date.now()}`;
+    for (let i = 0; i < 3; i++) {
+      expect(checkRateLimitKey(key, { maxRequests: 3, windowMs: 60_000 }).allowed).toBe(true);
+    }
+    const blocked = checkRateLimitKey(key, { maxRequests: 3, windowMs: 60_000 });
+    expect(blocked.allowed).toBe(false);
+    expect(blocked.retryAfterMs).toBeGreaterThan(0);
+    // Другой ключ — независимый bucket.
+    expect(
+      checkRateLimitKey(`control-generate:other-${Date.now()}`, { maxRequests: 3, windowMs: 60_000 }).allowed,
+    ).toBe(true);
+  });
 });

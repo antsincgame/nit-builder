@@ -3,20 +3,39 @@ const DEFAULT_WINDOW_MS = 60_000;
 const MAX_ENTRIES = 50_000;
 
 type Entry = { timestamps: number[] };
-const store = new Map<string, Entry>();
 
-const cleanupTimer = setInterval(() => {
-  const cutoff = Date.now() - DEFAULT_WINDOW_MS * 2;
-  for (const [key, entry] of store) {
-    const latest = entry.timestamps[entry.timestamps.length - 1] ?? 0;
-    if (latest < cutoff) store.delete(key);
+// Store + cleanup-таймер на globalThis: при двойной загрузке модуля (tsx-сервер
+// + React Router build) иначе было ДВА независимых store — WS-лимитер (tsx) и
+// HTTP-роуты (build) считали в разные bucket'ы, вдвое ослабляя лимиты. Тот же
+// приём, что у tunnelRegistry/sweeper.
+type RateLimitState = { store: Map<string, Entry>; cleanupTimer: ReturnType<typeof setInterval> | null };
+const RL_STATE_KEY = "__NIT_RATE_LIMIT_STATE__";
+
+function getState(): RateLimitState {
+  const g = globalThis as unknown as Record<string, RateLimitState | undefined>;
+  const existing = g[RL_STATE_KEY];
+  if (existing) return existing;
+
+  const state: RateLimitState = { store: new Map(), cleanupTimer: null };
+  state.cleanupTimer = setInterval(() => {
+    const cutoff = Date.now() - DEFAULT_WINDOW_MS * 2;
+    for (const [key, entry] of state.store) {
+      const latest = entry.timestamps[entry.timestamps.length - 1] ?? 0;
+      if (latest < cutoff) state.store.delete(key);
+    }
+  }, 5 * 60 * 1000);
+  state.cleanupTimer.unref?.();
+
+  if (typeof process !== "undefined") {
+    const cleanup = () => {
+      if (state.cleanupTimer) clearInterval(state.cleanupTimer);
+    };
+    process.on?.("SIGTERM", cleanup);
+    process.on?.("SIGINT", cleanup);
   }
-}, 5 * 60 * 1000);
-cleanupTimer.unref?.();
 
-if (typeof process !== "undefined") {
-  process.on?.("SIGTERM", () => clearInterval(cleanupTimer));
-  process.on?.("SIGINT", () => clearInterval(cleanupTimer));
+  g[RL_STATE_KEY] = state;
+  return state;
 }
 
 // ─── Trust-proxy whitelist ──────────────────────────────
@@ -81,26 +100,17 @@ export type RateLimitResult = {
   retryAfterMs?: number;
 };
 
-export function checkRateLimit(
-  request: Request,
-  options?: {
-    maxRequests?: number;
-    windowMs?: number;
-    scope?: string;
-    /**
-     * По умолчанию ключ — `${scope}:${IP клиента}` — стандартный per-IP
-     * лимит. Если `false`, IP игнорируется, ключ — только `scope`. Это
-     * нужно для per-email/per-user lockout (`scope: "login-email:<email>"`)
-     * чтобы атакующий не обходил лимит просто меняя IP.
-     */
-    useClientKey?: boolean;
-  },
+/**
+ * Sliding-window лимитер по ГОТОВОМУ ключу — без Request. Нужен для контекстов,
+ * где Request нет (WebSocket generate keyed by userId).
+ */
+export function checkRateLimitKey(
+  key: string,
+  options?: { maxRequests?: number; windowMs?: number },
 ): RateLimitResult {
   const max = options?.maxRequests ?? DEFAULT_MAX;
   const window = options?.windowMs ?? DEFAULT_WINDOW_MS;
-  const scope = options?.scope ?? "default";
-  const useClientKey = options?.useClientKey ?? true;
-  const key = useClientKey ? `${scope}:${getClientKey(request)}` : scope;
+  const { store } = getState();
   const now = Date.now();
 
   let entry = store.get(key);
@@ -129,7 +139,31 @@ export function checkRateLimit(
   return { allowed: true, remaining: max - entry.timestamps.length };
 }
 
+export function checkRateLimit(
+  request: Request,
+  options?: {
+    maxRequests?: number;
+    windowMs?: number;
+    scope?: string;
+    /**
+     * По умолчанию ключ — `${scope}:${IP клиента}` — стандартный per-IP
+     * лимит. Если `false`, IP игнорируется, ключ — только `scope`. Это
+     * нужно для per-email/per-user lockout (`scope: "login-email:<email>"`)
+     * чтобы атакующий не обходил лимит просто меняя IP.
+     */
+    useClientKey?: boolean;
+  },
+): RateLimitResult {
+  const scope = options?.scope ?? "default";
+  const useClientKey = options?.useClientKey ?? true;
+  const key = useClientKey ? `${scope}:${getClientKey(request)}` : scope;
+  return checkRateLimitKey(key, {
+    maxRequests: options?.maxRequests,
+    windowMs: options?.windowMs,
+  });
+}
+
 /** @internal — сброс in-memory store между тестами. */
 export function _resetRateLimitState(): void {
-  store.clear();
+  getState().store.clear();
 }

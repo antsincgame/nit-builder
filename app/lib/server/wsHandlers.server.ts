@@ -48,7 +48,7 @@ import {
   TUNNEL_CODE_MAX_TOKENS,
 } from "~/lib/services/tunnelPipeline.server";
 import { inferStylePresetId, injectStylePreset } from "~/lib/llm/style-presets";
-import { checkRateLimit } from "~/lib/utils/rateLimit";
+import { checkRateLimit, checkRateLimitKey } from "~/lib/utils/rateLimit";
 import {
   buildPhpSqliteArtifact,
   renderPhpSqliteArtifactPreview,
@@ -503,6 +503,37 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
 
       case "generate": {
         if (!authed) return;
+
+        // Rate-limit per-user: дешёвый цикл generate→abort→generate жёг GPU
+        // туннеля и RAG/эмбеддинги VPS (раньше был только cap параллельных).
+        // 30 запросов/мин — щедро для UI, но рубит abuse-петлю.
+        const genRl = checkRateLimitKey(`control-generate:${authed.userId}`, {
+          maxRequests: 30,
+          windowMs: 60_000,
+        });
+        if (!genRl.allowed) {
+          send({
+            type: "generate_error",
+            requestId: msg.requestId,
+            error: "Слишком часто. Подожди немного перед следующей генерацией.",
+            code: "RATE_LIMITED",
+          });
+          return;
+        }
+
+        // Size-cap клиентского ввода: previousHtml/prompt идут в промпт и в
+        // retained-состояние pending-запроса. Без границы большой previousHtml
+        // (polish) раздувал и контекст, и память сервера. prompt всё равно
+        // санитайзится до 10k ниже — здесь только грубый DoS-guard на кадр.
+        if ((msg.prompt?.length ?? 0) > 30_000 || (msg.previousHtml?.length ?? 0) > 2_000_000) {
+          send({
+            type: "generate_error",
+            requestId: msg.requestId,
+            error: "Слишком большой запрос или HTML. Сократи ввод.",
+            code: "LLM_ERROR",
+          });
+          return;
+        }
 
         // ─── Polish: правка существующего сайта (mode==="polish") ───
         // Раньше этот обработчик игнорировал msg.mode и msg.previousHtml — любой
