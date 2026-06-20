@@ -201,7 +201,10 @@ export async function obtainPlan(
   }
 
   const synthetic: Plan = {
-    business_type: sanitizedMessage.slice(0, 100) || "универсальный сайт",
+    // НЕ вставляем сырой запрос («сделай лендинг для…») в business_type — это
+    // нарушает правило планнера и портит копирайт. Нейтральный лейбл; реальную
+    // нишу из запроса доберёт normalizePlanForRequest ниже, если сможет.
+    business_type: "универсальный сайт",
     target_audience: "",
     tone: "профессиональный",
     style_hints: "",

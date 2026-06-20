@@ -80,4 +80,11 @@ describe("extractQueryContext", () => {
     expect(ctx.niche).toBe("barbershop");
     expect(ctx.mood).toBe("dark-premium");
   });
+
+  it("распознаёт нишу translation (сид medical-translation больше не train/serve-mismatch)", () => {
+    expect(extractQueryContext("услуги переводчика, бюро переводов").niche).toBe("translation");
+    expect(
+      extractQueryContext("медицинский перевод документов для лечения за границей").niche,
+    ).toBe("translation");
+  });
 });
