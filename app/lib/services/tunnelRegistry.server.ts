@@ -36,6 +36,7 @@ import {
   finalizeTunnelHtml,
   buildTunnelRepairPhase,
   acceptTunnelRepair,
+  clampOutputToContext,
   TUNNEL_REPAIR_MAX_TOKENS,
   TUNNEL_REPAIR_TEMPERATURE,
 } from "~/lib/services/tunnelPipeline.server";
@@ -654,6 +655,19 @@ export function routeRequest(params: RouteRequestParams): boolean {
   const tunnel = getTunnelForUser(params.userId);
   if (!tunnel) return false;
 
+  // Зажимаем output-бюджет под реальный контекст пира. Для create первый send —
+  // plan-фаза (короткий промпт), а code-бюджет переустановится после plan-done
+  // (там зажимается против реального code-промпта). Для polish промпт здесь УЖЕ
+  // code-промпт, поэтому зажим точный. No-op при неизвестном/большом контексте.
+  const ctxWindow = tunnel.capabilities.contextWindow;
+  const promptChars = params.system.length + params.prompt.length;
+  const firstSendMax = clampOutputToContext(ctxWindow, promptChars, params.maxOutputTokens);
+  const storedMax = clampOutputToContext(
+    ctxWindow,
+    promptChars,
+    params.codeMaxOutputTokens ?? params.maxOutputTokens,
+  );
+
   const now = Date.now();
   const pending: PendingRequest = {
     requestId: params.requestId,
@@ -672,7 +686,8 @@ export function routeRequest(params: RouteRequestParams): boolean {
     // maxOutputTokens хранится как бюджет ФАЗЫ КОДЕРА (и continuation). Первый
     // send ниже использует params.maxOutputTokens (в plan-фазе — короткий
     // plan-бюджет), а на фазу code переключаемся уже с code-бюджетом.
-    maxOutputTokens: params.codeMaxOutputTokens ?? params.maxOutputTokens,
+    // storedMax = зажатый под контекст code-бюджет.
+    maxOutputTokens: storedMax,
     temperature: params.temperature,
     model: tunnel.capabilities.model,
     provider: `tunnel:${tunnel.capabilities.runtime}`,
@@ -694,7 +709,7 @@ export function routeRequest(params: RouteRequestParams): boolean {
     requestId: params.requestId,
     system: params.system,
     prompt: params.prompt,
-    maxOutputTokens: params.maxOutputTokens,
+    maxOutputTokens: firstSendMax,
     temperature: params.temperature,
   };
 
@@ -1027,7 +1042,13 @@ export function handleTunnelResponse(
           // Бюджет токенов фазы кодера/continuation — по классу модели:
           // S=16000, M=12000, L=16000. Repair ниже берёт
           // min(этот бюджет, TUNNEL_REPAIR_MAX_TOKENS), так что L не урезается.
-          req.maxOutputTokens = tierProfile(tier).codeMaxTokens;
+          // Зажимаем под реальный контекст пира (clampOutputToContext): на модели
+          // с малым окном фикс-бюджет переполнял контекст; continuation добьёт хвост.
+          req.maxOutputTokens = clampOutputToContext(
+            tunnel.capabilities.contextWindow,
+            resolution.system.length + resolution.prompt.length,
+            tierProfile(tier).codeMaxTokens,
+          );
           req.accumulatedHtml = "";
           req.continuationAttempts = 0;
           req.currentStep = "code";

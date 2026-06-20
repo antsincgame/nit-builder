@@ -92,6 +92,42 @@ export const TUNNEL_CODE_MAX_TOKENS = 8000;
 export const TUNNEL_POLISH_MAX_TOKENS = TUNNEL_CODE_MAX_TOKENS;
 /** Температура polish-фазы — низкая: правка точечная, без переизобретения сайта. */
 export const TUNNEL_POLISH_TEMPERATURE = 0.3;
+
+/**
+ * Зажимает output-бюджет так, чтобы (промпт + выход) влезли в контекст модели.
+ *
+ * Сервер слал фиксированный бюджет (8000–16000) НЕЗАВИСИМО от реального окна
+ * пира (capabilities.contextWindow). На модели с маленьким контекстом (оператор
+ * выставил NIT_TUNNEL_CONTEXT_WINDOW=4096 под свою сборку) промпт + запрошенный
+ * выход переполняли окно, и LM Studio молча срезал НАЧАЛО промпта (system +
+ * план) — модель генерила «вслепую». Теперь зажимаем выход под фактический
+ * контекст.
+ *
+ * Свойства:
+ *  - contextWindow неизвестен/0 (старый клиент) → НЕ трогаем (как было).
+ *  - Для рекомендованного 32k и обычного промпта — НЕ зажимает (no-op).
+ *  - Зажимает только когда запрос реально не влезает; математически гарантирует
+ *    prompt+output ≤ context. Обрезанный хвост добирает server-driven
+ *    continuation (как при finishReason="length").
+ *  - Никогда не опускает ниже FLOOR — всегда даём модели шанс что-то сгенерить.
+ *
+ * Оценка токенов из символов консервативна (3 симв/токен — между ASCII-кодом
+ * ~4 и кириллицей ~2.5) + RESERVE на неточность и спец-токены.
+ */
+export function clampOutputToContext(
+  contextWindow: number | undefined,
+  promptChars: number,
+  requestedMaxOutput: number,
+): number {
+  if (!contextWindow || contextWindow <= 0) return requestedMaxOutput;
+  const CHARS_PER_TOKEN = 3.0;
+  const RESERVE_TOKENS = 1024;
+  const FLOOR_TOKENS = 768;
+  const estPromptTokens = Math.ceil(promptChars / CHARS_PER_TOKEN);
+  const available = contextWindow - estPromptTokens - RESERVE_TOKENS;
+  if (available >= requestedMaxOutput) return requestedMaxOutput;
+  return Math.max(FLOOR_TOKENS, available);
+}
 /** Лимит на best-effort retrieval, чтобы не подвешивать запрос если
  *  embeddings-провайдер недоступен/медленный. */
 const RETRIEVAL_TIMEOUT_MS = 4000;
