@@ -15,6 +15,7 @@ describe("llm/client", () => {
     // Clear LM Studio env vars for isolation
     delete process.env.LMSTUDIO_BASE_URL;
     delete process.env.LMSTUDIO_MODEL;
+    delete process.env.LMSTUDIO_CONTEXT_WINDOW;
   });
 
   afterEach(() => {
@@ -75,9 +76,21 @@ describe("llm/client", () => {
       expect(providers[0]?.defaultModel).toBe("qwen2.5-coder-7b-instruct");
     });
 
-    it("lmstudio has 32k context window", () => {
+    it("lmstudio has 32k context window by default", () => {
       const providers = getAvailableProviders();
       expect(providers[0]?.contextWindow).toBe(32_000);
+    });
+
+    it("respects LMSTUDIO_CONTEXT_WINDOW override", () => {
+      process.env.LMSTUDIO_CONTEXT_WINDOW = "8192";
+      expect(getAvailableProviders()[0]?.contextWindow).toBe(8192);
+    });
+
+    it("ignores invalid / too-small LMSTUDIO_CONTEXT_WINDOW (falls back to default)", () => {
+      process.env.LMSTUDIO_CONTEXT_WINDOW = "abc";
+      expect(getAvailableProviders()[0]?.contextWindow).toBe(32_000);
+      process.env.LMSTUDIO_CONTEXT_WINDOW = "256";
+      expect(getAvailableProviders()[0]?.contextWindow).toBe(32_000);
     });
   });
 

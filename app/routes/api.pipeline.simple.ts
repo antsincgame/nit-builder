@@ -1,6 +1,6 @@
 // Accepts explicit style presets so HTTP generation can steer visual direction.
 import { z } from "zod";
-import { authOrGuest, checkGuestLimit } from "~/lib/server/auth";
+import { authOrGuest, checkGuestLimit, getIp } from "~/lib/server/auth";
 import { checkRateLimit } from "~/lib/utils/rateLimit";
 import { getOrCreateSession } from "~/lib/services/sessionMemory";
 import { isKnownPresetId } from "~/lib/llm/style-presets";
@@ -55,7 +55,7 @@ function startPing(controller: ReadableStreamDefaultController, enc: TextEncoder
 }
 
 export async function action({ request }: { request: Request }) {
-  const { isGuest, csrfError } = await authOrGuest(request);
+  const { isGuest, userId, csrfError } = await authOrGuest(request);
   if (csrfError) return csrfError;
 
   if (isGuest) {
@@ -95,7 +95,10 @@ export async function action({ request }: { request: Request }) {
 
  const { mode, projectId, message, previousHtml, providerId, modelName, polishIntent, targetSection, artifactMode, stylePresetId, agentPolish } = parsed.data;
   const sessionId = parsed.data.sessionId ?? crypto.randomUUID();
-  const memory = getOrCreateSession(sessionId, projectId);
+  // Owner-ключ изолирует session memory: залогиненные — по userId, гости — по IP.
+  // Без него клиент мог подсунуть чужой sessionId и прочитать чужой HTML.
+  const ownerKey = userId ? `u:${userId}` : `g:${getIp(request)}`;
+  const memory = getOrCreateSession(sessionId, projectId, ownerKey);
   const providerOverride = providerId ? { providerId, modelName } : undefined;
 
   // Регидрация session memory для polish. Память эфемерна (Map в процессе):

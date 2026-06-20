@@ -190,7 +190,7 @@ const guestCounts = new Map<string, { count: number; resetAt: number }>();
 const GUEST_DAILY = parseInt(process.env.GUEST_DAILY_LIMIT ?? "10", 10);
 const GUEST_WINDOW = 24 * 60 * 60 * 1000;
 
-function getIp(request: Request): string {
+export function getIp(request: Request): string {
   // Та же логика trust-proxy что и в rateLimit.ts: если TRUSTED_PROXY_IPS
   // задан и запрос пришёл НЕ от доверенного прокси — игнорируем
   // X-Forwarded-For / X-Real-IP и используем socket remote.

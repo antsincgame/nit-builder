@@ -12,10 +12,10 @@ describe("inferTemplateFromPrompt", () => {
     expect(inferTemplateFromPrompt("открываю маленькую кофейню в центре").id).toBe("coffee-shop");
   });
 
-  it("для несвязанного промпта возвращает fallback coffee-shop", () => {
-    // совсем без матчей
+  it("для несвязанного промпта возвращает универсальный fallback blank-landing", () => {
+    // совсем без матчей: нейтральный каркас, а НЕ нишевая кофейня
     const res = inferTemplateFromPrompt("xxxyyyzzz");
-    expect(res.id).toBe("coffee-shop");
+    expect(res.id).toBe("blank-landing");
   });
 
   it("возвращает sections списком", () => {

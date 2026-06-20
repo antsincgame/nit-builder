@@ -710,9 +710,10 @@ export function handleControlConnection(ws: WebSocket, req: IncomingMessage): vo
       case "abort": {
         if (!authed) return;
         // false → pending ещё не создан (generate маршрутизирует async после
-        // await). Запоминаем, чтобы отменить сразу после routeRequest и не
-        // осиротить запрос на туннеле.
-        if (!abortRequest(msg.requestId)) abortedEarly.add(msg.requestId);
+        // await) ЛИБО requestId чужой (ownership-проверка в abortRequest).
+        // Запоминаем для early-abort своего же запроса сразу после routeRequest;
+        // для чужого id это инертно (наш routeRequest создаёт свой requestId).
+        if (!abortRequest(msg.requestId, sessionId)) abortedEarly.add(msg.requestId);
         break;
       }
 

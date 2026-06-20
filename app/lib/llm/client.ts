@@ -66,6 +66,25 @@ export function normalizeLmStudioBaseUrl(
   return baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
 }
 
+const DEFAULT_CONTEXT_WINDOW = 32_000;
+
+/**
+ * Длина контекста модели. Раньше была хардкодом 32_000 — но на 8GB GPU LM Studio
+ * по умолчанию грузит Qwen с 4096 (YaRN до 32k включают вручную). Бюджет
+ * (calcMaxOutput / checkContextBudget) считал запас от 32k → молча переполнял
+ * реальный контекст и обрезал вход, ломая генерацию. Теперь берём из env:
+ * оператор выставляет фактическую длину, загруженную в LM Studio, без передеплоя.
+ *
+ * NB: глубокий фикс (авто-определение длины через desktop-клиент туннеля) —
+ * отдельный батч (нужен протокол shared/ + tunnel). Здесь — управляемый дефолт.
+ */
+export function resolveContextWindow(): number {
+  const raw = process.env.LMSTUDIO_CONTEXT_WINDOW?.trim();
+  if (!raw) return DEFAULT_CONTEXT_WINDOW;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 1024 ? n : DEFAULT_CONTEXT_WINDOW;
+}
+
 export function getAvailableProviders(): ProviderConfig[] {
   return [
     {
@@ -73,7 +92,7 @@ export function getAvailableProviders(): ProviderConfig[] {
       baseUrl: normalizeLmStudioBaseUrl(),
       apiKey: "lm-studio",
       defaultModel: process.env.LMSTUDIO_MODEL ?? "qwen2.5-coder-7b-instruct",
-      contextWindow: 32_000,
+      contextWindow: resolveContextWindow(),
     },
   ];
 }

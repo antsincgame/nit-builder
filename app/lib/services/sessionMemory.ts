@@ -4,6 +4,7 @@
  * потому что проекты сохраняются в Appwrite отдельно по projectId.
  */
 
+import { createHash } from "node:crypto";
 import type { Plan } from "~/lib/utils/planSchema";
 
 /** Контекст для continuation: когда модель упёрлась в лимит токенов. */
@@ -36,8 +37,24 @@ const sessions = new Map<string, SessionMemory>();
 const MAX_SESSIONS = 10_000;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
-export function getOrCreateSession(sessionId: string, projectId: string): SessionMemory {
-  const existing = sessions.get(sessionId);
+/**
+ * Префикс ключа по владельцу. Раньше ключом был голый client-supplied
+ * sessionId — юзер, подсунув чужой/угаданный sessionId, читал-писал чужой
+ * currentHtml/planJson/truncation. Теперь ключ = hash(ownerKey):sessionId, и у
+ * разных владельцев один и тот же sessionId не пересекается. Хэшируем, чтобы не
+ * светить userId/IP в memory.sessionId (он уходит в feedbackStore и логи).
+ */
+function ownerScope(ownerKey: string): string {
+  return createHash("sha256").update(ownerKey).digest("hex").slice(0, 12);
+}
+
+export function getOrCreateSession(
+  sessionId: string,
+  projectId: string,
+  ownerKey: string = "local",
+): SessionMemory {
+  const key = `${ownerScope(ownerKey)}:${sessionId}`;
+  const existing = sessions.get(key);
   if (existing) {
     existing.updatedAt = Date.now();
     return existing;
@@ -48,8 +65,12 @@ export function getOrCreateSession(sessionId: string, projectId: string): Sessio
     if (oldest) sessions.delete(oldest);
   }
 
+  // memory.sessionId = композитный ключ: все хелперы (updateSessionHtml и т.п.)
+  // ищут по нему. Клиенту наружу уходит СЫРОЙ sessionId (route.session_init),
+  // поэтому эхо-контракт не ломается, а на следующем запросе ключ
+  // пересобирается из (ownerKey, сырой sessionId).
   const fresh: SessionMemory = {
-    sessionId,
+    sessionId: key,
     projectId,
     currentHtml: "",
     planJson: null,
@@ -57,7 +78,7 @@ export function getOrCreateSession(sessionId: string, projectId: string): Sessio
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
-  sessions.set(sessionId, fresh);
+  sessions.set(key, fresh);
   return fresh;
 }
 

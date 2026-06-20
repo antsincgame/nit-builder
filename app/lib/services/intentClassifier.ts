@@ -256,6 +256,27 @@ export function extractTargetSections(text: string): string[] {
 }
 
 /**
+ * Секция, к которой адресована правка — по САМОМУ РАННЕМУ упоминанию в тексте,
+ * а не по порядку в SECTION_ALIASES. Раньше брали targetSections[0] (порядок
+ * каталога алиасов), из-за чего «измени контакты и галерею» отдавало "gallery"
+ * (он раньше в списке) и section-polish правил не ту секцию. Ничью (равный
+ * индекс) разрешаем приоритетом списка — сохраняет прежнее поведение для
+ * одиночных упоминаний.
+ */
+function firstTargetSectionByPosition(text: string): string | undefined {
+  let bestIdx = Infinity;
+  let bestSection: string | undefined;
+  for (const [re, section] of SECTION_ALIASES) {
+    const m = re.exec(text);
+    if (m && m.index < bestIdx) {
+      bestIdx = m.index;
+      bestSection = section;
+    }
+  }
+  return bestSection;
+}
+
+/**
  * Правки бренда/SEO/заголовков затрагивают <head>, nav и несколько секций —
  * section-only polish оставляет старое название в шапке (типичный баг polish).
  */
@@ -289,7 +310,7 @@ export function classifyPolishIntent(userRequest: string): ClassificationResult 
   const styleHits = countMatches(text, STYLE_PATTERNS);
   const structuralHits = countMatches(text, STRUCTURAL_PATTERNS);
   const targetSections = extractTargetSections(text);
-  const targetSection = targetSections[0];
+  const targetSection = firstTargetSectionByPosition(text);
 
   // Формат "scoped to section: X" удовлетворяет одновременно:
   //  - старому тесту intentClassifier.test.ts (toContain("section: hero"))

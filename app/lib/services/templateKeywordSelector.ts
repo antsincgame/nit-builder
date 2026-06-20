@@ -5,15 +5,19 @@
  *
  * Алгоритм простой: скорим каждый template по совпадениям из bestFor
  * (keyword match = +10) и слов из description (fuzzy match = +2).
- * Если max score = 0 — возвращаем fallback "coffee-shop" (самый универсальный
- * warm-minimalist лендинг, хорошо выглядит при любом промпте).
+ * Если max score = 0 — возвращаем универсальный fallback "blank-landing"
+ * (нейтральный лендинг-каркас из каталога). Единый источник истины —
+ * getFallbackTemplate(): раньше здесь хардкодом стояла "coffee-shop", из-за чего
+ * ЛЮБОЙ нераспознанный бизнес молча превращался в кофейню.
  *
  * Быстро, детерминировано, работает на нулевых ресурсах.
  */
 
-import { TEMPLATE_CATALOG, type TemplateMeta } from "~/lib/config/htmlTemplatesCatalog";
-
-const FALLBACK_ID = "coffee-shop";
+import {
+  TEMPLATE_CATALOG,
+  getFallbackTemplate,
+  type TemplateMeta,
+} from "~/lib/config/htmlTemplatesCatalog";
 
 /** Разбивает строку на нормализованные слова (lower, без пунктуации, min 3 char). */
 function tokenize(s: string): string[] {
@@ -49,7 +53,7 @@ function scoreTemplate(t: TemplateMeta, promptTokens: Set<string>, promptLower: 
 
 /**
  * Возвращает (id, name) самого релевантного шаблона.
- * Никогда не возвращает null — в worst case fallback "coffee-shop".
+ * Никогда не возвращает null — в worst case универсальный fallback "blank-landing".
  */
 export function inferTemplateFromPrompt(prompt: string): {
   id: string;
@@ -69,10 +73,7 @@ export function inferTemplateFromPrompt(prompt: string): {
     }
   }
 
-  const chosen =
-    best && bestScore > 0
-      ? best
-      : (TEMPLATE_CATALOG.find((t) => t.id === FALLBACK_ID) ?? TEMPLATE_CATALOG[0]!);
+  const chosen = best && bestScore > 0 ? best : getFallbackTemplate();
 
   return {
     id: chosen.id,

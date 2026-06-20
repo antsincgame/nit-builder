@@ -267,7 +267,16 @@ SIGNATURE MOVES (выбери 5-8, только совместимые с выб
 - Если service/local — clean trust layout, но всё равно bespoke, без шаблонной синей SaaS-эстетики.`;
 
 export function shouldUseCustomArtifactMode(userMessage: string): boolean {
-  return /шедевр|вау|wow|дорог|premium|премиум|арт|art[-\s]?direct|уникальн|не шаблон|как\s+в\s+архив|tonforge|glitch|cyber|кибер|neon|лендинг\s+для\s+(crypto|web3|saas|game|игров|продукт)|экспериментальн/i.test(userMessage);
+  // Границы слов и негативный lookbehind важны: голые подстроки `арт` и `дорог`
+  // давали ложные срабатывания, уводя обычные запросы в дорогой bespoke-путь
+  // (который 7B тянут хуже адаптации шаблона):
+  //   - `арт`   ловил "стАРТап", "кАРТа", "квАРТира", "пАРТнёр";
+  //   - `дорог` ловил "неДОРОГой" (дёшево!) и "ДОРОГа"/"дороги".
+  // Теперь: `арт` — только отдельным словом / "арт-дир..."; `дорог(ой|ая|...)`
+  // — только премиум-формы и НЕ после "не"/"не ".
+  return /шедевр|(?<![а-яёa-z])вау(?![а-яё])|wow|(?<!не\s?)дорог(ой|ая|ое|ие|ущ|о)(?![а-яё])|premium|премиум|(?<![а-яёa-z])арт(?![а-яё])|art[-\s]?direct|уникальн|не шаблон|как\s+в\s+архив|tonforge|glitch|cyber|кибер|neon|лендинг\s+для\s+(crypto|web3|saas|game|игров|продукт)|экспериментальн/i.test(
+    userMessage,
+  );
 }
 
 export function buildCustomArtifactUserMessage(params: {

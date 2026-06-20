@@ -16,7 +16,7 @@ export const TEMPLATE_CATALOG: TemplateMeta[] = [
     name: "Кофейня / Кафе",
     category: "food",
     description: "Уютный лендинг для кофейни, кафе, пекарни, бистро. Меню, часы работы, адрес.",
-    bestFor: ["кофейня", "кафе", "пекарня", "бариста", "бранч", "завтраки", "десерты"],
+    bestFor: ["кофейн", "кафе", "пекарня", "бариста", "бранч", "завтраки", "десерты"],
     sections: ["hero", "menu", "hours", "location", "contact"],
     style: "warm-minimalist",
     colorMood: "warm-pastel",

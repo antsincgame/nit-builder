@@ -109,8 +109,14 @@ export type PendingRequest = {
   browserSessionId: string;
   tunnelConnectionId: string;
   startedAt: number;
-  /** Обновляется при каждом text/start/done — для stale-cleanup. */
+  /** Обновляется при каждом text/start/done — для прогресса и троттлинга. */
   lastActivityAt: number;
+  /**
+   * Обновляется ТОЛЬКО при реальном контенте (непустой text или старт фазы),
+   * НЕ при пустых keepalive-чанках reasoning-модели. Свипер меряет простой по
+   * нему: иначе `<think>`-капель раз в &lt;5 мин держала бы висяк бесконечно.
+   */
+  lastContentAt: number;
   /** Прогресс для UI: накоплено чанков (≈токенов), старт фазы, троттлинг отправки. */
   progressTokens?: number;
   progressStartedAt?: number;
@@ -208,6 +214,18 @@ const MAX_CONCURRENT_PER_USER = (() => {
 
 const PENDING_TIMEOUT_MS = 5 * 60_000;
 const PENDING_SWEEP_INTERVAL_MS = 30_000;
+
+// Абсолютный потолок длительности запроса. Idle-свип (PENDING_TIMEOUT_MS по
+// lastContentAt) ловит молчащую модель, но НЕ ловит модель, которая бесконечно
+// капает токены (reasoning-петля, генерация-в-цикле): lastContentAt у неё всё
+// время свежий. Hard-cap по startedAt — бэкстоп против такого «вечного висяка».
+// Щедрый дефолт (медленные GPU + continuation-докрутки); env для тонкой крутки.
+const PENDING_HARD_TIMEOUT_MS = (() => {
+  const raw = process.env.NIT_PENDING_HARD_TIMEOUT_MS;
+  if (!raw) return 20 * 60_000;
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 60_000 ? n : 20 * 60_000;
+})();
 
 // Прогресс генерации шлём браузеру не чаще раза в N мс (на чанк-токен).
 // 400мс — достаточно «живо» для счётчика токенов/таймера и не спамит WS.
@@ -644,6 +662,7 @@ export function routeRequest(params: RouteRequestParams): boolean {
     tunnelConnectionId: tunnel.connectionId,
     startedAt: now,
     lastActivityAt: now,
+    lastContentAt: now,
     currentStep: params.phase === "plan" ? "plan" : "code",
     // userMessage — всегда исходное сообщение юзера (в plan-фазе params.prompt
     // это planner-промпт, поэтому берём originalPrompt). Нужен для coder-фазы,
@@ -703,9 +722,17 @@ function countPendingByUser(userId: string): number {
  * запрос (см. abortedEarly в wsHandlers). Тогда вызывающий запоминает отмену и
  * применяет её сразу после routeRequest, чтобы запрос не осиротел на туннеле.
  */
-export function abortRequest(requestId: string): boolean {
+export function abortRequest(requestId: string, callerSessionId?: string): boolean {
   const req = pendingRequests.get(requestId);
   if (!req) return false;
+
+  // Ownership: браузер отменяет ТОЛЬКО свои запросы. Без этой проверки любой
+  // залогиненный юзер, зная чужой requestId, ронял чужую генерацию (ABORTED).
+  // callerSessionId НЕ передают доверенные внутренние вызовы (unregisterBrowser,
+  // early-abort своего же запроса) — для них проверка пропускается.
+  if (callerSessionId !== undefined && req.browserSessionId !== callerSessionId) {
+    return false;
+  }
 
   // Tell the tunnel to abort
   const tunnel = findTunnelByConnectionId(req.tunnelConnectionId);
@@ -787,6 +814,7 @@ export function handleTunnelResponse(
 
   switch (event.type) {
     case "start":
+      req.lastContentAt = Date.now(); // старт фазы — реальный прогресс
       if (req.phase === "plan") {
         req.currentStep = "plan";
         sendToBrowser(browser.ws, { type: "generate_step", requestId, step: "plan" });
@@ -804,7 +832,13 @@ export function handleTunnelResponse(
       // троттлингом PROGRESS_THROTTLE_MS. Пустой text — keepalive
       // reasoning-модели (<think>), считаем его тиком фазы thinking.
       const nowTs = req.lastActivityAt; // = Date.now(), выставлен выше
-      if (event.text) req.progressTokens = (req.progressTokens ?? 0) + 1;
+      // Непустой text — реальный контент: двигаем lastContentAt (по нему свипер
+      // меряет простой). Пустой keepalive (<think>) НЕ двигает — иначе висяк
+      // маскируется бесконечно.
+      if (event.text) {
+        req.progressTokens = (req.progressTokens ?? 0) + 1;
+        req.lastContentAt = nowTs;
+      }
       if (nowTs - (req.lastProgressSentAt ?? 0) >= PROGRESS_THROTTLE_MS) {
         req.lastProgressSentAt = nowTs;
         const progressPhase: "plan" | "thinking" | "code" = !event.text
@@ -1418,14 +1452,18 @@ function ensureSweeper(): void {
   state.timer = setInterval(() => {
     const now = Date.now();
     for (const [reqId, req] of pendingRequests.entries()) {
-      if (now - req.lastActivityAt <= PENDING_TIMEOUT_MS) continue;
+      const idleExpired = now - req.lastContentAt > PENDING_TIMEOUT_MS;
+      const hardExpired = now - req.startedAt > PENDING_HARD_TIMEOUT_MS;
+      if (!idleExpired && !hardExpired) continue;
 
       const browser = browsers.get(req.browserSessionId);
       if (browser) {
         sendToBrowser(browser.ws, {
           type: "generate_error",
           requestId: reqId,
-          error: "Generation timed out — tunnel stopped responding",
+          error: hardExpired
+            ? "Generation exceeded max duration — stopped"
+            : "Generation timed out — tunnel stopped responding",
           code: "TUNNEL_DISCONNECTED",
         });
       }
