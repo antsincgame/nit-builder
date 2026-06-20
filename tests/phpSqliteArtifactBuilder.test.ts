@@ -3,11 +3,23 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { execFileSync } from "node:child_process";
 import {
   buildPhpSqliteArtifact,
   renderPhpSqliteArtifactPreview,
 } from "~/lib/services/phpSqliteArtifactBuilder";
 import type { Plan } from "~/lib/utils/planSchema";
+
+// `php -l` доступен не везде (в CI может не быть PHP) — тогда синтакс-проверку
+// генерируемого PHP пропускаем, но контент-ассерты выше всё равно держат строй.
+const PHP_AVAILABLE = (() => {
+  try {
+    execFileSync("php", ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+})();
 
 const PLAN: Plan = {
   business_type: "магазин аксессуаров",
@@ -140,6 +152,13 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(file("public/assets/style.css")).toContain(".review-grid");
     expect(file("public/assets/style.css")).toContain(".showcase-grid");
     expect(file("public/assets/style.css")).toContain(".faq-grid");
+
+    // Login throttling: anti brute-force + anti-DoS на дорогом Argon2id.
+    expect(file("app/auth.php")).toContain("function login_throttle_ok");
+    expect(file("app/auth.php")).toContain("LOGIN_MAX_ATTEMPTS");
+    expect(file("public/index.php")).toContain("login_throttle_ok($__ip)");
+    expect(file("public/index.php")).toContain("login_throttle_clear($__ip)");
+    expect(file("public/index.php")).toContain("login_throttle_fail($__ip)");
   });
 
   it("uses niche-specific menu seeds and warm food theme for coffee projects", () => {
@@ -350,5 +369,22 @@ describe("phpSqliteArtifactBuilder", () => {
     expect(sqliteSchema).toContain("CREATE TABLE IF NOT EXISTS order_items");
     expect(mysqlSchema).toContain("ENGINE=InnoDB");
     expect(htaccess).toContain("RewriteEngine On");
+  });
+
+  it.skipIf(!PHP_AVAILABLE)("generated PHP files pass `php -l` (no syntax errors)", async () => {
+    const artifact = buildPhpSqliteArtifact({
+      plan: PLAN,
+      userMessage: "магазин на php sqlite с товарами, корзиной, оплатой и админкой",
+    });
+    const root = await mkdtemp(join(tmpdir(), "nit-php-lint-"));
+    const phpFiles = artifact.files.filter((f) => f.path.endsWith(".php"));
+    expect(phpFiles.length).toBeGreaterThan(0);
+    for (const file of phpFiles) {
+      const target = join(root, file.path);
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, file.content);
+      // Бросит при синтаксической ошибке — ловит сломанный шаблон генератора.
+      execFileSync("php", ["-l", target], { stdio: "pipe" });
+    }
   });
 });

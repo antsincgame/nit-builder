@@ -497,6 +497,44 @@ function buildAuthPhp(): string {
   return `<?php
 declare(strict_types=1);
 
+// ─── Login throttling (anti brute-force + anti-DoS) ───
+// password_verify() считает Argon2id — дорого по CPU. Без лимита спам логина
+// и перебирает пароль, и жжёт CPU сервера. Лимитим per-IP файловым счётчиком в
+// защищённой storage/ (вне webroot). Best-effort: при сбое записи — fail-open.
+const LOGIN_MAX_ATTEMPTS = 8;
+const LOGIN_WINDOW_SECONDS = 900; // 15 минут
+
+function login_throttle_file(string $ip): string {
+    $dir = dirname(__DIR__) . '/storage/throttle';
+    if (!is_dir($dir)) { @mkdir($dir, 0775, true); }
+    return $dir . '/' . hash('sha256', $ip) . '.json';
+}
+
+/** true — попытка разрешена (не залочено или окно истекло). */
+function login_throttle_ok(string $ip): bool {
+    $raw = @file_get_contents(login_throttle_file($ip));
+    if ($raw === false) return true;
+    $d = json_decode($raw, true);
+    if (!is_array($d)) return true;
+    if ((int) ($d['ts'] ?? 0) < time() - LOGIN_WINDOW_SECONDS) return true;
+    return (int) ($d['n'] ?? 0) < LOGIN_MAX_ATTEMPTS;
+}
+
+function login_throttle_fail(string $ip): void {
+    $f = login_throttle_file($ip);
+    $d = json_decode((string) @file_get_contents($f), true);
+    $now = time();
+    if (!is_array($d) || (int) ($d['ts'] ?? 0) < $now - LOGIN_WINDOW_SECONDS) {
+        $d = ['ts' => $now, 'n' => 0];
+    }
+    $d['n'] = (int) ($d['n'] ?? 0) + 1;
+    @file_put_contents($f, json_encode($d), LOCK_EX);
+}
+
+function login_throttle_clear(string $ip): void {
+    @unlink(login_throttle_file($ip));
+}
+
 function current_admin(): ?array {
     if (empty($_SESSION['admin_id'])) {
         return null;
@@ -941,10 +979,18 @@ if ($path === '/payments/webhook' && $method === 'POST') {
 
 if ($path === '/admin/login' && $method === 'POST') {
     require_csrf();
-    if (login_admin((string) ($_POST['email'] ?? ''), (string) ($_POST['password'] ?? ''))) {
+    $__ip = (string) ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+    if (!login_throttle_ok($__ip)) {
+        // Лок: НЕ зовём password_verify (экономим Argon2id-CPU).
+        $loginError = true;
+        $loginLocked = true;
+    } elseif (login_admin((string) ($_POST['email'] ?? ''), (string) ($_POST['password'] ?? ''))) {
+        login_throttle_clear($__ip);
         redirect('/admin');
+    } else {
+        login_throttle_fail($__ip);
+        $loginError = true;
     }
-    $loginError = true;
 }
 
 if ($path === '/admin/logout') {
@@ -1090,7 +1136,8 @@ if ($path === '/admin/login') {
     ?>
     <section class="panel narrow">
       <h1>Вход в админку</h1>
-      <?php if (!empty($loginError)): ?><p class="error">Неверный email или пароль</p><?php endif; ?>
+      <?php if (!empty($loginLocked)): ?><p class="error">Слишком много попыток входа. Подождите 15 минут.</p>
+      <?php elseif (!empty($loginError)): ?><p class="error">Неверный email или пароль</p><?php endif; ?>
       <form method="post">
         <?= csrf_field() ?>
         <label>Email <input name="email" type="email" value="admin@example.com" required></label>
