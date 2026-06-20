@@ -3,6 +3,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/auth.php';
 require_once __DIR__ . '/lib/store.php';
 require_once __DIR__ . '/lib/csrf.php';
+require_once __DIR__ . '/lib/sanitize.php';
 nit_require_auth();
 
 /**
@@ -24,21 +25,8 @@ const NIT_MAX_ROWS = 200;          // guard от распухания JSON
 const NIT_TEXT_LIMIT = 500;        // как у зон type=text
 const NIT_RICHTEXT_LIMIT = 10000;  // как у зон type=richtext
 
-/**
- * Копия sanitize-логики richtext из edit.php (вынести в lib при третьем
- * использовании): whitelist тегов + срез on*-атрибутов + нейтрализация
- * javascript:/vbscript:/data: схем в href/src.
- */
-function nit_sanitize_richtext(string $raw): string {
-    $clean = strip_tags($raw, '<p><br><strong><em><b><i><u><a><ul><ol><li><h2><h3><h4><blockquote>');
-    $clean = preg_replace('/\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $clean) ?? $clean;
-    $clean = preg_replace(
-        '/\b(href|src)\s*=\s*("|\')\s*[\s\x00-\x20]*(?:j\s*a\s*v\s*a\s*s\s*c\s*r\s*i\s*p\s*t|v\s*b\s*s\s*c\s*r\s*i\s*p\s*t|d\s*a\s*t\s*a)\s*:[^"\']*\2/i',
-        '$1="#"',
-        $clean,
-    ) ?? $clean;
-    return $clean;
-}
+// nit_sanitize_richtext() теперь в lib/sanitize.php (DOMDocument-allowlist,
+// общий для edit.php и data.php) — прежняя regex-копия удалена.
 
 /** Сохранить загруженную картинку (логика edit.php), вернуть url или null+ошибку. */
 function nit_handle_image_upload(array $file, ?string &$err): ?string {
@@ -70,6 +58,8 @@ function nit_handle_image_upload(array $file, ?string &$err): ?string {
         return null;
     }
     @chmod($target, 0644);
+    // GD-перекодировка: срезает polyglot-код из валидной по MIME картинки.
+    nit_reencode_image($target, $mime);
     return 'assets/uploads/' . $name;
 }
 
