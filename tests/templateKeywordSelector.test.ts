@@ -71,3 +71,19 @@ describe("inferConfidentTemplateId — бьюти/велнес каркас (Б)
     expect(inferConfidentTemplateId("наращивание ногтей")).toBe("beauty-master");
   });
 });
+
+describe("inferConfidentTemplateId — word-start (без коллизий по середине слова)", () => {
+  it("«мастер» не ведёт уверенно на barbershop из «автомастерской»", () => {
+    // "мастер" — bestFor барбершопа; раньше substring ловил его в "автомастерской".
+    expect(inferConfidentTemplateId("нужен сайт для автомастерской")).not.toBe("barbershop");
+  });
+
+  it("«бров» не ведёт на service-studio из «добровольцев»", () => {
+    // "бров" — bestFor service-studio; substring ловил его в "доБРОВольцев".
+    expect(inferConfidentTemplateId("сайт для добровольцев фонда")).not.toBe("service-studio");
+  });
+
+  it("стем-префиксы по-прежнему матчатся (кофейн→coffee-shop)", () => {
+    expect(inferConfidentTemplateId("открываю кофейню")).toBe("coffee-shop");
+  });
+});

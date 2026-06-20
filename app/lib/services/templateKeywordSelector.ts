@@ -28,6 +28,17 @@ function tokenize(s: string): string[] {
     .filter((w) => w.length >= 3);
 }
 
+/**
+ * Совпадение ключа в НАЧАЛЕ слова (а не любой подстрокой). Стем-префиксы
+ * ловятся (кофейн→кофейню, ногт→ногтей), но мусор в середине слова — нет:
+ * «мастер» больше не матчит «автоМАСТЕРскую», «бров» — «доБРОВольно». Раньше
+ * это давало уверенный, но ложный выбор нишевого шаблона.
+ */
+function includesAtWordStart(haystackLower: string, kwLower: string): boolean {
+  const escaped = kwLower.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-zа-яё0-9])${escaped}`).test(haystackLower);
+}
+
 function scoreTemplate(t: TemplateMeta, promptTokens: Set<string>, promptLower: string): number {
   let score = 0;
 
@@ -35,8 +46,7 @@ function scoreTemplate(t: TemplateMeta, promptTokens: Set<string>, promptLower: 
   // Substring лучше чем token-match потому что "кофейня" должно матчиться
   // и в "ищу кофейню", и в "моя кофейня".
   for (const kw of t.bestFor) {
-    const kwLower = kw.toLowerCase();
-    if (promptLower.includes(kwLower)) score += 10;
+    if (includesAtWordStart(promptLower, kw.toLowerCase())) score += 10;
   }
 
   // Weak match: токены из description пересекаются с токенами промпта.
@@ -94,7 +104,7 @@ export function inferConfidentTemplateId(prompt: string): string | null {
   const promptLower = prompt.toLowerCase();
   for (const t of TEMPLATE_CATALOG) {
     for (const kw of t.bestFor) {
-      if (promptLower.includes(kw.toLowerCase())) return t.id;
+      if (includesAtWordStart(promptLower, kw.toLowerCase())) return t.id;
     }
   }
   return null;

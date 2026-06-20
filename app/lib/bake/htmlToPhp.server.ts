@@ -189,6 +189,21 @@ export function bakeHtmlToPhp(
   // по дефолту. root.toString() = исходный HTML с нашими правками.
   let transformedHtml = root.toString();
 
+  // Guard потери зоны: если парсер выкинул узел при сериализации битого HTML,
+  // его маркер НЕ попадёт в transformedHtml → PHP-выражение не подставится и
+  // зона молча сломается (пустота на странице). Честно переводим такую зону в
+  // missingZones и снимаем её выражение, вместо тихой порчи вывода.
+  for (let i = matchedZones.length - 1; i >= 0; i--) {
+    const zone = matchedZones[i]!;
+    const kind = zone.type === "text" ? "T" : zone.type === "richtext" ? "R" : "I";
+    const marker = makeMarker(zone.id, kind);
+    if (!transformedHtml.includes(marker)) {
+      matchedZones.splice(i, 1);
+      missingZones.push(zone);
+      delete phpExpressions[marker];
+    }
+  }
+
   // Финальная подстановка маркеров на реальные PHP-выражения.
   // replaceAll потому что маркер для image-зоны может встретиться один раз
   // (в атрибуте src), для text/richtext тоже один раз (в textNode).

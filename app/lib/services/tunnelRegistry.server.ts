@@ -1269,7 +1269,18 @@ export function setRequestTemplate(
 
 // ─── Utilities ────────────────────────────────────────────────────
 
+// Порог буфера сокета, выше которого роняем косметические прогресс-тики.
+const BROWSER_BACKPRESSURE_BYTES = 4 * 1024 * 1024;
+
 function sendToBrowser(ws: WebSocket, msg: ServerToBrowser): void {
+  // Backpressure: медленный браузер (плохая сеть, фоновая вкладка) не успевает
+  // читать → буфер сокета растёт и жрёт память сервера. generate_progress —
+  // чисто косметический тик счётчика токенов; под высоким буфером дропаем его
+  // (следующий тик или generate_done восстановят счётчик). Всё остальное —
+  // текст превью, done, ошибки, статус — шлём всегда.
+  if (msg.type === "generate_progress" && ws.bufferedAmount > BROWSER_BACKPRESSURE_BYTES) {
+    return;
+  }
   try {
     ws.send(JSON.stringify(msg));
   } catch {
