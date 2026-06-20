@@ -129,15 +129,20 @@ const MIGRATION_FLAG_KEY = "nit:history-migrated";
 /**
  * Migrate localStorage history → Appwrite once per user.
  * Called by HistoryPanel when user logs in for the first time.
- * Sets a flag to prevent re-migration.
+ * Sets a per-user flag to prevent re-migration.
+ *
+ * Флаг per-user (а не глобальный): на общем браузере второй аккаунт раньше НЕ
+ * мигрировал свою гостевую историю, потому что глобальный nit:history-migrated
+ * уже был выставлен первым аккаунтом.
  */
-export async function migrateLocalHistoryIfNeeded(): Promise<number> {
+export async function migrateLocalHistoryIfNeeded(userId: string): Promise<number> {
   if (typeof window === "undefined") return 0;
-  if (localStorage.getItem(MIGRATION_FLAG_KEY)) return 0;
+  const flagKey = `${MIGRATION_FLAG_KEY}:${userId}`;
+  if (localStorage.getItem(flagKey)) return 0;
 
   const local = loadHistory();
   if (local.length === 0) {
-    localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+    localStorage.setItem(flagKey, "1");
     return 0;
   }
 
@@ -153,6 +158,6 @@ export async function migrateLocalHistoryIfNeeded(): Promise<number> {
     if (id) migrated++;
   }
 
-  localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+  localStorage.setItem(flagKey, "1");
   return migrated;
 }

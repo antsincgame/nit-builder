@@ -49,7 +49,7 @@ import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { logger } from "~/lib/utils/logger";
 import {
-  readRecentFeedback,
+  readFeedbackForIngest,
   type FeedbackRecord,
 } from "~/lib/services/feedbackStore";
 import { addDocument, hasDocument } from "~/lib/services/ragStore";
@@ -234,8 +234,10 @@ export async function runFeedbackIngest(opts: {
   const startMs = Date.now();
   const limit = opts.limit ?? DEFAULT_BATCH_LIMIT;
 
-  const records = await readRecentFeedback(limit);
+  // Курсор первым, затем читаем ВПЕРЁД от него (а не хвост): иначе при >limit
+  // новых записей между прогонами середина терялась навсегда (№8).
   const cursor = await readCursor();
+  const records = await readFeedbackForIngest(cursor.lastTs, limit);
 
   const reasons = emptyReasons();
   let newAfterCursor = 0;

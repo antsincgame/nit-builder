@@ -60,6 +60,9 @@ export function HistorySidebar({
   inlineOnDesktop,
 }: Props) {
   const auth = useAuth();
+  // Узкий тип union'а только на authenticated несёт userId — выносим заранее,
+  // чтобы безопасно использовать и в эффекте, и в его deps.
+  const authUserId = auth.status === "authenticated" ? auth.userId : null;
   const [source, setSource] = useState<Source>("loading");
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
   const [loadingEntry, setLoadingEntry] = useState<string | null>(null);
@@ -74,7 +77,7 @@ export function HistorySidebar({
       setSource("remote");
       void (async () => {
         try {
-          const migrated = await migrateLocalHistoryIfNeeded();
+          const migrated = await migrateLocalHistoryIfNeeded(authUserId ?? "");
           if (migrated > 0) {
             toast.info(`Перенесено ${migrated} сайтов в облако`);
           }
@@ -104,7 +107,7 @@ export function HistorySidebar({
         })),
       );
     }
-  }, [auth.status, refreshKey]);
+  }, [auth.status, authUserId, refreshKey]);
 
   async function handleDelete(
     id: string,

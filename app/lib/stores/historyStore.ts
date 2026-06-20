@@ -27,6 +27,22 @@ function isClient(): boolean {
   return typeof window !== "undefined" && typeof localStorage !== "undefined";
 }
 
+/** Минимальная валидация формы записи (localStorage — недоверенный ввод). */
+function isValidEntry(x: unknown): x is HistoryEntry {
+  if (!x || typeof x !== "object") return false;
+  const e = x as Record<string, unknown>;
+  return (
+    typeof e.id === "string" &&
+    typeof e.prompt === "string" &&
+    typeof e.html === "string" &&
+    typeof e.templateId === "string" &&
+    typeof e.templateName === "string" &&
+    typeof e.createdAt === "number" &&
+    (e.thumbnail === undefined || typeof e.thumbnail === "string") &&
+    (e.chatMessages === undefined || typeof e.chatMessages === "string")
+  );
+}
+
 export function loadHistory(): HistoryEntry[] {
   if (!isClient()) return [];
   try {
@@ -34,7 +50,11 @@ export function loadHistory(): HistoryEntry[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed;
+    // Валидируем КАЖДУЮ запись и клампим до MAX_ENTRIES также на ЧТЕНИИ: раньше
+    // битый/устаревший/раздутый blob отдавался потребителям как HistoryEntry[]
+    // (downstream падал на entry.html / entry.chatMessages), а кап был только
+    // на записи.
+    return parsed.filter(isValidEntry).slice(0, MAX_ENTRIES);
   } catch {
     return [];
   }

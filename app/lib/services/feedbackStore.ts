@@ -23,6 +23,16 @@ const SCOPE = "feedbackStore";
 const DEFAULT_PATH = "/tmp/nit-feedback.jsonl";
 const MAX_MESSAGE_LEN = 500;
 
+// Ротация append-only лога: раньше файл рос без границ (на проде с persistent
+// volume забивал диск, а readRecentFeedback/countFeedback читали его целиком в
+// память). Каждые COMPACT_EVERY записей проверяем размер; если перерос
+// MAX_LOG_BYTES — оставляем последние COMPACT_KEEP_LINES строк. Компакция идёт
+// внутри writeQueue (сериализовано) → без гонок; recency сохраняется для ingest.
+const MAX_LOG_BYTES = 5 * 1024 * 1024;
+const COMPACT_KEEP_LINES = 5000;
+const COMPACT_EVERY = 200;
+let writesSinceCompactCheck = 0;
+
 export type FeedbackRecordMode = "create" | "polish";
 export type FeedbackRecordOutcome = "success" | "error";
 export type FeedbackInjectMethod = "skeleton" | "coder";
@@ -150,6 +160,29 @@ async function writeRecord(record: FeedbackRecord): Promise<void> {
   await ensureDir(logPath);
   const line = `${JSON.stringify(record)}\n`;
   await fs.appendFile(logPath, line, "utf8");
+  await compactIfNeeded(logPath);
+}
+
+/**
+ * Периодическая компакция лога до последних COMPACT_KEEP_LINES строк, если файл
+ * перерос MAX_LOG_BYTES. Best-effort: любая ошибка глотается (фидбэк не критичен).
+ * Вызывается из writeRecord, т.е. внутри сериализованного writeQueue.
+ */
+async function compactIfNeeded(logPath: string): Promise<void> {
+  if (++writesSinceCompactCheck < COMPACT_EVERY) return;
+  writesSinceCompactCheck = 0;
+  try {
+    const { size } = await fs.stat(logPath);
+    if (size <= MAX_LOG_BYTES) return;
+    const content = await fs.readFile(logPath, "utf8");
+    const lines = content.split("\n").filter(Boolean);
+    if (lines.length <= COMPACT_KEEP_LINES) return;
+    const kept = `${lines.slice(-COMPACT_KEEP_LINES).join("\n")}\n`;
+    await fs.writeFile(logPath, kept, "utf8");
+    logger.info(SCOPE, `Compacted feedback log: ${lines.length} → ${COMPACT_KEEP_LINES} lines`);
+  } catch {
+    // best-effort
+  }
 }
 
 /**
@@ -171,6 +204,41 @@ export async function readRecentFeedback(limit = 100): Promise<FeedbackRecord[]>
       }
     }
     return records;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
+  }
+}
+
+/**
+ * Записи СТРОГО ПОСЛЕ afterTs в порядке файла (старые → новые), не более limit.
+ *
+ * Для ingest: читать ХВОСТ (readRecentFeedback) нельзя — при >limit новых
+ * записей между прогонами середина терялась навсегда (курсор прыгал на максимум,
+ * а прочитан был только хвост). Здесь идём ВПЕРЁД от курсора, поэтому следующий
+ * прогон продолжит с того места, где остановились.
+ */
+export async function readFeedbackForIngest(
+  afterTs: string | null,
+  limit: number,
+): Promise<FeedbackRecord[]> {
+  const logPath = getLogPath();
+  try {
+    const content = await fs.readFile(logPath, "utf8");
+    const lines = content.trim().split("\n").filter(Boolean);
+    const out: FeedbackRecord[] = [];
+    for (const line of lines) {
+      let rec: FeedbackRecord;
+      try {
+        rec = JSON.parse(line) as FeedbackRecord;
+      } catch {
+        continue; // битая строка
+      }
+      if (afterTs && rec.ts <= afterTs) continue;
+      out.push(rec);
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
     throw err;

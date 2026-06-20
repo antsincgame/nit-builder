@@ -5,6 +5,7 @@ import * as path from "node:path";
 import {
   recordGeneration,
   readRecentFeedback,
+  readFeedbackForIngest,
   countFeedback,
   _resetFeedbackState,
   _flushPendingWrites,
@@ -174,5 +175,35 @@ describe("feedbackStore", () => {
     process.env.NIT_FEEDBACK_LOG_PATH = "/tmp/nonexistent-nit-feedback-xxxxx.jsonl";
     expect(await readRecentFeedback()).toEqual([]);
     expect(await countFeedback()).toBe(0);
+  });
+
+  it("readFeedbackForIngest идёт вперёд от курсора, не теряя середину (№8)", async () => {
+    // Пишем 6 записей напрямую — контролируем ts (append-order = хронология).
+    const recs = Array.from({ length: 6 }, (_, i) => ({
+      ts: `2026-01-01T00:00:0${i + 1}.000Z`,
+      sessionId: "s",
+      mode: "create" as const,
+      outcome: "success" as const,
+      provider: "lmstudio",
+      model: "qwen",
+      durationMs: 100,
+      userMessage: `msg ${i + 1}`,
+    }));
+    await fs.writeFile(tmpPath, recs.map((r) => JSON.stringify(r)).join("\n") + "\n", "utf8");
+
+    // limit=2 от начала → 2 СТАРЕЙШИЕ (а не хвост).
+    const page1 = await readFeedbackForIngest(null, 2);
+    expect(page1.map((r) => r.userMessage)).toEqual(["msg 1", "msg 2"]);
+
+    // Курсор после msg2 → следующие 2 (середина, которую tail-чтение теряло).
+    const page2 = await readFeedbackForIngest(page1[1]!.ts, 2);
+    expect(page2.map((r) => r.userMessage)).toEqual(["msg 3", "msg 4"]);
+
+    // Курсор после msg4 → последние 2.
+    const page3 = await readFeedbackForIngest(page2[1]!.ts, 2);
+    expect(page3.map((r) => r.userMessage)).toEqual(["msg 5", "msg 6"]);
+
+    // После последней — пусто.
+    expect(await readFeedbackForIngest(page3[1]!.ts, 2)).toEqual([]);
   });
 });
